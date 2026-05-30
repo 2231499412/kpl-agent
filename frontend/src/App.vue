@@ -56,16 +56,6 @@
           <el-button :icon="Aim" :loading="loading.sync" @click="runSync('/api/sync/latest/deep-incremental?matchLimit=10')">对局详情</el-button>
         </div>
 
-        <div class="arena-visual" aria-hidden="true">
-          <div class="lane lane-a"></div>
-          <div class="lane lane-b"></div>
-          <div class="lane lane-c"></div>
-          <span class="node n1"></span>
-          <span class="node n2"></span>
-          <span class="node n3"></span>
-          <span class="node n4"></span>
-        </div>
-
         <div class="job-feed">
           <div class="mini-title">同步队列</div>
           <div v-for="job in jobs" :key="job.id" class="job-row">
@@ -122,8 +112,23 @@
           </div>
 
           <el-table class="data-table" :data="tableRows" height="360" empty-text="暂无数据">
-            <el-table-column label="#" width="70" align="center" type="index" />
-            <el-table-column v-for="col in tableColumns" :key="col.prop" :prop="col.prop" :label="col.label" min-width="110" />
+            <el-table-column label="#" width="60" align="center" type="index" />
+            <el-table-column v-for="col in tableColumns" :key="col.prop" :prop="col.prop" :label="col.label"
+              :min-width="col.prop === 'teamName' || col.prop === 'playerName' || col.prop === 'heroName' ? 140 : 90"
+              :align="isRateCol(col.prop) ? 'center' : 'left'">
+              <template #default="{ row }" v-if="isRateCol(col.prop)">
+                <div class="rate-bar-wrap">
+                  <div class="rate-bar" :style="{ width: (parseFloat(row[col.prop]) * 100) + '%', background: rateColor(parseFloat(row[col.prop])) }"></div>
+                  <span class="rate-val">{{ row[col.prop] }}</span>
+                </div>
+              </template>
+              <template #default="{ row }" v-else-if="queryMode === 'honors' && col.prop === 'champion'">
+                <span class="honor-gold">{{ row.champion }}</span>
+              </template>
+              <template #default="{ row }" v-else-if="queryMode === 'honors' && col.prop === 'runnerUp'">
+                <span class="honor-silver">{{ row.runnerUp }}</span>
+              </template>
+            </el-table-column>
           </el-table>
         </div>
 
@@ -141,9 +146,13 @@
               <span>Agent 复盘</span>
               <el-button :icon="ChatLineRound" circle class="icon-ghost" @click="askAgent" />
             </div>
-            <div class="agent-log">
+            <div class="agent-log" ref="agentLogRef">
               <div v-for="item in agentMessages" :key="item.id" :class="['bubble', item.role]">
-                {{ item.text }}
+                <div v-if="item.role === 'assistant'" v-html="renderMd(item.text)" class="md-body"></div>
+                <template v-else>{{ item.text }}</template>
+              </div>
+              <div v-if="loading.agent" class="bubble assistant typing-bubble">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
               </div>
             </div>
             <div class="agent-input">
@@ -160,6 +169,7 @@
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import * as echarts from 'echarts'
+import MarkdownIt from 'markdown-it'
 import {
   Aim,
   ChatLineRound,
@@ -174,6 +184,9 @@ import {
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
+const md = new MarkdownIt({ html: false, breaks: true })
+function renderMd(text) { return md.render(text || '') }
+
 const leagues = ref([])
 const jobs = ref([])
 const selectedLeagueId = ref('')
@@ -185,6 +198,7 @@ const playerSort = ref('kda')
 const queryResult = ref(null)
 const teamChartRef = ref(null)
 const chart = ref(null)
+const agentLogRef = ref(null)
 const agentQuestion = ref('AG 最近比赛表现怎么样')
 const agentMessages = ref([
   { id: 1, role: 'assistant', text: '数据链路已待命。' }
@@ -381,12 +395,17 @@ async function runQuery() {
   }
 }
 
+function scrollAgentLog() {
+  nextTick(() => { if (agentLogRef.value) agentLogRef.value.scrollTop = agentLogRef.value.scrollHeight })
+}
+
 async function askAgent() {
   const text = agentQuestion.value.trim()
   if (!text) return
   loading.value.agent = true
   const id = Date.now()
   agentMessages.value.push({ id, role: 'user', text })
+  scrollAgentLog()
   try {
     const data = await request('/api/agent/chat', {
       method: 'POST',
@@ -398,6 +417,7 @@ async function askAgent() {
     agentMessages.value.push({ id: id + 1, role: 'assistant', text: error.message })
   } finally {
     loading.value.agent = false
+    scrollAgentLog()
   }
 }
 
@@ -416,6 +436,17 @@ function normalizeRow(row) {
   }
   if (clone.startTime) clone.startTime = formatTime(clone.startTime)
   return clone
+}
+
+function isRateCol(prop) {
+  return ['winRate', 'pickRate', 'banRate'].includes(prop)
+}
+
+function rateColor(val) {
+  if (isNaN(val)) return 'transparent'
+  const r = Math.round(255 * (1 - val))
+  const g = Math.round(200 * val)
+  return `rgba(${r},${g},60,.55)`
 }
 
 function renderTeamChart() {
