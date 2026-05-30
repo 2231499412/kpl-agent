@@ -111,10 +111,10 @@
             </div>
           </div>
 
-          <el-table class="data-table" :data="tableRows" height="360" empty-text="暂无数据" fit>
-            <el-table-column label="#" width="50" align="center" type="index" />
+          <el-table class="data-table" :data="tableRows" height="360" empty-text="暂无数据">
+            <el-table-column label="#" width="60" align="center" type="index" />
             <el-table-column v-for="col in tableColumns" :key="col.prop" :prop="col.prop" :label="col.label"
-              :width="colWidth(col.prop)"
+              min-width="120"
               :align="isNameCol(col.prop) ? 'left' : 'center'">
               <template #default="{ row }" v-if="isRateCol(col.prop)">
                 <div class="rate-cell">
@@ -446,13 +446,6 @@ function isNameCol(prop) {
 
 function isRateCol(prop) {
   return ['winRate', 'pickRate', 'banRate'].includes(prop)
-}
-
-function colWidth(prop) {
-  if (isNameCol(prop)) return 120
-  if (prop === 'startTime') return 140
-  if (prop === 'matchStageDesc') return 90
-  return 80
 }
 
 function renderTeamChart() {
