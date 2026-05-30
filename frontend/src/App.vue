@@ -117,9 +117,12 @@
               :min-width="isNameCol(col.prop) ? 140 : 90"
               :align="isNameCol(col.prop) ? 'left' : 'center'">
               <template #default="{ row }" v-if="isRateCol(col.prop)">
-                <span class="rate-pill" :style="{ background: rateBg(parseFloat(row[col.prop])) }">
-                  {{ row[col.prop] }}
-                </span>
+                <div class="rate-cell">
+                  <span class="rate-num">{{ row[col.prop] }}</span>
+                  <div class="rate-track">
+                    <div class="rate-bar" :style="{ width: (parseFloat(row[col.prop]) * 100) + '%' }"></div>
+                  </div>
+                </div>
               </template>
               <template #default="{ row }" v-else-if="queryMode === 'honors' && col.prop === 'champion'">
                 <span class="honor-gold">{{ row.champion }}</span>
@@ -443,14 +446,6 @@ function isNameCol(prop) {
 
 function isRateCol(prop) {
   return ['winRate', 'pickRate', 'banRate'].includes(prop)
-}
-
-function rateBg(val) {
-  if (isNaN(val)) return 'transparent'
-  const pct = Math.round(val * 100)
-  if (pct >= 60) return 'rgba(24,224,194,.18)'
-  if (pct >= 45) return 'rgba(214,174,58,.15)'
-  return 'rgba(188,60,47,.15)'
 }
 
 function renderTeamChart() {
