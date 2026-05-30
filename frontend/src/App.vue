@@ -114,13 +114,12 @@
           <el-table class="data-table" :data="tableRows" height="360" empty-text="暂无数据">
             <el-table-column label="#" width="60" align="center" type="index" />
             <el-table-column v-for="col in tableColumns" :key="col.prop" :prop="col.prop" :label="col.label"
-              :min-width="col.prop === 'teamName' || col.prop === 'playerName' || col.prop === 'heroName' ? 140 : 90"
-              :align="isRateCol(col.prop) ? 'center' : 'left'">
+              :min-width="isNameCol(col.prop) ? 140 : 90"
+              :align="isNameCol(col.prop) ? 'left' : 'center'">
               <template #default="{ row }" v-if="isRateCol(col.prop)">
-                <div class="rate-bar-wrap">
-                  <div class="rate-bar" :style="{ width: (parseFloat(row[col.prop]) * 100) + '%', background: rateColor(parseFloat(row[col.prop])) }"></div>
-                  <span class="rate-val">{{ row[col.prop] }}</span>
-                </div>
+                <span class="rate-pill" :style="{ background: rateBg(parseFloat(row[col.prop])) }">
+                  {{ row[col.prop] }}
+                </span>
               </template>
               <template #default="{ row }" v-else-if="queryMode === 'honors' && col.prop === 'champion'">
                 <span class="honor-gold">{{ row.champion }}</span>
@@ -438,15 +437,20 @@ function normalizeRow(row) {
   return clone
 }
 
+function isNameCol(prop) {
+  return ['teamName', 'playerName', 'heroName', 'camp1TeamName', 'camp2TeamName'].includes(prop)
+}
+
 function isRateCol(prop) {
   return ['winRate', 'pickRate', 'banRate'].includes(prop)
 }
 
-function rateColor(val) {
+function rateBg(val) {
   if (isNaN(val)) return 'transparent'
-  const r = Math.round(255 * (1 - val))
-  const g = Math.round(200 * val)
-  return `rgba(${r},${g},60,.55)`
+  const pct = Math.round(val * 100)
+  if (pct >= 60) return 'rgba(24,224,194,.18)'
+  if (pct >= 45) return 'rgba(214,174,58,.15)'
+  return 'rgba(188,60,47,.15)'
 }
 
 function renderTeamChart() {
