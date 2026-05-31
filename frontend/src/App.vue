@@ -53,7 +53,7 @@
           <el-button :icon="Download" :loading="loading.sync" class="sync-all-btn" @click="runSync('/api/sync/all')">同步全部历史</el-button>
           <el-button :icon="Lightning" :loading="loading.sync" @click="runSync('/api/sync/latest')">最新赛季</el-button>
           <el-button :icon="RefreshRight" :loading="loading.sync" @click="runSync('/api/sync/latest/incremental')">增量刷新</el-button>
-          <el-button :icon="Aim" :loading="loading.sync" @click="runSync('/api/sync/latest/deep-incremental?matchLimit=10')">对局详情</el-button>
+          <el-button :icon="Aim" :loading="loading.sync" @click="runSync(`/api/sync/latest/deep-incremental?matchLimit=10${selectedLeagueId ? '&leagueId=' + selectedLeagueId : ''}`)">对局详情</el-button>
         </div>
 
         <div class="job-feed">
@@ -107,11 +107,13 @@
             </div>
             <div class="metric-tile">
               <span>{{ queryMode === 'honors' ? '范围' : '赛事' }}</span>
-              <strong>{{ queryMode === 'honors' ? '全历史' : (selectedLeagueId || 'AUTO') }}</strong>
+              <strong>{{ queryMode === 'honors' ? '全历史' : (currentLeague?.leagueName || selectedLeagueId || 'AUTO') }}</strong>
             </div>
           </div>
 
-          <el-table class="data-table" :data="tableRows" height="360" empty-text="暂无数据">
+          <el-table class="data-table" :data="tableRows" height="360" empty-text="暂无数据"
+            row-class-name="clickable-row"
+            @row-click="onRowClick($event)">
             <el-table-column label="#" width="60" align="center" type="index" />
             <el-table-column v-for="col in tableColumns" :key="col.prop" :prop="col.prop" :label="col.label"
               min-width="120"
@@ -120,7 +122,7 @@
                 <div class="rate-cell">
                   <span class="rate-num">{{ row[col.prop] }}</span>
                   <div class="rate-track">
-                    <div class="rate-bar" :style="{ width: (parseFloat(row[col.prop]) * 100) + '%' }"></div>
+                    <div class="rate-bar" :style="{ width: parseFloat(row[col.prop]) + '%' }"></div>
                   </div>
                 </div>
               </template>
@@ -130,9 +132,282 @@
               <template #default="{ row }" v-else-if="queryMode === 'honors' && col.prop === 'runnerUp'">
                 <span class="honor-silver">{{ row.runnerUp }}</span>
               </template>
+              <template #default="{ row }" v-else-if="queryMode === 'equip' && col.prop === 'equipName'">
+                <div class="equip-cell">
+                  <img v-if="row.equipIcon" :src="row.equipIcon" class="equip-icon" />
+                  <span>{{ row.equipName }}</span>
+                </div>
+              </template>
+              <template #default="{ row }" v-else-if="queryMode === 'match' && col.prop === 'matchStageDesc'">
+                <span :class="['stage-tag', stageClass(row.matchStage)]">{{ row.matchStageDesc }}</span>
+              </template>
+              <template #default="{ row }" v-else-if="col.prop === 'teamName'">
+                <div class="name-cell">
+                  <img v-if="row.teamIcon" :src="row.teamIcon" class="cell-icon team-icon" />
+                  <span>{{ row.teamName }}</span>
+                </div>
+              </template>
+              <template #default="{ row }" v-else-if="col.prop === 'playerName'">
+                <div class="name-cell">
+                  <img v-if="row.playerIcon" :src="row.playerIcon" class="cell-icon player-icon" />
+                  <span>{{ row.playerName }}</span>
+                </div>
+              </template>
+              <template #default="{ row }" v-else-if="col.prop === 'heroName'">
+                <div class="name-cell">
+                  <img v-if="row.heroIcon" :src="row.heroIcon" class="cell-icon hero-icon" />
+                  <span>{{ row.heroName }}</span>
+                </div>
+              </template>
             </el-table-column>
           </el-table>
+
         </div>
+
+        <!-- 统一详情弹窗 -->
+        <el-dialog v-model="detailVisible" :title="detailTitle" width="720" class="detail-dialog" destroy-on-close>
+          <div v-if="detailLoading" class="detail-loading">加载中...</div>
+
+          <!-- 比赛详情 -->
+          <template v-else-if="detailType === 'match' && detailData">
+            <div class="match-meta">{{ detailRow?.matchStageDesc }} · {{ formatTime(detailRow?.startTime) }}</div>
+            <div v-if="detailData.battles.length" class="battle-list">
+              <div v-for="(battle, bi) in detailData.battles" :key="bi" class="battle-card">
+                <div class="battle-title">
+                  第{{ bi + 1 }}局
+                  <span :class="getPlayerMatchCamp(battle.players?.find(p => p.player?.camp === battle.battle?.winCamp)?.player, detailRow?.camp1TeamName) === 1 ? 'win-blue' : 'win-red'">
+                    {{ getWinnerTeamName(battle, detailRow?.camp1TeamName, detailRow?.camp2TeamName) }} 获胜
+                  </span>
+                </div>
+                <div class="player-grid">
+                  <div v-for="pd in sortedPlayers(battle.players, detailRow?.camp1TeamName)" :key="pd.player?.playerName" :class="['player-card', getPlayerMatchCamp(pd.player, detailRow?.camp1TeamName) === 1 ? 'camp-blue' : 'camp-red']">
+                    <div class="player-header">
+                      <img :src="'https://res.edata.qq.com/sgame/static/images/hero/' + pd.player?.heroId + '.jpg'" class="hero-img" />
+                      <div>
+                        <b>{{ pd.player?.playerName }}</b>
+                        <small>{{ pd.player?.heroName }} · {{ pd.player?.positionDesc || '' }}</small>
+                      </div>
+                    </div>
+                    <div class="player-stats">
+                      <span>{{ pd.player?.killNum }}/{{ pd.player?.deathNum }}/{{ pd.player?.assistNum }}</span>
+                      <span>KDA {{ pd.player?.kda }}</span>
+                      <span v-if="pd.player?.isMvp" class="mvp-tag">MVP</span>
+                      <span v-if="pd.player?.isLoseMvp" class="mvp-tag lose">败方MVP</span>
+                    </div>
+                    <div class="equip-list">
+                      <span v-for="eq in pd.equips" :key="eq.equipId" class="equip-chip" :title="eq.equipName">
+                        <img v-if="eq.equipIcon" :src="eq.equipIcon" class="equip-mini-icon" />
+                        {{ eq.equipName }}
+                      </span>
+                    </div>
+                    <div class="player-damage">
+                      <span>伤害 {{ formatDamage(pd.player?.hurtToHeroTotal) }}</span>
+                      <span>承伤 {{ formatDamage(pd.player?.beHurtTotal) }}</span>
+                      <span v-if="pd.player?.summonerAbilityName">技能 {{ pd.player?.summonerAbilityName }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="detail-empty">暂无对局数据</div>
+          </template>
+
+          <!-- 装备详情 -->
+          <template v-else-if="detailType === 'equip' && detailData">
+            <div class="equip-desc" v-if="detailData.equipDescGain || detailData.equipDescFunction">
+              <p v-if="detailData.equipDescGain"><b>属性：</b>{{ stripHtml(detailData.equipDescGain) }}</p>
+              <p v-if="detailData.equipDescFunction"><b>被动：</b>{{ stripHtml(detailData.equipDescFunction) }}</p>
+            </div>
+            <div class="equip-stats-row" v-if="detailData.summary">
+              <div class="equip-stat-card"><span class="stat-val">{{ detailData.summary.totalPick }}</span><span class="stat-label">总出场</span></div>
+              <div class="equip-stat-card"><span class="stat-val">{{ detailData.summary.heroCount }}</span><span class="stat-label">使用英雄数</span></div>
+              <div class="equip-stat-card"><span class="stat-val">{{ detailData.summary.playerCount }}</span><span class="stat-label">使用选手数</span></div>
+            </div>
+            <div class="equip-section" v-if="detailData.positions?.length">
+              <h4>分路偏好</h4>
+              <div class="position-bars">
+                <div v-for="p in detailData.positions" :key="p.positionDesc" class="position-bar-row">
+                  <span class="pos-label">{{ p.positionDesc || '未知' }}</span>
+                  <div class="pos-track"><div class="pos-fill" :style="{ width: positionPercent(p.cnt, detailData.positions) + '%' }"></div></div>
+                  <span class="pos-cnt">{{ p.cnt }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="equip-section" v-if="detailData.heroes?.length">
+              <h4>热门英雄</h4>
+              <div class="hero-equip-list">
+                <div v-for="h in detailData.heroes" :key="h.heroId" class="hero-equip-item">
+                  <img :src="'https://res.edata.qq.com/sgame/static/images/hero/' + h.heroId + '.jpg'" class="hero-equip-img" />
+                  <span class="hero-equip-name">{{ h.heroName }}</span>
+                  <span class="hero-equip-cnt">{{ h.cnt }}次</span>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- 战队详情 -->
+          <template v-else-if="detailType === 'team' && detailData">
+            <div class="detail-profile" v-if="detailData.team">
+              <div v-for="t in (detailData.team.data || detailData.team)" :key="t.teamName" class="profile-card">
+                <div class="profile-header">
+                  <img v-if="t.teamIcon" :src="t.teamIcon" class="profile-avatar" />
+                  <div>
+                    <b>{{ t.teamName }}</b>
+                    <small>KPL职业战队</small>
+                  </div>
+                </div>
+                <p class="intro-text">{{ t.teamName }}本赛季共出战{{ t.battleCount }}局，胜率{{ (t.winRate * 100).toFixed(1) }}%，场均击杀{{ t.avgKill?.toFixed(1) }}，KDA {{ t.avgKda?.toFixed(2) }}。一血率{{ (t.avgFirstBlood * 100).toFixed(1) }}%，场均推塔{{ t.avgPushTower?.toFixed(1) }}，控龙率{{ (t.avgDragonControlRate * 100).toFixed(1) }}%。</p>
+                <div class="stat-grid">
+                  <div class="stat-item"><span class="sv">{{ t.battleCount }}</span><span class="sl">局数</span></div>
+                  <div class="stat-item"><span class="sv">{{ (t.winRate * 100).toFixed(1) }}%</span><span class="sl">胜率</span></div>
+                  <div class="stat-item"><span class="sv">{{ t.avgKill?.toFixed(1) }}</span><span class="sl">场均击杀</span></div>
+                  <div class="stat-item"><span class="sv">{{ t.avgKda?.toFixed(2) }}</span><span class="sl">KDA</span></div>
+                  <div class="stat-item"><span class="sv">{{ formatDamage(t.avgGold) }}</span><span class="sl">场均经济</span></div>
+                  <div class="stat-item"><span class="sv">{{ (t.avgFirstBlood * 100).toFixed(1) }}%</span><span class="sl">一血率</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="equip-section" v-if="detailData.matches?.data?.length">
+              <h4>最近比赛</h4>
+              <div v-for="m in detailData.matches.data.slice(0, 5)" :key="m.matchId" class="recent-match-row">
+                <span :class="['stage-tag', stageClass(m.matchStage)]">{{ m.matchStageDesc }}</span>
+                <span class="rm-team">{{ m.camp1TeamName }}</span>
+                <span class="rm-score">{{ m.camp1Score }} : {{ m.camp2Score }}</span>
+                <span class="rm-team">{{ m.camp2TeamName }}</span>
+              </div>
+            </div>
+          </template>
+
+          <!-- 选手详情 -->
+          <template v-else-if="detailType === 'player' && detailData">
+            <div class="detail-profile" v-if="detailData.player">
+              <div v-for="p in (detailData.player.data || detailData.player)" :key="p.playerName" class="profile-card">
+                <div class="profile-header">
+                  <img v-if="p.playerIcon" :src="p.playerIcon" class="profile-avatar" />
+                  <div>
+                    <b>{{ p.playerName }}</b>
+                    <small>{{ p.teamName }} · {{ p.positionDesc }}</small>
+                  </div>
+                </div>
+                <p class="intro-text">{{ p.playerName }}效力于{{ p.teamName }}，司职{{ p.positionDesc }}。本赛季出场{{ p.battleCount }}局，胜率{{ (p.winRate * 100).toFixed(1) }}%，KDA {{ p.avgKda?.toFixed(2) }}，场均{{ p.avgKill?.toFixed(1) }}杀{{ p.avgDeath?.toFixed(1) }}死{{ p.avgAssist?.toFixed(1) }}助，参团率{{ p.avgParticipationRate?.toFixed(1) }}%。</p>
+                <div class="stat-grid">
+                  <div class="stat-item"><span class="sv">{{ p.battleCount }}</span><span class="sl">局数</span></div>
+                  <div class="stat-item"><span class="sv">{{ (p.winRate * 100).toFixed(1) }}%</span><span class="sl">胜率</span></div>
+                  <div class="stat-item"><span class="sv">{{ p.avgKda?.toFixed(2) }}</span><span class="sl">KDA</span></div>
+                  <div class="stat-item"><span class="sv">{{ p.avgKill?.toFixed(1) }}</span><span class="sl">场均击杀</span></div>
+                  <div class="stat-item"><span class="sv">{{ p.avgDeath?.toFixed(1) }}</span><span class="sl">场均死亡</span></div>
+                  <div class="stat-item"><span class="sv">{{ p.avgAssist?.toFixed(1) }}</span><span class="sl">场均助攻</span></div>
+                  <div class="stat-item"><span class="sv">{{ formatDamage(p.avgHurtToHero) }}</span><span class="sl">场均伤害</span></div>
+                  <div class="stat-item"><span class="sv">{{ p.avgParticipationRate?.toFixed(1) }}%</span><span class="sl">参团率</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="equip-section" v-if="detailData.heroes?.data?.length">
+              <h4>高出场英雄</h4>
+              <div class="hero-table">
+                <div class="hero-table-row hero-table-header">
+                  <span>英雄</span><span>场次</span><span>胜率</span><span>KDA</span>
+                </div>
+                <div v-for="h in detailData.heroes.data" :key="h.heroId" class="hero-table-row">
+                  <span class="ht-name">
+                    <img :src="'https://res.edata.qq.com/sgame/static/images/hero/' + h.heroId + '.jpg'" class="ht-img" />
+                    {{ h.heroName }}
+                  </span>
+                  <span>{{ h.games }}</span>
+                  <span :class="h.winRate >= 60 ? 'wr-high' : h.winRate < 40 ? 'wr-low' : ''">{{ h.winRate }}%</span>
+                  <span>{{ h.avgKda }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="equip-section" v-if="detailData.equips?.data?.length">
+              <h4>常用装备</h4>
+              <div class="hero-equip-list">
+                <div v-for="e in detailData.equips.data" :key="e.equipId" class="hero-equip-item">
+                  <img v-if="e.equipIcon" :src="e.equipIcon" class="hero-equip-img" />
+                  <span class="hero-equip-name">{{ e.equipName }}</span>
+                  <span class="hero-equip-cnt">{{ e.pickCount }}次</span>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- 英雄详情 -->
+          <template v-else-if="detailType === 'hero' && detailData">
+            <div class="detail-profile" v-if="detailData.hero">
+              <div v-for="h in (detailData.hero.data || detailData.hero)" :key="h.heroName" class="profile-card">
+                <div class="profile-header">
+                  <img v-if="h.heroIcon" :src="h.heroIcon" class="profile-avatar" />
+                  <div>
+                    <b>{{ h.heroName }}</b>
+                  </div>
+                </div>
+                <div class="stat-grid">
+                  <div class="stat-item"><span class="sv">{{ h.battleCount }}</span><span class="sl">出场</span></div>
+                  <div class="stat-item"><span class="sv">{{ (h.pickRate * 100).toFixed(1) }}%</span><span class="sl">Pick率</span></div>
+                  <div class="stat-item"><span class="sv">{{ (h.banRate * 100).toFixed(1) }}%</span><span class="sl">Ban率</span></div>
+                  <div class="stat-item"><span class="sv">{{ (h.winRate * 100).toFixed(1) }}%</span><span class="sl">胜率</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="equip-section" v-if="detailData.players?.data?.length">
+              <h4>高胜率选手</h4>
+              <div class="hero-table">
+                <div class="hero-table-row hero-table-header" style="grid-template-columns:1fr 50px 50px 50px">
+                  <span>选手</span><span>场次</span><span>胜率</span><span>KDA</span>
+                </div>
+                <div v-for="p in detailData.players.data" :key="p.playerName" class="hero-table-row" style="grid-template-columns:1fr 50px 50px 50px">
+                  <span class="ht-name">
+                    <img v-if="p.playerIcon" :src="p.playerIcon" class="player-icon" />
+                    {{ p.playerName?.split('.').pop() || p.playerName }}
+                    <img v-if="p.teamIcon" :src="p.teamIcon" class="team-icon" style="margin-left:6px" />
+                    <small style="color:var(--muted)">{{ p.teamName }}</small>
+                  </span>
+                  <span>{{ p.games }}</span>
+                  <span :class="p.winRate >= 60 ? 'wr-high' : p.winRate < 40 ? 'wr-low' : ''">{{ p.winRate }}%</span>
+                  <span>{{ p.avgKda }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="equip-section" v-if="detailData.equips?.data?.length">
+              <h4>常用装备</h4>
+              <div class="hero-equip-list">
+                <div v-for="e in detailData.equips.data" :key="e.equipId" class="hero-equip-item">
+                  <img v-if="e.equipIcon" :src="e.equipIcon" class="hero-equip-img" />
+                  <span class="hero-equip-name">{{ e.equipName }}</span>
+                  <span class="hero-equip-cnt">{{ e.pickCount }}次</span>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- 荣誉详情 -->
+          <template v-else-if="detailType === 'honor' && detailData">
+            <div class="honor-detail">
+              <div class="honor-big">
+                <span class="honor-gold">{{ detailData.honor.champion }}</span>
+                <span class="sl">冠军</span>
+              </div>
+              <div class="honor-big">
+                <span class="honor-silver">{{ detailData.honor.runnerUp }}</span>
+                <span class="sl">亚军</span>
+              </div>
+            </div>
+            <div class="equip-section" v-if="detailData.honor.championLeagues?.length">
+              <h4>冠军赛事</h4>
+              <div class="tag-list">
+                <span v-for="l in detailData.honor.championLeagues" :key="l" class="honor-tag gold">{{ l }}</span>
+              </div>
+            </div>
+            <div class="equip-section" v-if="detailData.honor.runnerUpLeagues?.length">
+              <h4>亚军赛事</h4>
+              <div class="tag-list">
+                <span v-for="l in detailData.honor.runnerUpLeagues" :key="l" class="honor-tag silver">{{ l }}</span>
+              </div>
+            </div>
+          </template>
+
+          <div v-else class="detail-empty">暂无数据</div>
+        </el-dialog>
 
         <div class="bottom-grid">
           <div class="panel chart-panel">
@@ -205,6 +480,12 @@ const agentQuestion = ref('AG 最近比赛表现怎么样')
 const agentMessages = ref([
   { id: 1, role: 'assistant', text: '数据链路已待命。' }
 ])
+const detailVisible = ref(false)
+const detailType = ref('')
+const detailTitle = ref('')
+const detailLoading = ref(false)
+const detailData = ref(null)
+const detailRow = ref(null)
 
 const loading = ref({
   sync: false,
@@ -215,11 +496,12 @@ const loading = ref({
 watch(queryMode, () => {
   queryResult.value = null
   queryKeyword.value = ''
+  detailVisible.value = false
   if (queryMode.value === 'ranking') {
     loadTeamRanking()
   } else if (queryMode.value === 'honors') {
     loadHonors()
-  } else if (queryMode.value === 'playerTop' || queryMode.value === 'heroTop') {
+  } else if (queryMode.value === 'playerTop' || queryMode.value === 'heroTop' || queryMode.value === 'match' || queryMode.value === 'equip') {
     runQuery()
   }
 })
@@ -229,7 +511,8 @@ const queryModes = [
   { label: '选手榜', value: 'playerTop' },
   { label: '英雄榜', value: 'heroTop' },
   { label: '荣誉榜', value: 'honors' },
-  { label: '比赛', value: 'match' }
+  { label: '比赛', value: 'match' },
+  { label: '装备', value: 'equip' }
 ]
 
 const currentLeague = computed(() => leagues.value.find((item) => item.leagueId === selectedLeagueId.value))
@@ -240,7 +523,8 @@ const placeholder = computed(() => {
     playerTop: '搜索选手，例如 一诺（留空显示榜单）',
     heroTop: '搜索英雄，例如 公孙离（留空显示榜单）',
     match: '输入战队名，例如 狼队',
-    honors: '跨赛事荣誉总榜（无需输入）'
+    honors: '跨赛事荣誉总榜（无需输入）',
+    equip: '输入英雄名，例如 公孙离'
   }
   return map[queryMode.value] || '输入关键词'
 })
@@ -280,11 +564,11 @@ const tableColumns = computed(() => {
       ['winRate', '胜率']
     ],
     match: [
+      ['matchStageDesc', '赛段'],
       ['camp1TeamName', '蓝方'],
       ['camp1Score', '比分'],
       ['camp2TeamName', '红方'],
       ['camp2Score', '比分'],
-      ['matchStageDesc', '赛段'],
       ['startTime', '时间']
     ],
     honors: [
@@ -292,6 +576,13 @@ const tableColumns = computed(() => {
       ['champion', '冠军'],
       ['runnerUp', '亚军'],
       ['total', '总计']
+    ],
+    equip: [
+      ['equipName', '装备'],
+      ['pickCount', '出场次数'],
+      ['pickRate', '出场率'],
+      ['heroCount', '使用英雄数'],
+      ['playerCount', '使用选手数']
     ]
   }
   return (columns[queryMode.value] || columns.ranking).map(([prop, label]) => ({ prop, label }))
@@ -380,13 +671,18 @@ async function runQuery() {
         : `/api/query/hero/top?sort=${heroSort.value}${leagueJoin()}`
     } else if (queryMode.value === 'match') {
       if (!hasKeyword) {
-        ElMessage.warning('请输入战队名')
-        return
+        url = `/api/query/match/schedule${leagueParam()}`
+      } else {
+        url = `/api/query/match/recent?team=${keyword}${leagueJoin()}`
       }
-      url = `/api/query/match/recent?team=${keyword}${leagueJoin()}`
     } else if (queryMode.value === 'honors') {
       await loadHonors()
       return
+    } else if (queryMode.value === 'equip') {
+      const lp = leagueParam()
+      url = hasKeyword
+        ? `/api/query/equip/hero?heroName=${keyword}${leagueJoin()}&limit=10`
+        : `/api/query/equip/top${lp ? lp + '&' : '?'}limit=10`
     }
     queryResult.value = await request(url)
     if (queryMode.value === 'ranking' && !hasKeyword) renderTeamChart()
@@ -423,6 +719,70 @@ async function askAgent() {
   }
 }
 
+async function onRowClick(row) {
+  const mode = queryMode.value
+  detailRow.value = row
+  detailData.value = null
+  detailLoading.value = true
+  detailVisible.value = true
+
+  try {
+    if (mode === 'match') {
+      detailType.value = 'match'
+      detailTitle.value = `${row.camp1TeamName} vs ${row.camp2TeamName}`
+      const data = await request(`/api/query/match/battle?matchId=${row.matchId}`)
+      detailData.value = { battles: data.battles || [], match: row }
+    } else if (mode === 'equip') {
+      detailType.value = 'equip'
+      detailTitle.value = row.equipName
+      detailData.value = await request(`/api/query/equip/detail?equipId=${row.equipId}${leagueJoin()}&heroLimit=8`)
+    } else if (mode === 'ranking') {
+      detailType.value = 'team'
+      detailTitle.value = row.teamName
+      const [teamData, recentMatches] = await Promise.all([
+        request(`/api/query/team?name=${row.teamName}${leagueJoin()}`),
+        request(`/api/query/match/recent?team=${row.teamName}${leagueJoin()}`).catch(() => null)
+      ])
+      detailData.value = { team: teamData, matches: recentMatches }
+    } else if (mode === 'playerTop') {
+      detailType.value = 'player'
+      detailTitle.value = row.playerName
+      const [playerData, equipData, heroData] = await Promise.all([
+        request(`/api/query/player?name=${row.playerName}${leagueJoin()}`),
+        request(`/api/query/equip/player?name=${row.playerName}${leagueJoin()}&limit=6`).catch(() => null),
+        request(`/api/query/player/heroes?name=${row.playerName}${leagueJoin()}&limit=8`).catch(() => null)
+      ])
+      detailData.value = { player: playerData, equips: equipData, heroes: heroData }
+    } else if (mode === 'heroTop') {
+      detailType.value = 'hero'
+      detailTitle.value = row.heroName
+      const [heroData, equipData, playerData] = await Promise.all([
+        request(`/api/query/hero?name=${row.heroName}${leagueJoin()}`),
+        request(`/api/query/equip/hero?heroName=${row.heroName}${leagueJoin()}&limit=6`).catch(() => null),
+        request(`/api/query/hero/players?name=${row.heroName}${leagueJoin()}&limit=8`).catch(() => null)
+      ])
+      detailData.value = { hero: heroData, equips: equipData, players: playerData }
+    } else if (mode === 'honors') {
+      detailType.value = 'honor'
+      detailTitle.value = row.teamName
+      detailData.value = { honor: row }
+    }
+  } catch (e) {
+    ElMessage.error('加载详情失败: ' + e.message)
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+function closeDetail() {
+  detailVisible.value = false
+}
+
+function positionPercent(cnt, positions) {
+  const max = Math.max(...positions.map(p => p.cnt))
+  return max > 0 ? (cnt / max * 100).toFixed(1) : 0
+}
+
 function leagueParam() {
   return selectedLeagueId.value ? `?leagueId=${selectedLeagueId.value}` : ''
 }
@@ -433,11 +793,20 @@ function leagueJoin() {
 
 function normalizeRow(row) {
   const clone = { ...row }
-  for (const key of ['winRate', 'pickRate', 'banRate', 'avgKda', 'avgKill']) {
+  for (const key of ['winRate', 'pickRate', 'banRate']) {
+    if (typeof clone[key] === 'number') clone[key] = (clone[key] * 100).toFixed(1) + '%'
+  }
+  for (const key of ['avgKda', 'avgKill']) {
     if (typeof clone[key] === 'number') clone[key] = Number(clone[key]).toFixed(2)
   }
   if (clone.startTime) clone.startTime = formatTime(clone.startTime)
   return clone
+}
+
+function stageClass(stage) {
+  if (stage === 'js' || stage === 'zjs') return 'stage-final'
+  if (stage === 'jhs') return 'stage-playoff'
+  return 'stage-regular'
 }
 
 function isNameCol(prop) {
@@ -492,9 +861,48 @@ function formatDate(value) {
   return String(value).slice(0, 10)
 }
 
+function formatDamage(value) {
+  if (!value) return '0'
+  if (value >= 10000) return (value / 10000).toFixed(1) + '万'
+  return String(value)
+}
+
+function stripHtml(html) {
+  if (!html) return ''
+  return html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim()
+}
+
 function formatTime(value) {
   if (!value) return '-'
   return String(value).replace('T', ' ').slice(0, 16)
+}
+
+const POS_ORDER = { 6: 1, 5: 2, 2: 3, 7: 4, 4: 5 }
+
+function getWinnerTeamName(battle, camp1Name, camp2Name) {
+  const winCamp = battle.battle?.winCamp
+  if (!battle.players?.length) return winCamp === 1 ? camp1Name : camp2Name
+  // 通过选手 teamName 判断 winCamp 对应哪支队伍
+  for (const pd of battle.players) {
+    if (pd.player?.camp === winCamp) return pd.player.teamName
+  }
+  return winCamp === 1 ? camp1Name : camp2Name
+}
+
+function getPlayerMatchCamp(player, camp1Name) {
+  // 根据 teamName 归一化到比赛级别的 camp（1=蓝方, 2=红方）
+  if (!player?.teamName || !camp1Name) return player?.camp || 1
+  return player.teamName === camp1Name ? 1 : 2
+}
+
+function sortedPlayers(players, camp1Name) {
+  if (!players) return []
+  return [...players].sort((a, b) => {
+    const pa = a.player, pb = b.player
+    const ca = getPlayerMatchCamp(pa, camp1Name), cb = getPlayerMatchCamp(pb, camp1Name)
+    if (ca !== cb) return ca - cb
+    return (POS_ORDER[pa?.position] || 9) - (POS_ORDER[pb?.position] || 9)
+  })
 }
 
 onMounted(async () => {

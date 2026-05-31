@@ -2,10 +2,7 @@ package com.kpl.agent.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.kpl.agent.ai.ReportGenerator;
-import com.kpl.agent.tool.HeroStatsTool;
-import com.kpl.agent.tool.MatchAnalysisTool;
-import com.kpl.agent.tool.PlayerStatsTool;
-import com.kpl.agent.tool.TeamStatsTool;
+import com.kpl.agent.tool.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,6 +25,7 @@ public class KplAgentService {
     private final HeroStatsTool heroStatsTool;
     private final TeamStatsTool teamStatsTool;
     private final MatchAnalysisTool matchAnalysisTool;
+    private final EquipStatsTool equipStatsTool;
     private final ReportGenerator reportGenerator;
     private final AgentIntentRecognizer agentIntentRecognizer;
     private final LeagueQueryService leagueQueryService;
@@ -41,6 +39,7 @@ public class KplAgentService {
         HERO_TOP,        // 英雄排行："ban率最高的英雄"
         TEAM_RANKING,    // 战队排名："积分榜"
         TEAM_HONORS,     // 荣誉总榜："荣誉最多的队伍"
+        EQUIP_QUERY,     // 装备查询："XX出什么装备"
         UNKNOWN
     }
 
@@ -68,6 +67,15 @@ public class KplAgentService {
 
     /** 基于关键词的意图识别 */
     private AgentIntent recognizeIntentByRule(String message) {
+        // 装备查询
+        if (containsAny(message, "装备", "出装", "出什么装", "怎么出", "铭文")) {
+            String heroName = extractKeyword(message, heroPatterns());
+            if (heroName == null) {
+                // 尝试从消息中提取英雄名（装备查询时通常前面是英雄名）
+                heroName = extractBeforeKeyword(message, "装备", "出装", "出什么装");
+            }
+            return new AgentIntent(Intent.EQUIP_QUERY, heroName, null, null, 6);
+        }
         // 比赛复盘（优先匹配，避免"表现"被选手规则抢走）
         if (containsAny(message, "比赛", "复盘", "对局")) {
             return new AgentIntent(Intent.MATCH_QUERY, extractTeamName(message), null, "recent", 5);
@@ -154,6 +162,12 @@ public class KplAgentService {
                 }
                 yield Map.of("error", "请指定战队名");
             }
+            case EQUIP_QUERY -> {
+                if (subject != null) {
+                    yield equipStatsTool.queryByHero(subject, leagueId, limit);
+                }
+                yield Map.of("error", "请指定英雄名，例如：公孙离出什么装备");
+            }
             default -> Map.of("error", "抱歉，我没理解您的问题。可以试试：XX选手数据、XX英雄胜率、AG战绩、积分榜");
         };
     }
@@ -220,6 +234,29 @@ public class KplAgentService {
         if (message.contains("对抗路") || message.contains("边路")) return "对抗路";
         if (message.contains("发育路") || message.contains("射手")) return "发育路";
         if (message.contains("游走") || message.contains("辅助")) return "游走";
+        return null;
+    }
+
+    /** 提取关键词前面的实体名，如"公孙离出装" → "公孙离" */
+    private String extractBeforeKeyword(String message, String... keywords) {
+        for (String kw : keywords) {
+            int idx = message.indexOf(kw);
+            if (idx > 0) {
+                // 取关键词前面的连续中文/字母/数字
+                String before = message.substring(0, idx).trim();
+                // 从末尾向前扫描，提取最后一个实体名
+                StringBuilder sb = new StringBuilder();
+                for (int i = before.length() - 1; i >= 0; i--) {
+                    char c = before.charAt(i);
+                    if (c >= 0x4e00 && c <= 0x9fa5 || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
+                        sb.insert(0, c);
+                    } else {
+                        break;
+                    }
+                }
+                if (sb.length() > 0) return sb.toString();
+            }
+        }
         return null;
     }
 

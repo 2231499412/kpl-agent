@@ -57,13 +57,15 @@ public class SyncController {
     }
 
     /**
-     * 深度增量同步最新赛季（补齐已结束比赛的对局和选手详情）
+     * 深度增量同步（补齐已结束比赛的对局和选手详情，含装备数据）
      * POST /api/sync/latest/deep-incremental?matchLimit=10
+     * POST /api/sync/latest/deep-incremental?matchLimit=10&leagueId=20260001
      */
     @PostMapping("/latest/deep-incremental")
     public ApiResponse<Map<String, String>> syncLatestDeepIncremental(
-            @RequestParam(defaultValue = "10") int matchLimit) {
-        String result = dataSyncService.syncLatestDeepIncremental(matchLimit);
+            @RequestParam(defaultValue = "10") int matchLimit,
+            @RequestParam(required = false) String leagueId) {
+        String result = dataSyncService.syncLatestDeepIncremental(matchLimit, leagueId);
         return ApiResponse.ok(Map.of("result", result));
     }
 

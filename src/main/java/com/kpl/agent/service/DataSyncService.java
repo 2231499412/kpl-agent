@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.kpl.agent.api.KplApiClient;
 import com.kpl.agent.entity.*;
 import com.kpl.agent.mapper.*;
+import com.kpl.agent.mapper.BattlePlayerEquipMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ public class DataSyncService {
     private final MatchMapper matchMapper;
     private final BattleMapper battleMapper;
     private final BattlePlayerMapper battlePlayerMapper;
+    private final BattlePlayerEquipMapper battlePlayerEquipMapper;
     private final HeroStatsMapper heroStatsMapper;
     private final PlayerStatsMapper playerStatsMapper;
     private final TeamStatsMapper teamStatsMapper;
@@ -172,7 +174,7 @@ public class DataSyncService {
 
     /** 同步某局的选手详细数据 */
     @Transactional
-    public int syncBattleDetail(String battleId) {
+    public int syncBattleDetail(String battleId, String leagueId) {
         JsonNode root = apiClient.getBattleDetail(battleId);
         if (root == null || root.get("code").asInt() != 200) {
             log.error("获取对局详情失败: battleId={}", battleId);
@@ -187,6 +189,42 @@ public class DataSyncService {
         battlePlayerMapper.delete(
                 new LambdaQueryWrapper<BattlePlayer>().eq(BattlePlayer::getBattleId, battleId));
 
+        // 先删除旧装备数据（幂等）
+        battlePlayerEquipMapper.delete(
+                new LambdaQueryWrapper<BattlePlayerEquip>().eq(BattlePlayerEquip::getBattleId, battleId));
+
+        // 归一化 camp：API 每局的 camp 分配可能和比赛级别相反
+        // 通过 match 的 camp1TeamId/camp2TeamId 来映射
+        int apiWinCamp = data.path("win_camp").asInt(0);
+        Battle battle = battleMapper.selectOne(
+                new LambdaQueryWrapper<Battle>().eq(Battle::getBattleId, battleId));
+        Match match = battle != null ? matchMapper.selectOne(
+                new LambdaQueryWrapper<Match>().eq(Match::getMatchId, battle.getMatchId())) : null;
+
+        // 从选手数据推断 API camp -> match camp 的映射
+        // 选手 team_id 为 "10027"(成都AG) 在 API 中 camp=2，但在 match 中是 camp1
+        // 所以需要翻转: match_camp = (api_camp == apiCamp1TeamIs ? 1 : 2)
+        int campFlip = 0; // 0=不翻转, 1=翻转(1<->2)
+        if (match != null && match.getCamp1TeamId() != null) {
+            for (JsonNode p : players) {
+                String tid = p.path("team_id").asText("");
+                int apiCamp = p.path("camp").asInt(0);
+                if (tid.equals(match.getCamp1TeamId())) {
+                    campFlip = (apiCamp == 1) ? 0 : 1;
+                    break;
+                } else if (tid.equals(match.getCamp2TeamId())) {
+                    campFlip = (apiCamp == 2) ? 0 : 1;
+                    break;
+                }
+            }
+            // 修正 battle 的 win_camp
+            if (campFlip == 1 && battle != null) {
+                int normalizedWinCamp = (apiWinCamp == 1) ? 2 : 1;
+                battle.setWinCamp(normalizedWinCamp);
+                battleMapper.updateById(battle);
+            }
+        }
+
         int count = 0;
         for (JsonNode p : players) {
             BattlePlayer bp = new BattlePlayer();
@@ -196,19 +234,53 @@ public class DataSyncService {
             bp.setPlayerName(p.path("actual_player_name").asText(""));
             bp.setHeroId(p.path("hero_id").asInt(0));
             bp.setHeroName(p.path("hero_name").asText(""));
-            bp.setCamp(p.path("camp").asInt(0));
+            // 归一化 camp 值
+            int apiCamp = p.path("camp").asInt(0);
+            bp.setCamp(campFlip == 1 ? (apiCamp == 1 ? 2 : 1) : apiCamp);
             bp.setKillNum(p.path("kill_num").asInt(0));
             bp.setDeathNum(p.path("death_num").asInt(0));
             bp.setAssistNum(p.path("assist_num").asInt(0));
             bp.setGold(p.path("gold").asInt(0));
             bp.setHurtTotal(p.path("hurt_total").asLong(0));
-            bp.setHurtToHero(p.path("hurt_total").asLong(0));
+            bp.setHurtToHero(p.path("hurt_to_hero_total").asLong(0));
             bp.setBeHurtTotal(p.path("be_hurt_total").asLong(0));
             bp.setKda(p.path("kda").asDouble(0));
             bp.setMvpScore(p.path("mvp_score").asDouble(0));
             bp.setIsMvp(p.path("is_mvp").asInt(0));
             bp.setParticipationRate(p.path("participation_rate").asDouble(0));
+            // 新增字段
+            JsonNode summoner = p.path("SummonerAbilityInfo");
+            bp.setSummonerAbilityId(summoner.path("summoner_ability_id").asInt(0));
+            bp.setSummonerAbilityName(summoner.path("summoner_ability_name").asText(""));
+            bp.setHurtTotalRate(p.path("hurt_total_rate").asDouble(0));
+            bp.setBeHurtTotalRate(p.path("be_hurt_total_rate").asDouble(0));
+            bp.setHurtToHeroTotal(p.path("hurt_to_hero_total").asLong(0));
+            bp.setBeHurtByHeroTotal(p.path("be_hurt_by_hero_total").asLong(0));
+            bp.setHurtToHeroTotalRate(p.path("hurt_to_hero_total_rate").asDouble(0));
+            bp.setBeHurtByHeroTotalRate(p.path("be_hurt_by_hero_total_rate").asDouble(0));
+            bp.setPosition(p.path("position").asInt(0));
+            bp.setPositionDesc(p.path("position_desc").asText(""));
+            bp.setIsLoseMvp(p.path("is_lose_mvp").asInt(0));
+            bp.setSymbolIds(p.path("symbol_ids").asText(""));
             battlePlayerMapper.insert(bp);
+
+            // 解析装备数据
+            JsonNode equipList = p.path("BriefEquipList");
+            if (equipList.isArray()) {
+                for (JsonNode e : equipList) {
+                    BattlePlayerEquip equip = new BattlePlayerEquip();
+                    equip.setBattleId(battleId);
+                    equip.setLeagueId(leagueId);
+                    equip.setPlayerName(bp.getPlayerName());
+                    equip.setHeroId(bp.getHeroId());
+                    equip.setEquipId(e.path("equip_id").asInt(0));
+                    equip.setEquipName(e.path("equip_name").asText(""));
+                    equip.setEquipIcon(e.path("equip_icon").asText(""));
+                    equip.setEquipDescGain(e.path("equip_desc_gain").asText(""));
+                    equip.setEquipDescFunction(e.path("equip_desc_function").asText(""));
+                    battlePlayerEquipMapper.insert(equip);
+                }
+            }
             count++;
         }
         log.info("同步对局详情完成: battleId={}, 选手数 {}", battleId, count);
@@ -280,6 +352,7 @@ public class DataSyncService {
             PlayerStats ps = new PlayerStats();
             ps.setLeagueId(leagueId);
             ps.setPlayerName(pInfo.get("player_name").asText());
+            ps.setPlayerIcon(pInfo.path("player_icon").asText(""));
             ps.setTeamName(pInfo.path("team_name").asText(""));
             ps.setPosition(pInfo.path("position").asInt(0));
             ps.setPositionDesc(pInfo.path("position_desc").asText(""));
@@ -381,7 +454,7 @@ public class DataSyncService {
                                 .in(Battle::getMatchId,
                                         matches.stream().map(Match::getMatchId).toList()));
                 for (Battle b : battles) {
-                    syncBattleDetail(b.getBattleId());
+                    syncBattleDetail(b.getBattleId(), leagueId);
                 }
             }
         }
@@ -457,27 +530,36 @@ public class DataSyncService {
 
     /**
      * 深度增量同步：只为已结束且缺少选手详情的比赛补齐 battle / battle_player 数据。
+     * @param matchLimit 每次最多扫描的比赛数
+     * @param leagueIdOverride 指定赛事ID，为空则同步最新赛季
      */
-    public String syncLatestDeepIncremental(int matchLimit) {
+    public String syncLatestDeepIncremental(int matchLimit, String leagueIdOverride) {
         int safeLimit = Math.max(1, Math.min(matchLimit, 50));
-        SyncJob job = startJob("LATEST_DEEP_INCREMENTAL", "latest:" + safeLimit, true);
+        String targetLabel = leagueIdOverride != null ? leagueIdOverride : "latest";
+        SyncJob job = startJob("LATEST_DEEP_INCREMENTAL", targetLabel + ":" + safeLimit, true);
         try {
             doSyncLeagues();
-            League latest = leagueMapper.selectOne(
-                    new LambdaQueryWrapper<League>()
-                            .in(League::getLeagueType, "kpl", "winter_champion_cup", "world_champion_cup")
-                            .orderByDesc(League::getStartTime)
-                            .last("LIMIT 1"));
-            if (latest == null) {
-                String result = "未找到KPL赛事";
-                finishJob(job, "SUCCESS", result, null);
-                return result;
+            String leagueId;
+            if (leagueIdOverride != null && !leagueIdOverride.isBlank()) {
+                leagueId = leagueIdOverride;
+            } else {
+                League latest = leagueMapper.selectOne(
+                        new LambdaQueryWrapper<League>()
+                                .in(League::getLeagueType, "kpl", "winter_champion_cup", "world_champion_cup")
+                                .orderByDesc(League::getStartTime)
+                                .last("LIMIT 1"));
+                if (latest == null) {
+                    String result = "未找到KPL赛事";
+                    finishJob(job, "SUCCESS", result, null);
+                    return result;
+                }
+                leagueId = latest.getLeagueId();
             }
 
-            syncMatches(latest.getLeagueId());
+            syncMatches(leagueId);
             List<Match> finishedMatches = matchMapper.selectList(
                     new LambdaQueryWrapper<Match>()
-                            .eq(Match::getLeagueId, latest.getLeagueId())
+                            .eq(Match::getLeagueId, leagueId)
                             .eq(Match::getStatus, 2)
                             .orderByDesc(Match::getStartTime)
                             .last("LIMIT " + safeLimit));
@@ -492,19 +574,23 @@ public class DataSyncService {
                                 .eq(Battle::getMatchId, match.getMatchId())
                                 .orderByAsc(Battle::getBattleSeq));
                 for (Battle battle : battles) {
+                    // 检查是否有装备数据，没有则重新同步
+                    Long equipRows = battlePlayerEquipMapper.selectCount(
+                            new LambdaQueryWrapper<BattlePlayerEquip>()
+                                    .eq(BattlePlayerEquip::getBattleId, battle.getBattleId()));
                     Long playerRows = battlePlayerMapper.selectCount(
                             new LambdaQueryWrapper<BattlePlayer>()
                                     .eq(BattlePlayer::getBattleId, battle.getBattleId()));
-                    if (playerRows != null && playerRows > 0) {
+                    if (playerRows != null && playerRows > 0 && equipRows != null && equipRows > 0) {
                         skipped++;
                         continue;
                     }
-                    detailCount += syncBattleDetail(battle.getBattleId());
+                    detailCount += syncBattleDetail(battle.getBattleId(), leagueId);
                 }
             }
 
-            queryCacheService.evictByPattern("kpl:" + latest.getLeagueId() + ":match:*");
-            upsertCursor("latest_deep_incremental", latest.getLeagueId() + ":" + safeLimit);
+            queryCacheService.evictByPattern("kpl:" + leagueId + ":match:*");
+            upsertCursor("latest_deep_incremental", leagueId + ":" + safeLimit);
             String result = String.format("深度增量同步完成: 扫描比赛%d, 新增对局%d, 补齐选手详情%d, 跳过已存在对局%d",
                     finishedMatches.size(), battleCount, detailCount, skipped);
             finishJob(job, "SUCCESS", result, null);
@@ -618,7 +704,7 @@ public class DataSyncService {
             case "SEASON" -> syncSeason(job.getTarget(), Boolean.TRUE.equals(job.getDeepSync()));
             case "LATEST_SEASON" -> syncLatestSeason();
             case "LATEST_INCREMENTAL" -> syncLatestIncremental();
-            case "LATEST_DEEP_INCREMENTAL" -> syncLatestDeepIncremental(parseLimitFromTarget(job.getTarget(), 10));
+            case "LATEST_DEEP_INCREMENTAL" -> syncLatestDeepIncremental(parseLimitFromTarget(job.getTarget(), 10), null);
             case "ALL" -> syncAll();
             case "BY_YEAR" -> syncByYear(parseYearFromTarget(job.getTarget()));
             default -> throw new IllegalArgumentException("不支持重试的任务类型: " + job.getJobType());

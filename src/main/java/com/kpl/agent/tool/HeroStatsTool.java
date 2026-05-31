@@ -2,6 +2,7 @@ package com.kpl.agent.tool;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.kpl.agent.entity.HeroStats;
+import com.kpl.agent.mapper.BattlePlayerMapper;
 import com.kpl.agent.mapper.HeroStatsMapper;
 import com.kpl.agent.service.QueryCacheService;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ import java.util.Map;
 public class HeroStatsTool {
 
     private final HeroStatsMapper heroStatsMapper;
+    private final BattlePlayerMapper battlePlayerMapper;
     private final QueryCacheService queryCacheService;
     private static final Duration CACHE_TTL = Duration.ofMinutes(10);
 
@@ -75,6 +77,17 @@ public class HeroStatsTool {
                             .last("LIMIT " + topN));
             return buildResult("hero_top_winrate", "胜率TOP" + topN, list);
         });
+    }
+
+    /** 查询某英雄的高胜率选手 */
+    public Map<String, Object> queryHeroPlayers(String heroName, String leagueId, int limit) {
+        List<Map<String, Object>> players = battlePlayerMapper.heroPlayerStats(heroName, leagueId, limit);
+        Map<String, Object> result = new HashMap<>();
+        result.put("type", "hero_players");
+        result.put("keyword", heroName);
+        result.put("count", players.size());
+        result.put("data", players);
+        return result;
     }
 
     private Map<String, Object> buildResult(String type, String keyword, List<HeroStats> list) {

@@ -32,7 +32,7 @@ public class KplSyncScheduler {
     public void syncLatestSeasonDetails() {
         log.info("定时深度增量同步最新 KPL 赛季开始");
         try {
-            String result = dataSyncService.syncLatestDeepIncremental(10);
+            String result = dataSyncService.syncLatestDeepIncremental(10, null);
             log.info("定时深度增量同步最新 KPL 赛季完成: {}", result);
         } catch (Exception e) {
             log.error("定时深度增量同步最新 KPL 赛季失败", e);

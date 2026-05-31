@@ -14,6 +14,7 @@ public class PlayerStats {
 
     private String leagueId;
     private String playerName;
+    private String playerIcon;
     private String teamName;
 
     /** 位置编码：2中路/4打野/5对抗路/7发育路/6游走 */

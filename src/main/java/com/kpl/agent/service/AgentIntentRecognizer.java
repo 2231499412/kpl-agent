@@ -43,6 +43,7 @@ public class AgentIntentRecognizer {
                     - HERO_TOP：英雄排行榜（关键词：ban率最高、最热门英雄、胜率排行）
                     - TEAM_RANKING：战队排名/积分榜（关键词：排名、积分榜、排行）
                     - TEAM_HONORS：跨赛事荣誉总榜（关键词：荣誉、冠军最多、冠军次数、历史排名、总冠军）
+                    - EQUIP_QUERY：装备/出装查询（关键词：装备、出装、出什么装、怎么出、铭文）
                     - UNKNOWN：无法识别
 
                     重要规则：
@@ -59,6 +60,8 @@ public class AgentIntentRecognizer {
                     "ban率最高的英雄" → {"intent":"HERO_TOP","subject":null,"position":null,"sort":"ban","limit":10}
                     "积分榜" → {"intent":"TEAM_RANKING","subject":null,"position":null,"sort":"ranking","limit":10}
                     "AG超玩会战绩" → {"intent":"TEAM_QUERY","subject":"AG超玩会","position":null,"sort":null,"limit":10}
+                    "公孙离出什么装备" → {"intent":"EQUIP_QUERY","subject":"公孙离","position":null,"sort":null,"limit":6}
+                    "一诺怎么出装" → {"intent":"EQUIP_QUERY","subject":"一诺","position":null,"sort":null,"limit":6}
 
                     用户问题：%s
 

@@ -44,6 +44,33 @@ public class BattlePlayer {
     /** 参团率 */
     private Double participationRate;
 
+    /** 召唤师技能ID */
+    private Integer summonerAbilityId;
+    /** 召唤师技能名称 */
+    private String summonerAbilityName;
+
+    /** 伤害占比 */
+    private Double hurtTotalRate;
+    /** 承伤占比 */
+    private Double beHurtTotalRate;
+    /** 对英雄总伤害 */
+    private Long hurtToHeroTotal;
+    /** 被英雄总伤害 */
+    private Long beHurtByHeroTotal;
+    /** 对英雄伤害占比 */
+    private Double hurtToHeroTotalRate;
+    /** 被英雄伤害占比 */
+    private Double beHurtByHeroTotalRate;
+
+    /** 位置编号 */
+    private Integer position;
+    /** 位置描述 */
+    private String positionDesc;
+    /** 是否败方MVP */
+    private Integer isLoseMvp;
+    /** 铭文ID列表 */
+    private String symbolIds;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 }

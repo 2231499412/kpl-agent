@@ -1,10 +1,7 @@
 package com.kpl.agent.controller;
 
 import com.kpl.agent.service.LeagueQueryService;
-import com.kpl.agent.tool.HeroStatsTool;
-import com.kpl.agent.tool.MatchAnalysisTool;
-import com.kpl.agent.tool.PlayerStatsTool;
-import com.kpl.agent.tool.TeamStatsTool;
+import com.kpl.agent.tool.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +19,7 @@ public class QueryController {
     private final HeroStatsTool heroStatsTool;
     private final TeamStatsTool teamStatsTool;
     private final MatchAnalysisTool matchAnalysisTool;
+    private final EquipStatsTool equipStatsTool;
     private final LeagueQueryService leagueQueryService;
 
     /** 选手查询：GET /api/query/player?name=听悦 */
@@ -38,6 +36,15 @@ public class QueryController {
             @RequestParam String name,
             @RequestParam(required = false) String leagueId) {
         return ApiResponse.ok(heroStatsTool.queryByName(name, leagueQueryService.requireLeagueId(leagueId)));
+    }
+
+    /** 英雄高胜率选手：GET /api/query/hero/players?name=公孙离 */
+    @GetMapping("/hero/players")
+    public ApiResponse<Map<String, Object>> queryHeroPlayers(
+            @RequestParam String name,
+            @RequestParam(required = false) String leagueId,
+            @RequestParam(defaultValue = "8") int limit) {
+        return ApiResponse.ok(heroStatsTool.queryHeroPlayers(name, leagueQueryService.requireLeagueId(leagueId), limit));
     }
 
     /** 选手排行：GET /api/query/player/top?sort=kda */
@@ -88,6 +95,13 @@ public class QueryController {
         return ApiResponse.ok(teamStatsTool.queryHonors());
     }
 
+    /** 赛程列表（按赛段排序，决赛在前）：GET /api/query/match/schedule */
+    @GetMapping("/match/schedule")
+    public ApiResponse<Map<String, Object>> queryMatchSchedule(
+            @RequestParam(required = false) String leagueId) {
+        return ApiResponse.ok(matchAnalysisTool.queryBySchedule(leagueQueryService.requireLeagueId(leagueId)));
+    }
+
     /** 比赛复盘：GET /api/query/match/recent?team=AG */
     @GetMapping("/match/recent")
     public ApiResponse<Map<String, Object>> queryRecentMatch(
@@ -100,5 +114,63 @@ public class QueryController {
     @GetMapping("/match/battle")
     public ApiResponse<Map<String, Object>> queryBattleDetail(@RequestParam String matchId) {
         return ApiResponse.ok(matchAnalysisTool.deepAnalysis(matchId));
+    }
+
+    /** 对局选手详情（含装备）：GET /api/query/battle/players?battleId=xxx */
+    @GetMapping("/battle/players")
+    public ApiResponse<Map<String, Object>> queryBattlePlayers(@RequestParam String battleId) {
+        return ApiResponse.ok(matchAnalysisTool.queryBattlePlayers(battleId));
+    }
+
+    /** 选手英雄数据：GET /api/query/player/heroes?name=一诺 */
+    @GetMapping("/player/heroes")
+    public ApiResponse<Map<String, Object>> queryPlayerHeroes(
+            @RequestParam String name,
+            @RequestParam(required = false) String leagueId,
+            @RequestParam(defaultValue = "10") int limit) {
+        return ApiResponse.ok(matchAnalysisTool.queryPlayerHeroes(name, leagueQueryService.requireLeagueId(leagueId), limit));
+    }
+
+    /** 装备出场排行：GET /api/query/equip/top */
+    @GetMapping("/equip/top")
+    public ApiResponse<Map<String, Object>> queryEquipTop(
+            @RequestParam(required = false) String leagueId,
+            @RequestParam(defaultValue = "10") int limit) {
+        return ApiResponse.ok(equipStatsTool.queryTopGlobal(leagueQueryService.requireLeagueId(leagueId), limit));
+    }
+
+    /** 装备详情（分路/英雄分布）：GET /api/query/equip/detail?equipId=1422 */
+    @GetMapping("/equip/detail")
+    public ApiResponse<Map<String, Object>> queryEquipDetail(
+            @RequestParam int equipId,
+            @RequestParam(required = false) String leagueId,
+            @RequestParam(defaultValue = "10") int heroLimit) {
+        return ApiResponse.ok(equipStatsTool.queryDetail(equipId, leagueQueryService.requireLeagueId(leagueId), heroLimit));
+    }
+
+    /** 英雄常用装备：GET /api/query/equip/hero?heroId=111 */
+    @GetMapping("/equip/hero")
+    public ApiResponse<Map<String, Object>> queryEquipByHero(
+            @RequestParam(required = false) Integer heroId,
+            @RequestParam(required = false) String heroName,
+            @RequestParam(required = false) String leagueId,
+            @RequestParam(defaultValue = "6") int limit) {
+        String lid = leagueQueryService.requireLeagueId(leagueId);
+        if (heroId != null) {
+            return ApiResponse.ok(equipStatsTool.queryByHeroId(heroId, lid, limit));
+        }
+        if (heroName != null && !heroName.isBlank()) {
+            return ApiResponse.ok(equipStatsTool.queryByHero(heroName, lid, limit));
+        }
+        return ApiResponse.ok(Map.of("error", "请提供 heroId 或 heroName"));
+    }
+
+    /** 选手常用装备：GET /api/query/equip/player?name=一诺 */
+    @GetMapping("/equip/player")
+    public ApiResponse<Map<String, Object>> queryEquipByPlayer(
+            @RequestParam String name,
+            @RequestParam(required = false) String leagueId,
+            @RequestParam(defaultValue = "6") int limit) {
+        return ApiResponse.ok(equipStatsTool.queryByPlayer(name, leagueQueryService.requireLeagueId(leagueId), limit));
     }
 }
