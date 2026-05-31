@@ -111,10 +111,19 @@
             </div>
           </div>
 
-          <el-table class="data-table" :data="tableRows" height="360" empty-text="暂无数据"
+          <div class="table-container" :class="tableState">
+          <div v-if="loading.query" class="table-loading">
+            <div class="table-spinner"></div>
+          </div>
+          <el-table class="data-table" :data="tableRows" height="360" empty-text=""
             row-class-name="clickable-row"
             @row-click="onRowClick($event)">
-            <el-table-column label="#" width="60" align="center" type="index" />
+            <el-table-column label="#" width="60" align="center">
+              <template #default="{ row, $index }">
+                <span v-if="queryMode === 'ranking' && row.placement && row.placement > 0 && row.placement < 999" class="rank-badge">{{ row.placement }}</span>
+                <span v-else class="rank-badge rank-n">{{ $index + 1 }}</span>
+              </template>
+            </el-table-column>
             <el-table-column v-for="col in tableColumns" :key="col.prop" :prop="col.prop" :label="col.label"
               min-width="120"
               :align="isNameCol(col.prop) ? 'left' : 'center'">
@@ -122,7 +131,7 @@
                 <div class="rate-cell">
                   <span class="rate-num">{{ row[col.prop] }}</span>
                   <div class="rate-track">
-                    <div class="rate-bar" :style="{ width: parseFloat(row[col.prop]) + '%' }"></div>
+                    <div class="rate-bar" :class="{ 'win-high': parseFloat(row[col.prop]) >= 60, 'win-low': parseFloat(row[col.prop]) < 40 }" :style="{ width: parseFloat(row[col.prop]) + '%' }"></div>
                   </div>
                 </div>
               </template>
@@ -161,12 +170,21 @@
               </template>
             </el-table-column>
           </el-table>
+          </div>
 
         </div>
 
         <!-- 统一详情弹窗 -->
-        <el-dialog v-model="detailVisible" :title="detailTitle" width="720" class="detail-dialog" destroy-on-close>
-          <div v-if="detailLoading" class="detail-loading">加载中...</div>
+        <el-dialog v-model="detailVisible" :title="detailTitle" width="720" class="detail-dialog" :modal-class="'detail-overlay'" destroy-on-close>
+          <template v-if="detailLoading">
+            <div class="skeleton-wrap">
+              <div class="skeleton-row" style="width:40%"></div>
+              <div class="skeleton-row" style="width:100%;height:80px;margin-top:16px"></div>
+              <div class="skeleton-row" style="width:100%;height:80px;margin-top:12px"></div>
+              <div class="skeleton-row" style="width:60%;margin-top:16px"></div>
+              <div class="skeleton-row" style="width:80%;margin-top:8px"></div>
+            </div>
+          </template>
 
           <!-- 比赛详情 -->
           <template v-else-if="detailType === 'match' && detailData">
@@ -410,14 +428,6 @@
         </el-dialog>
 
         <div class="bottom-grid">
-          <div class="panel chart-panel">
-            <div class="section-head">
-              <span>战队强度</span>
-              <el-button :icon="TrendCharts" circle class="icon-ghost" @click="loadTeamRanking" />
-            </div>
-            <div ref="teamChartRef" class="chart-canvas"></div>
-          </div>
-
           <div class="panel agent-panel">
             <div class="section-head">
               <span>Agent 复盘</span>
@@ -425,11 +435,17 @@
             </div>
             <div class="agent-log" ref="agentLogRef">
               <div v-for="item in agentMessages" :key="item.id" :class="['bubble', item.role]">
-                <div v-if="item.role === 'assistant'" v-html="renderMd(item.text)" class="md-body"></div>
+                <template v-if="item.role === 'assistant'">
+                  <div v-if="item.reasoning" class="reasoning-block">
+                    <div class="reasoning-body" :class="{ collapsed: !item._expandReasoning && item.reasoning.length > 120 }">{{ item.reasoning }}</div>
+                    <button v-if="item.reasoning.length > 120" class="reasoning-toggle" @click="item._expandReasoning = !item._expandReasoning">
+                      {{ item._expandReasoning ? '收起' : '展开全部思考' }}
+                    </button>
+                  </div>
+                  <div v-if="item.text" v-html="renderMd(item.text)" :class="['md-body', loading.agent && item.id === agentMessages[agentMessages.length - 1]?.id ? 'streaming' : '']"></div>
+                  <span v-if="loading.agent && item.id === agentMessages[agentMessages.length - 1]?.id && !item.text && !item.reasoning" class="typing-dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+                </template>
                 <template v-else>{{ item.text }}</template>
-              </div>
-              <div v-if="loading.agent" class="bubble assistant typing-bubble">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
               </div>
             </div>
             <div class="agent-input">
@@ -445,7 +461,6 @@
 
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import * as echarts from 'echarts'
 import MarkdownIt from 'markdown-it'
 import {
   Aim,
@@ -456,8 +471,7 @@ import {
   Position,
   Refresh,
   RefreshRight,
-  Search,
-  TrendCharts
+  Search
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
@@ -473,8 +487,6 @@ const queryKeyword = ref('')
 const heroSort = ref('pick')
 const playerSort = ref('kda')
 const queryResult = ref(null)
-const teamChartRef = ref(null)
-const chart = ref(null)
 const agentLogRef = ref(null)
 const agentQuestion = ref('AG 最近比赛表现怎么样')
 const agentMessages = ref([
@@ -493,10 +505,23 @@ const loading = ref({
   agent: false
 })
 
+// 表格切换动效
+const tableState = ref('')
+let switchTimer = null
+function triggerTableSwitch() {
+  clearTimeout(switchTimer)
+  tableState.value = 'switching'
+  switchTimer = setTimeout(() => {
+    tableState.value = 'entering'
+    setTimeout(() => { tableState.value = '' }, 350)
+  }, 150)
+}
+
 watch(queryMode, () => {
   queryResult.value = null
   queryKeyword.value = ''
   detailVisible.value = false
+  triggerTableSwitch()
   if (queryMode.value === 'ranking') {
     loadTeamRanking()
   } else if (queryMode.value === 'honors') {
@@ -524,7 +549,7 @@ const placeholder = computed(() => {
     heroTop: '搜索英雄，例如 公孙离（留空显示榜单）',
     match: '输入战队名，例如 狼队',
     honors: '跨赛事荣誉总榜（无需输入）',
-    equip: '输入英雄名，例如 公孙离'
+    equip: '输入装备名，例如 复活甲'
   }
   return map[queryMode.value] || '输入关键词'
 })
@@ -537,7 +562,18 @@ const rawData = computed(() => {
   return Array.isArray(queryResult.value) ? queryResult.value : []
 })
 
-const tableRows = computed(() => rawData.value.map(normalizeRow))
+const tableRows = computed(() => {
+  let rows = rawData.value.map(normalizeRow)
+  // 比赛榜按日期降序（最近的排最前）
+  if (queryMode.value === 'match') {
+    rows = [...rows].sort((a, b) => {
+      const da = a._rawStartTime || ''
+      const db = b._rawStartTime || ''
+      return db.localeCompare(da)
+    })
+  }
+  return rows
+})
 const resultCount = computed(() => queryResult.value?.count ?? tableRows.value.length)
 const tableColumns = computed(() => {
   const columns = {
@@ -631,7 +667,6 @@ async function loadDashboard() {
 async function loadTeamRanking() {
   queryMode.value = 'ranking'
   queryResult.value = await request(`/api/query/team/ranking${leagueParam()}`)
-  renderTeamChart()
 }
 
 async function loadHonors() {
@@ -653,6 +688,7 @@ async function runSync(path) {
 
 async function runQuery() {
   loading.value.query = true
+  triggerTableSwitch()
   try {
     const keyword = encodeURIComponent(queryKeyword.value.trim())
     const hasKeyword = !!queryKeyword.value.trim()
@@ -681,11 +717,10 @@ async function runQuery() {
     } else if (queryMode.value === 'equip') {
       const lp = leagueParam()
       url = hasKeyword
-        ? `/api/query/equip/hero?heroName=${keyword}${leagueJoin()}&limit=10`
+        ? `/api/query/equip/search?name=${keyword}${leagueJoin()}&limit=10`
         : `/api/query/equip/top${lp ? lp + '&' : '?'}limit=10`
     }
     queryResult.value = await request(url)
-    if (queryMode.value === 'ranking' && !hasKeyword) renderTeamChart()
   } catch (error) {
     ElMessage.error(error.message)
   } finally {
@@ -703,16 +738,53 @@ async function askAgent() {
   loading.value.agent = true
   const id = Date.now()
   agentMessages.value.push({ id, role: 'user', text })
+  agentQuestion.value = ''
   scrollAgentLog()
+
+  // 流式接收
+  const assistantId = id + 1
+  agentMessages.value.push({ id: assistantId, role: 'assistant', reasoning: '', text: '', _expandReasoning: false })
+
   try {
-    const data = await request('/api/agent/chat', {
+    const resp = await fetch('/api/agent/chat/stream', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: text })
     })
-    agentMessages.value.push({ id: id + 1, role: 'assistant', text: data.reply || '没有返回内容' })
-    agentQuestion.value = ''
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+
+    const reader = resp.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (!line.startsWith('data:')) continue
+        const payload = line.slice(5).trim()
+        if (payload === '[DONE]') continue
+        if (!payload) continue
+        const msg = agentMessages.value.find(m => m.id === assistantId)
+        if (!msg) continue
+        try {
+          const obj = JSON.parse(payload)
+          if (obj.t === 'r') msg.reasoning += obj.d
+          else if (obj.t === 'c') msg.text += obj.d
+        } catch {
+          msg.text += payload
+        }
+        scrollAgentLog()
+      }
+    }
   } catch (error) {
-    agentMessages.value.push({ id: id + 1, role: 'assistant', text: error.message })
+    const msg = agentMessages.value.find(m => m.id === assistantId)
+    if (msg && !msg.text) msg.text = error.message
   } finally {
     loading.value.agent = false
     scrollAgentLog()
@@ -799,7 +871,10 @@ function normalizeRow(row) {
   for (const key of ['avgKda', 'avgKill']) {
     if (typeof clone[key] === 'number') clone[key] = Number(clone[key]).toFixed(2)
   }
-  if (clone.startTime) clone.startTime = formatTime(clone.startTime)
+  if (clone.startTime) {
+    clone._rawStartTime = clone.startTime
+    clone.startTime = formatTime(clone.startTime)
+  }
   return clone
 }
 
@@ -815,45 +890,6 @@ function isNameCol(prop) {
 
 function isRateCol(prop) {
   return ['winRate', 'pickRate', 'banRate'].includes(prop)
-}
-
-function renderTeamChart() {
-  nextTick(() => {
-    if (!teamChartRef.value) return
-    if (!chart.value) chart.value = echarts.init(teamChartRef.value)
-    const rows = rawData.value.slice(0, 8)
-    chart.value.setOption({
-      backgroundColor: 'transparent',
-      grid: { left: 28, right: 12, top: 18, bottom: 36 },
-      tooltip: { trigger: 'axis' },
-      xAxis: {
-        type: 'category',
-        data: rows.map((item) => item.teamName || item.keyword),
-        axisLabel: { color: '#9aa7b4', interval: 0, rotate: 24 },
-        axisLine: { lineStyle: { color: '#2d3a45' } }
-      },
-      yAxis: {
-        type: 'value',
-        axisLabel: { color: '#9aa7b4' },
-        splitLine: { lineStyle: { color: 'rgba(116, 139, 158, .14)' } }
-      },
-      series: [
-        {
-          type: 'bar',
-          data: rows.map((item) => Math.round((item.winRate || 0) * 1000) / 10),
-          barWidth: 18,
-          itemStyle: {
-            borderRadius: [3, 3, 0, 0],
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: '#18e0c2' },
-              { offset: 0.55, color: '#d6ae3a' },
-              { offset: 1, color: '#bc3c2f' }
-            ])
-          }
-        }
-      ]
-    })
-  })
 }
 
 function formatDate(value) {

@@ -7,6 +7,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import reactor.core.publisher.Flux;
+
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -65,6 +67,23 @@ public class KplAgentService {
         return reportGenerator.generate(userMessage, agentIntent.intent().name(), queryResult);
     }
 
+    /**
+     * 流式 Agent 入口：返回 Flux<String>，每个元素是一个 token
+     */
+    public Flux<String> chatStream(String userMessage) {
+        log.info("Agent 流式消息: {}", userMessage);
+
+        AgentIntent agentIntent = agentIntentRecognizer
+                .recognize(userMessage)
+                .orElseGet(() -> recognizeIntentByRule(userMessage));
+        log.info("识别意图: {}", agentIntent);
+
+        String leagueId = leagueQueryService.requireLeagueId(null);
+        Map<String, Object> queryResult = routeToTool(agentIntent, userMessage, leagueId);
+
+        return reportGenerator.generateStream(userMessage, agentIntent.intent().name(), queryResult);
+    }
+
     /** 基于关键词的意图识别 */
     private AgentIntent recognizeIntentByRule(String message) {
         // 装备查询
@@ -78,6 +97,10 @@ public class KplAgentService {
         }
         // 比赛复盘（优先匹配，避免"表现"被选手规则抢走）
         if (containsAny(message, "比赛", "复盘", "对局")) {
+            return new AgentIntent(Intent.MATCH_QUERY, extractTeamName(message), null, "recent", 5);
+        }
+        // "最近表现/打得" + 战队名 → 比赛查询
+        if (containsAny(message, "最近") && containsTeamName(message)) {
             return new AgentIntent(Intent.MATCH_QUERY, extractTeamName(message), null, "recent", 5);
         }
         // 英雄排行
@@ -99,18 +122,20 @@ public class KplAgentService {
         if (containsAny(message, "排名", "积分榜", "排行")) {
             return new AgentIntent(Intent.TEAM_RANKING, null, null, "ranking", 10);
         }
-        // 选手相关
-        if (containsAny(message, "选手", "队员", "数据怎么样", "表现")) {
+        // 选手相关（必须有"选手"/"队员"关键词，或能提取到选手名）
+        if (containsAny(message, "选手", "队员")) {
             String name = extractKeyword(message, playerPatterns());
             return new AgentIntent(Intent.PLAYER_QUERY, name, extractPosition(message), null, 10);
+        }
+        if (containsAny(message, "数据怎么样", "表现怎么样")) {
+            String name = extractKeyword(message, playerPatterns());
+            if (name != null) {
+                return new AgentIntent(Intent.PLAYER_QUERY, name, extractPosition(message), null, 10);
+            }
         }
         // 战队查询
         if (containsAny(message, "战队", "队伍") || containsTeamName(message)) {
             return new AgentIntent(Intent.TEAM_QUERY, extractTeamName(message), null, null, 10);
-        }
-        // 最近比赛（兜底：包含"最近"且有战队名）
-        if (containsAny(message, "最近") && containsTeamName(message)) {
-            return new AgentIntent(Intent.MATCH_QUERY, extractTeamName(message), null, "recent", 5);
         }
 
         return new AgentIntent(Intent.UNKNOWN, null, null, null, 10);

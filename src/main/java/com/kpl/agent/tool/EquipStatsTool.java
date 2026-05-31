@@ -3,8 +3,10 @@ package com.kpl.agent.tool;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.kpl.agent.entity.BattlePlayerEquip;
 import com.kpl.agent.entity.HeroStats;
+import com.kpl.agent.entity.Match;
 import com.kpl.agent.mapper.BattlePlayerEquipMapper;
 import com.kpl.agent.mapper.HeroStatsMapper;
+import com.kpl.agent.mapper.MatchMapper;
 import com.kpl.agent.service.QueryCacheService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,8 +26,63 @@ public class EquipStatsTool {
 
     private final BattlePlayerEquipMapper battlePlayerEquipMapper;
     private final HeroStatsMapper heroStatsMapper;
+    private final MatchMapper matchMapper;
     private final QueryCacheService queryCacheService;
     private static final Duration CACHE_TTL = Duration.ofMinutes(30);
+
+    /** 装备外号 → 正式名映射 */
+    private static final Map<String, String> EQUIP_NICKNAMES = Map.ofEntries(
+            Map.entry("黑切", "暗影战斧"),
+            Map.entry("复活甲", "贤者的庇护"),
+            Map.entry("名刀", "名刀·司命"),
+            Map.entry("破晓", "破晓"),
+            Map.entry("冰心", "极寒风暴"),
+            Map.entry("绿甲", "不死鸟之眼"),
+            Map.entry("霸者", "霸者重装"),
+            Map.entry("反甲", "反伤刺甲"),
+            Map.entry("不祥", "不祥征兆"),
+            Map.entry("魔女", "魔女斗篷"),
+            Map.entry("血魔", "血魔之怒"),
+            Map.entry("金身", "辉月"),
+            Map.entry("电刀", "闪电匕首"),
+            Map.entry("无尽", "无尽战刃"),
+            Map.entry("破军", "破军"),
+            Map.entry("碎星锤", "碎星锤"),
+            Map.entry("宗师", "宗师之力"),
+            Map.entry("逐日", "逐日之弓"),
+            Map.entry("穿云弓", "穿云弓"),
+            Map.entry("末世", "末世"),
+            Map.entry("制裁", "制裁之刃"),
+            Map.entry("梦魇", "梦魇之牙"),
+            Map.entry("帽子", "博学者之怒"),
+            Map.entry("大书", "虚无法杖"),
+            Map.entry("面具", "痛苦面具"),
+            Map.entry("回响", "回响之杖"),
+            Map.entry("冰杖", "凝冰之息"),
+            Map.entry("时之预言", "时之预言"),
+            Map.entry("圣杯", "圣杯"),
+            Map.entry("炽热", "炽热支配者"),
+            Map.entry("近卫", "近卫荣耀"),
+            Map.entry("极影", "极影"),
+            Map.entry("救赎", "救赎之翼"),
+            Map.entry("奔狼", "奔狼纹章"),
+            Map.entry("形昭", "形昭之鉴"),
+            Map.entry("星泉", "星泉"),
+            Map.entry("出影", "出影"),
+            Map.entry("怒魂", "怒魂"),
+            Map.entry("永夜", "永夜守护"),
+            Map.entry("天穹", "天穹"),
+            Map.entry("日渊", "日渊"),
+            Map.entry("凛冬", "凛冬"),
+            Map.entry("破魔", "破魔刀"),
+            Map.entry("抵抗鞋", "抵抗之靴"),
+            Map.entry("布甲鞋", "影忍之足"),
+            Map.entry("CD鞋", "冷静之靴"),
+            Map.entry("攻速鞋", "急速战靴"),
+            Map.entry("法穿鞋", "秘法之靴"),
+            Map.entry("疾步鞋", "疾步之靴"),
+            Map.entry("韧性鞋", "抵抗之靴")
+    );
 
     /** 查询全局装备出场排行（按赛事） */
     public Map<String, Object> queryTopGlobal(String leagueId, int limit) {
@@ -37,7 +94,26 @@ public class EquipStatsTool {
             }
             qw.last("LIMIT 10000");
             List<BattlePlayerEquip> equips = battlePlayerEquipMapper.selectList(qw);
-            return buildEquipResult("equip_global", "装备总榜", equips, limit);
+            return buildEquipResult("equip_global", "装备总榜", equips, limit, leagueId);
+        });
+    }
+
+    /** 按装备名搜索（支持外号） */
+    public Map<String, Object> queryByName(String equipName, String leagueId, int limit) {
+        // 外号解析
+        String resolved = EQUIP_NICKNAMES.getOrDefault(equipName, equipName);
+
+        String key = "kpl:%s:equip:search:%s:%d".formatted(leagueId, resolved, limit);
+        return queryCacheService.getOrLoad(key, CACHE_TTL, () -> {
+            // 先精确匹配，再模糊匹配
+            LambdaQueryWrapper<BattlePlayerEquip> qw = new LambdaQueryWrapper<BattlePlayerEquip>()
+                    .like(BattlePlayerEquip::getEquipName, resolved);
+            if (leagueId != null && !leagueId.isBlank()) {
+                qw.eq(BattlePlayerEquip::getLeagueId, leagueId);
+            }
+            qw.last("LIMIT 10000");
+            List<BattlePlayerEquip> equips = battlePlayerEquipMapper.selectList(qw);
+            return buildEquipResult("equip_search", equipName, equips, limit, leagueId);
         });
     }
 
@@ -49,7 +125,7 @@ public class EquipStatsTool {
                         .eq(HeroStats::getLeagueId, leagueId)
                         .like(HeroStats::getHeroName, heroName)
                         .last("LIMIT 1"));
-        if (hs == null) return buildEquipResult("hero_equip", heroName, List.of(), limit);
+        if (hs == null) return buildEquipResult("hero_equip", heroName, List.of(), limit, leagueId);
         return queryByHeroId(hs.getHeroId(), leagueId, limit);
     }
 
@@ -64,7 +140,7 @@ public class EquipStatsTool {
             }
             qw.last("LIMIT 2000");
             List<BattlePlayerEquip> equips = battlePlayerEquipMapper.selectList(qw);
-            return buildEquipResult("hero_equip", "hero_" + heroId, equips, limit);
+            return buildEquipResult("hero_equip", "hero_" + heroId, equips, limit, leagueId);
         });
     }
 
@@ -79,11 +155,11 @@ public class EquipStatsTool {
             }
             qw.last("LIMIT 2000");
             List<BattlePlayerEquip> equips = battlePlayerEquipMapper.selectList(qw);
-            return buildEquipResult("player_equip", playerName, equips, limit);
+            return buildEquipResult("player_equip", playerName, equips, limit, leagueId);
         });
     }
 
-    private Map<String, Object> buildEquipResult(String type, String keyword, List<BattlePlayerEquip> equips, int topN) {
+    private Map<String, Object> buildEquipResult(String type, String keyword, List<BattlePlayerEquip> equips, int topN, String leagueId) {
         Map<Integer, EquipInfo> countMap = new LinkedHashMap<>();
         for (BattlePlayerEquip e : equips) {
             EquipInfo info = countMap.computeIfAbsent(e.getEquipId(), id -> new EquipInfo(id, e.getEquipName(), e.getEquipIcon()));
@@ -92,14 +168,25 @@ public class EquipStatsTool {
             if (e.getPlayerName() != null) info.playerNames.add(e.getPlayerName());
         }
 
-        // totalPicks = 总出场记录数，每人6件装备，所以总人数 = totalPicks/6
-        int totalPicks = equips.size();
-        int totalPlayers = Math.max(totalPicks / 6, 1);
+        // 查总比赛场数，每场约5局
+        long matchCount = matchMapper.selectCount(
+                new LambdaQueryWrapper<Match>()
+                        .eq(Match::getStatus, 2)
+                        .eq(leagueId != null && !leagueId.isBlank(), Match::getLeagueId, leagueId));
+        int totalGames = (int) Math.max(matchCount * 5, 1);
+
+        // 统计每件装备出现在多少局（按 battleId 去重，同一局多人买只算一次）
+        Map<Integer, Set<String>> equipGameMap = new HashMap<>();
+        for (BattlePlayerEquip e : equips) {
+            equipGameMap.computeIfAbsent(e.getEquipId(), k -> new HashSet<>())
+                    .add(e.getBattleId());
+        }
 
         List<Map<String, Object>> data = countMap.values().stream()
                 .sorted((a, b) -> Integer.compare(b.count, a.count))
                 .limit(topN)
                 .map(e -> {
+                    int gameCount = equipGameMap.getOrDefault(e.equipId, Set.of()).size();
                     Map<String, Object> row = new LinkedHashMap<>();
                     row.put("equipId", e.equipId);
                     row.put("equipName", e.equipName);
@@ -107,7 +194,7 @@ public class EquipStatsTool {
                     row.put("pickCount", e.count);
                     row.put("heroCount", e.heroIds.size());
                     row.put("playerCount", e.playerNames.size());
-                    row.put("pickRate", Math.round(e.count * 10000.0 / totalPlayers) / 10000.0);
+                    row.put("pickRate", Math.round(gameCount * 10000.0 / totalGames) / 10000.0);
                     return row;
                 })
                 .collect(Collectors.toList());
@@ -116,7 +203,7 @@ public class EquipStatsTool {
         result.put("type", type);
         result.put("keyword", keyword);
         result.put("count", data.size());
-        result.put("totalGames", totalPicks / 60); // 每局10人×6装备=60条记录
+        result.put("totalGames", totalGames);
         result.put("data", data);
         return result;
     }

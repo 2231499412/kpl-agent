@@ -9,10 +9,14 @@ import org.springframework.http.*;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * AI 报告生成器：调用 LLM API 将查询结果生成自然语言分析报告
@@ -29,13 +33,17 @@ public class ReportGenerator {
 
     /** LLM 专用 RestTemplate，超时时间更长（推理模型需要 60s+） */
     private RestTemplate llmRestTemplate;
+    private WebClient webClient;
 
     @PostConstruct
     public void init() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(10_000);
-        factory.setReadTimeout(120_000);  // 120秒，给推理模型足够时间
+        factory.setReadTimeout(120_000);
         this.llmRestTemplate = new RestTemplate(factory);
+        this.webClient = WebClient.builder()
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(2 * 1024 * 1024))
+                .build();
     }
 
     private static final String SYSTEM_PROMPT = """
@@ -90,6 +98,96 @@ public class ReportGenerator {
     }
 
     /** 调用 LLM API（OpenAI 兼容格式） */
+
+    /**
+     * 流式生成：返回 Flux<String>，每个元素是一个文本 token
+     */
+    public Flux<String> generateStream(String userQuestion, String intent, Map<String, Object> queryResult) {
+        if (aiConfig.getApiKey() == null || aiConfig.getApiKey().isBlank()) {
+            return Flux.just(fallbackReport(userQuestion, queryResult));
+        }
+
+        Map<String, Object> processed = preprocessForLlm(queryResult);
+        String dataStr;
+        try {
+            dataStr = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(processed);
+        } catch (Exception e) {
+            dataStr = processed.toString();
+        }
+
+        String userPrompt = """
+                用户问题：%s
+                意图类型：%s
+                查询数据：
+                %s
+
+                请根据以上数据生成分析报告。
+                """.formatted(userQuestion, intent, dataStr);
+
+        return callLlmStream(SYSTEM_PROMPT, userPrompt)
+                .onErrorResume(e -> {
+                    log.error("流式 LLM 调用失败，降级为纯数据", e);
+                    return Flux.just(fallbackReport(userQuestion, queryResult));
+                });
+    }
+
+    /** 流式调用 LLM API（使用 java.net.http.HttpClient 逐行读取 SSE） */
+    private Flux<String> callLlmStream(String systemPrompt, String userPrompt) {
+        String url = aiConfig.getBaseUrl() + "/chat/completions";
+        String bodyJson;
+        try {
+            bodyJson = objectMapper.writeValueAsString(Map.of(
+                    "model", aiConfig.getModel(),
+                    "stream", true,
+                    "messages", List.of(
+                            Map.of("role", "system", "content", systemPrompt),
+                            Map.of("role", "user", "content", userPrompt)
+                    ),
+                    "temperature", 0.7,
+                    "max_tokens", 2048
+            ));
+        } catch (Exception e) {
+            return Flux.error(e);
+        }
+
+        return Flux.create(sink -> {
+            try {
+                var client = java.net.http.HttpClient.newHttpClient();
+                var request = java.net.http.HttpRequest.newBuilder()
+                        .uri(java.net.URI.create(url))
+                        .header("Content-Type", "application/json")
+                        .header("Authorization", "Bearer " + aiConfig.getApiKey())
+                        .POST(java.net.http.HttpRequest.BodyPublishers.ofString(bodyJson, java.nio.charset.StandardCharsets.UTF_8))
+                        .build();
+
+                var response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofLines());
+                response.body().forEach(line -> {
+                    if (sink.isCancelled()) return;
+                    if (line.isBlank() || line.equals("data: [DONE]")) return;
+                    String json = line.startsWith("data: ") ? line.substring(6).trim() : line.trim();
+                    if (json.isEmpty() || json.equals("[DONE]")) return;
+                    try {
+                        var root = objectMapper.readTree(json);
+                        var delta = root.path("choices").path(0).path("delta");
+                        String content = delta.path("content").asText("");
+                        if (!content.isEmpty()) {
+                            sink.next("{\"t\":\"c\",\"d\":" + objectMapper.writeValueAsString(content) + "}");
+                            return;
+                        }
+                        String reasoning = delta.path("reasoning_content").asText("");
+                        if (!reasoning.isEmpty()) {
+                            sink.next("{\"t\":\"r\",\"d\":" + objectMapper.writeValueAsString(reasoning) + "}");
+                        }
+                    } catch (Exception e) {
+                        log.debug("解析流式响应跳过: {}", json);
+                    }
+                });
+                sink.complete();
+            } catch (Exception e) {
+                sink.error(e);
+            }
+        });
+    }
 
     /**
      * 预处理数据：将原始比赛数据转为 LLM 易读格式，明确胜负关系。

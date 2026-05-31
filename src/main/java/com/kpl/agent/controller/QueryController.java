@@ -139,6 +139,15 @@ public class QueryController {
         return ApiResponse.ok(equipStatsTool.queryTopGlobal(leagueQueryService.requireLeagueId(leagueId), limit));
     }
 
+    /** 按装备名搜索（支持外号）：GET /api/query/equip/search?name=黑切 */
+    @GetMapping("/equip/search")
+    public ApiResponse<Map<String, Object>> queryEquipSearch(
+            @RequestParam String name,
+            @RequestParam(required = false) String leagueId,
+            @RequestParam(defaultValue = "10") int limit) {
+        return ApiResponse.ok(equipStatsTool.queryByName(name, leagueQueryService.requireLeagueId(leagueId), limit));
+    }
+
     /** 装备详情（分路/英雄分布）：GET /api/query/equip/detail?equipId=1422 */
     @GetMapping("/equip/detail")
     public ApiResponse<Map<String, Object>> queryEquipDetail(

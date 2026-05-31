@@ -30,6 +30,14 @@ public class TeamStatsTool {
     private final QueryCacheService queryCacheService;
     private static final Duration CACHE_TTL = Duration.ofMinutes(10);
 
+    /** 赛段优先级：决赛 > 季后赛 > 淘汰赛 > 常规赛 */
+    private static final Map<String, Integer> STAGE_ORDER = Map.ofEntries(
+            Map.entry("js", 1), Map.entry("zjs", 1),
+            Map.entry("jhs", 2),
+            Map.entry("sbttss", 3), Map.entry("dbtts", 3),
+            Map.entry("cgs3", 4), Map.entry("cgs2", 5), Map.entry("cgs1", 6)
+    );
+
     /** 按战队名查询 */
     public Map<String, Object> queryByName(String teamName, String leagueId) {
         String key = "kpl:%s:team:name:%s".formatted(leagueId, teamName);
@@ -235,18 +243,31 @@ public class TeamStatsTool {
                         .eq(Match::getLeagueId, leagueId)
                         .eq(Match::getStatus, 2));
 
-        // 计算名次（仅冠军=1、亚军=2、季军=3）
-        Map<String, Integer> placement = computePlacement(matches);
-        Map<String, String> placementDesc = computePlacementDesc(placement);
+        // 构建 KDA 映射
+        Map<String, Double> teamKdaMap = new HashMap<>();
+        for (TeamStats t : teams) {
+            teamKdaMap.put(t.getTeamName(), t.getAvgKda() != null ? t.getAvgKda() : 0);
+        }
 
-        // 排序：placement 1/2/3 的队伍在前（按名次升序），其余在后（按 KDA 降序）
+        // 从比赛结果推算名次顺序（严格 1,2,3,4...）
+        List<String> placementOrder = computePlacementOrder(matches, teamKdaMap);
+
+        // 构建名次映射
+        Map<String, Integer> placement = new HashMap<>();
+        for (int i = 0; i < placementOrder.size(); i++) {
+            placement.put(placementOrder.get(i), i + 1);
+        }
+
+        // 排序：有名次的按名次升序，无名次的在最后按胜率+KDA降序
         List<TeamStats> sorted = teams.stream()
                 .sorted((a, b) -> {
                     int pa = placement.getOrDefault(a.getTeamName(), 999);
                     int pb = placement.getOrDefault(b.getTeamName(), 999);
-                    // 有名次的（1/2/3）始终排在无名次的（999）前面
                     if (pa != pb) return Integer.compare(pa, pb);
-                    // 同分组内按 KDA 降序
+                    int cmp = Double.compare(
+                            b.getWinRate() != null ? b.getWinRate() : 0,
+                            a.getWinRate() != null ? a.getWinRate() : 0);
+                    if (cmp != 0) return cmp;
                     return Double.compare(
                             b.getAvgKda() != null ? b.getAvgKda() : 0,
                             a.getAvgKda() != null ? a.getAvgKda() : 0);
@@ -268,8 +289,9 @@ public class TeamStatsTool {
             row.put("avgFirstBlood", t.getAvgFirstBlood());
             row.put("avgPushTower", t.getAvgPushTower());
             row.put("avgDragonControlRate", t.getAvgDragonControlRate());
-            row.put("placement", placement.getOrDefault(t.getTeamName(), 0));
-            row.put("placementDesc", placementDesc.getOrDefault(t.getTeamName(), ""));
+            int p = placement.getOrDefault(t.getTeamName(), 0);
+            row.put("placement", p);
+            row.put("placementDesc", p > 0 ? "第" + p + "名" : "");
             data.add(row);
         }
 
@@ -282,93 +304,91 @@ public class TeamStatsTool {
     }
 
     /**
-     * 从比赛数据计算冠亚季军：
-     * - 决赛胜者 = 1（冠军）
-     * - 决赛败者 = 2（亚军）
-     * - 季后赛最后一轮败者（进入半决赛但未进决赛的队伍）中 KDA 最高者 = 3（季军）
+     * 从淘汰赛结果推算名次（严格 1,2,3,4... 不并列）：
+     * 1) 决赛胜者=1，败者=2
+     * 2) 统计每队赢了几轮，赢轮数越多名次越高
+     * 3) 同轮败者按被淘汰时间排序（越晚越好），再按 KDA 排序
+     * 4) 返回按名次排好的队伍名列表，供 buildRankingResult 使用
      */
-    private Map<String, Integer> computePlacement(List<Match> matches) {
-        Map<String, Integer> result = new HashMap<>();
-        if (matches == null || matches.isEmpty()) return result;
+    private List<String> computePlacementOrder(List<Match> matches, Map<String, Double> teamKdaMap) {
+        List<String> order = new ArrayList<>();
+        if (matches == null || matches.isEmpty()) return order;
 
-        // 按赛段分组
-        Map<String, List<Match>> byStage = matches.stream()
-                .collect(Collectors.groupingBy(m -> m.getMatchStage() != null ? m.getMatchStage() : ""));
-
-        // 决赛：stage 为 "js" 或 "zjs"（排除 "jhs"）
-        Match finalMatch = byStage.entrySet().stream()
-                .filter(e -> e.getKey().contains("js") && !e.getKey().equals("jhs"))
-                .flatMap(e -> e.getValue().stream())
+        // 决赛
+        Match finalMatch = matches.stream()
+                .filter(m -> {
+                    String s = m.getMatchStage();
+                    return s != null && s.contains("js") && !s.equals("jhs");
+                })
                 .findFirst().orElse(null);
+        if (finalMatch == null || finalMatch.getWinCamp() == null) return order;
 
-        String champion = null, runnerUp = null;
-        if (finalMatch != null) {
-            if (finalMatch.getWinCamp() != null && finalMatch.getWinCamp() == 1) {
-                champion = finalMatch.getCamp1TeamName();
-                runnerUp = finalMatch.getCamp2TeamName();
-            } else if (finalMatch.getWinCamp() != null && finalMatch.getWinCamp() == 2) {
-                champion = finalMatch.getCamp2TeamName();
-                runnerUp = finalMatch.getCamp1TeamName();
-            }
-            if (champion != null) result.put(champion, 1);
-            if (runnerUp != null) result.put(runnerUp, 2);
-        }
+        String champion = finalMatch.getWinCamp() == 1
+                ? finalMatch.getCamp1TeamName() : finalMatch.getCamp2TeamName();
+        String runnerUp = finalMatch.getWinCamp() == 1
+                ? finalMatch.getCamp2TeamName() : finalMatch.getCamp1TeamName();
+        order.add(champion);
+        order.add(runnerUp);
 
-        // 季后赛：找与冠军/亚军交手的队伍（即进入后半段季后赛的队伍）
-        List<Match> jhsMatches = byStage.getOrDefault("jhs", List.of());
-        if (!jhsMatches.isEmpty() && champion != null) {
-            // 找决赛双方在季后赛中击败的对手（最近一轮的败者 = 进入半决赛的队伍）
-            Set<String> nearFinalists = new HashSet<>();
-            // 按时间降序排列，找冠军和亚军各自在季后赛的最后一场胜利
-            List<Match> sortedJhs = jhsMatches.stream()
-                    .filter(m -> m.getStartTime() != null)
-                    .sorted(Comparator.comparing(Match::getStartTime).reversed())
-                    .collect(Collectors.toList());
+        // 统计每队赢了几轮
+        Map<String, Integer> winCount = new HashMap<>();
+        // 记录每队最后一场淘汰赛的时间（越晚 = 走得越远）
+        Map<String, String> lastLossTime = new HashMap<>();
 
-            for (Match m : sortedJhs) {
-                String winner = m.getWinCamp() == 1 ? m.getCamp1TeamName() : m.getCamp2TeamName();
-                String loser = m.getWinCamp() == 1 ? m.getCamp2TeamName() : m.getCamp1TeamName();
-                // 冠军或亚军赢的比赛 → 对面的败者就是半决赛选手
-                if ((winner.equals(champion) || winner.equals(runnerUp)) && loser != null) {
-                    if (!result.containsKey(loser)) {
-                        nearFinalists.add(loser);
-                    }
+        for (Match m : matches) {
+            String stage = m.getMatchStage();
+            if (stage == null) continue;
+            if (stage.contains("js") && !stage.equals("jhs")) continue;
+            if (m.getWinCamp() == null) continue;
+
+            String winner = m.getWinCamp() == 1 ? m.getCamp1TeamName() : m.getCamp2TeamName();
+            String loser = m.getWinCamp() == 1 ? m.getCamp2TeamName() : m.getCamp1TeamName();
+            if (winner != null) winCount.merge(winner, 1, Integer::sum);
+            if (loser != null && m.getStartTime() != null) {
+                String time = m.getStartTime().toString();
+                // 只保留最晚的时间（该队最后被淘汰的那场）
+                if (!lastLossTime.containsKey(loser) || time.compareTo(lastLossTime.get(loser)) > 0) {
+                    lastLossTime.put(loser, time);
                 }
             }
-
-            // 季军：半决赛败者中 KDA 最高的
-            if (!nearFinalists.isEmpty()) {
-                String third = nearFinalists.stream()
-                        .max(Comparator.comparingDouble(t -> findKda(matches, t)))
-                        .orElse(null);
-                if (third != null) result.put(third, 3);
-            }
         }
 
-        return result;
+        int runnerUpWins = winCount.getOrDefault(runnerUp, 0);
+        int maxWins = runnerUpWins + 1;
+
+        // 按赢轮数分组
+        Map<Integer, List<String>> byWins = new TreeMap<>(Comparator.reverseOrder()); // 轮数多的在前
+        for (var entry : winCount.entrySet()) {
+            String team = entry.getKey();
+            if (order.contains(team)) continue;
+            byWins.computeIfAbsent(entry.getValue(), k -> new ArrayList<>()).add(team);
+        }
+
+        // 每组内按最后淘汰时间降序 + KDA 降序
+        for (var group : byWins.values()) {
+            group.sort((a, b) -> {
+                // 最后被淘汰的时间越晚 = 走得越远 = 名次越高
+                String ta = lastLossTime.getOrDefault(a, "");
+                String tb = lastLossTime.getOrDefault(b, "");
+                int cmp = tb.compareTo(ta);
+                if (cmp != 0) return cmp;
+                // 同时间按 KDA 降序
+                double ka = teamKdaMap.getOrDefault(a, 0.0);
+                double kb = teamKdaMap.getOrDefault(b, 0.0);
+                return Double.compare(kb, ka);
+            });
+            order.addAll(group);
+        }
+
+        return order;
     }
 
     private Map<String, String> computePlacementDesc(Map<String, Integer> placement) {
         Map<String, String> result = new HashMap<>();
         for (var entry : placement.entrySet()) {
-            result.put(entry.getKey(), switch (entry.getValue()) {
-                case 1 -> "冠军";
-                case 2 -> "亚军";
-                case 3 -> "季军";
-                default -> "";
-            });
+            result.put(entry.getKey(), "第" + entry.getValue() + "名");
         }
         return result;
-    }
-
-    /** 从 team_stats 中查找某队的 KDA（用于半决赛败者排序） */
-    private double findKda(List<Match> matches, String teamName) {
-        // 优先从 team_stats 表取 KDA
-        TeamStats stats = teamStatsMapper.selectOne(
-                new LambdaQueryWrapper<TeamStats>()
-                        .eq(TeamStats::getTeamName, teamName)
-                        .last("LIMIT 1"));
-        return stats != null && stats.getAvgKda() != null ? stats.getAvgKda() : 0;
     }
 
     private Map<String, Object> buildResult(String type, String keyword, List<TeamStats> list) {
