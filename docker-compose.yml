@@ -3,17 +3,17 @@ services:
     build: .
     container_name: kpl-agent-backend
     mem_limit: 256m
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
-      mysql:
-        condition: service_healthy
       redis:
         condition: service_healthy
     environment:
       JAVA_OPTS: "-Xms128m -Xmx200m"
       SERVER_PORT: 9090
-      MYSQL_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-kpl_agent}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-      MYSQL_USERNAME: root
-      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
+      MYSQL_URL: jdbc:mysql://host.docker.internal:3306/${MYSQL_DATABASE:-kpl_agent}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      MYSQL_USERNAME: ${MYSQL_USERNAME:-root}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       AI_API_KEY: ${AI_API_KEY:-}
@@ -30,32 +30,6 @@ services:
       - backend
     ports:
       - "${APP_PORT:-9091}:80"
-    restart: unless-stopped
-
-  mysql:
-    image: mysql:8.4
-    container_name: kpl-agent-mysql
-    mem_limit: 384m
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-kpl_agent}
-    ports:
-      - "${MYSQL_PORT:-13307}:3306"
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
-      - --default-time-zone=+08:00
-      - --innodb-buffer-pool-size=64M
-      - --key-buffer-size=16M
-      - --max-connections=50
-    volumes:
-      - mysql-data:/var/lib/mysql
-      - ./init-data.sql:/docker-entrypoint-initdb.d/init-data.sql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD:-123456}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
     restart: unless-stopped
 
   redis:
@@ -75,5 +49,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  mysql-data:
   redis-data:
