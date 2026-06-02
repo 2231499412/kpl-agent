@@ -1,4 +1,6 @@
 <template>
+  <LoadingScreen />
+  <SideBar />
   <main class="app-shell">
     <section class="command-strip">
       <div class="brand-block">
@@ -462,6 +464,8 @@
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import MarkdownIt from 'markdown-it'
+import LoadingScreen from './components/LoadingScreen.vue'
+import SideBar from './components/SideBar.vue'
 import {
   Aim,
   ChatLineRound,
