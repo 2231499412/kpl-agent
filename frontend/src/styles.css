@@ -1,28 +1,44 @@
 :root {
-  color-scheme: light;
-  --bg: #f5f5f5;
-  --bg-raised: #ffffff;
-  --bg-overlay: #f0f0f0;
-  --panel: #ffffff;
-  --panel-strong: #f8f8f8;
-  --panel-hover: #f0f0f0;
-  --line: #e5e5e5;
-  --line-strong: #d0d0d0;
-  --text: #1a1a1a;
-  --text-secondary: #666666;
-  --muted: #999999;
-  --accent: #1a1a1a;
-  --accent-muted: rgba(26, 26, 26, 0.08);
+  color-scheme: dark;
+  --bg: #0a0a0f;
+  --bg-raised: #12121a;
+  --bg-overlay: #1a1a25;
+  --panel: rgba(18, 18, 26, 0.85);
+  --panel-strong: #16161f;
+  --panel-hover: #1e1e2a;
+  --line: rgba(255, 255, 255, 0.06);
+  --line-strong: rgba(255, 255, 255, 0.12);
+  --text: #e8e8e8;
+  --text-secondary: #8888a0;
+  --muted: #55556a;
+  --accent: #ff4444;
+  --accent-secondary: #ff8800;
+  --accent-glow: rgba(255, 68, 68, 0.25);
+  --accent-muted: rgba(255, 68, 68, 0.08);
   --green: #34c759;
   --green-muted: rgba(52, 199, 89, 0.15);
-  --amber: #FF9500;
+  --amber: #ff9500;
   --amber-muted: rgba(255, 149, 0, 0.15);
   --red: #ff3b30;
   --red-muted: rgba(255, 59, 48, 0.15);
   --cyan: #5ac8fa;
-  --gold: #FFFA00;
+  --gold: #ffd700;
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-blur: 16px;
   --radius: 8px;
   --radius-lg: 12px;
+
+  /* Element Plus dark mode overrides */
+  --el-bg-color: var(--bg-raised);
+  --el-bg-color-overlay: var(--bg-overlay);
+  --el-text-color-primary: var(--text);
+  --el-text-color-regular: var(--text-secondary);
+  --el-border-color: var(--line);
+  --el-border-color-light: var(--line);
+  --el-fill-color-blank: var(--bg-overlay);
+  --el-fill-color-light: var(--bg-raised);
+  --el-color-primary: var(--accent);
 }
 
 * {
@@ -44,6 +60,8 @@ body {
   padding: 20px;
   max-width: 1600px;
   margin: 0 auto;
+}
+.app-shell.has-sidebar {
   margin-left: 67.5px;
 }
 
@@ -71,7 +89,7 @@ body {
   display: grid;
   place-items: center;
   color: #fff;
-  background: linear-gradient(135deg, var(--accent), #a371f7);
+  background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
   font-size: 24px;
   font-weight: 900;
   border-radius: var(--radius);
@@ -220,8 +238,8 @@ h1 {
   --el-button-bg-color: var(--accent);
   --el-button-border-color: var(--accent);
   --el-button-text-color: #fff;
-  --el-button-hover-bg-color: #79c0ff;
-  --el-button-hover-border-color: #79c0ff;
+  --el-button-hover-bg-color: var(--accent-secondary);
+  --el-button-hover-border-color: var(--accent-secondary);
   font-weight: 600;
 }
 
@@ -292,8 +310,8 @@ h1 {
   --el-button-bg-color: var(--accent);
   --el-button-border-color: var(--accent);
   --el-button-text-color: #fff;
-  --el-button-hover-bg-color: #79c0ff;
-  --el-button-hover-border-color: #79c0ff;
+  --el-button-hover-bg-color: var(--accent-secondary);
+  --el-button-hover-border-color: var(--accent-secondary);
   font-weight: 600;
 }
 
@@ -800,7 +818,7 @@ h1 {
 .stage-playoff {
   color: var(--accent);
   background: var(--accent-muted);
-  border: 1px solid rgba(88, 166, 255, 0.25);
+  border: 1px solid rgba(255, 68, 68, 0.25);
 }
 .stage-regular {
   color: var(--text-secondary);
@@ -1222,4 +1240,96 @@ h1 {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted);
+}
+
+/* ═══════════════════════════════════════════
+   新增：赛事工具站 - 暗色主题工具类
+   ═══════════════════════════════════════════ */
+
+/* ─── 玻璃拟态 ─── */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+}
+
+/* ─── 渐变文字 ─── */
+.gradient-text {
+  background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── 滚动渐显 ─── */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.scroll-reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+.scroll-reveal.from-left {
+  transform: translateX(-30px);
+}
+.scroll-reveal.from-left.revealed {
+  transform: translateX(0);
+}
+.scroll-reveal.from-right {
+  transform: translateX(30px);
+}
+.scroll-reveal.from-right.revealed {
+  transform: translateX(0);
+}
+
+/* ─── 发光效果 ─── */
+.glow-accent {
+  box-shadow: 0 0 20px var(--accent-glow), 0 0 60px rgba(255, 68, 68, 0.08);
+}
+
+/* ─── Hero 渐变网格背景 ─── */
+.hero-gradient-mesh {
+  background:
+    radial-gradient(ellipse 60% 50% at 20% 30%, rgba(255, 68, 68, 0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 60% at 80% 20%, rgba(100, 60, 255, 0.08) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 40% at 50% 80%, rgba(255, 136, 0, 0.06) 0%, transparent 70%),
+    var(--bg);
+}
+
+/* ─── 浮动动画 ─── */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+.animate-float { animation: float 6s ease-in-out infinite; }
+
+/* ─── 脉冲发光 ─── */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px var(--accent-glow); }
+  50% { box-shadow: 0 0 40px var(--accent-glow), 0 0 80px rgba(255, 68, 68, 0.1); }
+}
+.animate-pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
+
+/* ─── 打字光标 ─── */
+@keyframes typing-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* ─── 向下滚动箭头 ─── */
+@keyframes bounce-down {
+  0%, 100% { transform: translateY(0); opacity: 0.6; }
+  50% { transform: translateY(8px); opacity: 1; }
+}
+.animate-bounce-down { animation: bounce-down 2s ease-in-out infinite; }
+
+/* ─── 数字计数器 ─── */
+.counter-value {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }

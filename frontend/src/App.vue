@@ -1,14 +1,19 @@
 <template>
   <LoadingScreen />
-  <router-view v-slot="{ Component, route }">
+  <SideBar v-if="route.meta.showSidebar" />
+  <router-view v-slot="{ Component, route: r }">
     <transition name="page-fade" mode="out-in">
-      <component :is="Component" :key="route.path" />
+      <component :is="Component" :key="r.path" />
     </transition>
   </router-view>
 </template>
 
 <script setup>
+import { useRoute } from 'vue-router'
 import LoadingScreen from './components/LoadingScreen.vue'
+import SideBar from './components/SideBar.vue'
+
+const route = useRoute()
 </script>
 
 <style>
