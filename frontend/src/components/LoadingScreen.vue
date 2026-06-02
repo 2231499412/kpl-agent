@@ -5,15 +5,15 @@
 
     <!-- 主内容 -->
     <div class="loading-content" :class="{ hidden: phase === 'wipe' || phase === 'fade' }">
-      <!-- 左侧进度条 -->
+      <!-- 左侧进度条，紧贴屏幕左边缘，深色底 -->
       <div class="progress-track">
         <div class="progress-fill" :style="{ height: progress + '%' }"></div>
       </div>
 
       <!-- 左下角进度数字 -->
-      <div class="progress-number">{{ Math.floor(progress) }}</div>
+      <div class="progress-number">{{ Math.floor(progress) }}%</div>
 
-      <!-- 右侧 Logo 区域 -->
+      <!-- 右下角 Logo 区域 -->
       <div class="logo-area">
         <div class="logo-mark">K</div>
         <div class="logo-text">
@@ -35,10 +35,10 @@ import { ref, onMounted } from 'vue'
 
 const visible = ref(true)
 const progress = ref(0)
-const phase = ref('loading') // loading → wipe → fade → done
+const phase = ref('loading')
 
 onMounted(() => {
-  const duration = 1800 // 加载动画总时长 ms
+  const duration = 600
   const interval = 16
   const step = 100 / (duration / interval)
 
@@ -46,10 +46,8 @@ onMounted(() => {
     progress.value = Math.min(progress.value + step, 100)
     if (progress.value >= 100) {
       clearInterval(timer)
-      // 进度到 100%，开始黄色展开
       phase.value = 'wipe'
       setTimeout(() => {
-        // 展开完成，开始淡出
         phase.value = 'fade'
         setTimeout(() => {
           visible.value = false
@@ -66,7 +64,7 @@ onMounted(() => {
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: #141414;
+  background: #111111;
   display: flex;
   align-items: stretch;
   justify-content: space-between;
@@ -97,48 +95,46 @@ onMounted(() => {
   position: relative;
   width: 100%;
   height: 100%;
-  display: flex;
   transition: opacity 0.3s;
 }
 .loading-content.hidden {
   opacity: 0;
 }
 
-/* 左侧进度条 */
+/* 左侧进度条，紧贴左边缘，深色底，细条 */
 .progress-track {
   position: absolute;
-  left: 40px;
-  top: 40px;
-  bottom: 40px;
-  width: 30px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 2px;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 15px;
+  background: #222222;
   overflow: hidden;
 }
 .progress-fill {
   position: absolute;
-  bottom: 0;
+  top: 0;
   left: 0;
   width: 100%;
   background: #FFFA00;
   transition: height 0.016s linear;
-  border-radius: 2px;
 }
 
-/* 左下角进度数字 */
+/* 左下角进度数字，紧挨进度条右侧 */
 .progress-number {
   position: absolute;
-  left: 40px;
-  bottom: 50px;
+  left: 32px;
+  bottom: 40px;
   font-size: 80px;
-  font-weight: 700;
-  color: #FFFA00;
+  font-weight: 800;
+  color: #ffffff;
   font-variant-numeric: tabular-nums;
   line-height: 1;
-  letter-spacing: -2px;
+  letter-spacing: -3px;
+  font-family: 'Arial Black', 'Helvetica Neue', sans-serif;
 }
 
-/* 右侧 Logo 区域 */
+/* 右下角 Logo 区域 */
 .logo-area {
   position: absolute;
   right: 60px;
@@ -153,9 +149,9 @@ onMounted(() => {
   width: 48px;
   height: 48px;
   background: #FFFA00;
-  color: #141414;
+  color: #111111;
   font-size: 28px;
-  font-weight: 800;
+  font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -174,7 +170,7 @@ onMounted(() => {
 }
 .logo-main {
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 700;
   color: #ffffff;
   margin: 0;
 }
@@ -183,7 +179,7 @@ onMounted(() => {
   display: flex;
   gap: 8px;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.3);
   letter-spacing: 2px;
   text-transform: uppercase;
 }

@@ -69,8 +69,8 @@ const bottomItems = [
   top: 0;
   bottom: 0;
   width: 67.5px;
-  background: #161b22;
-  border-right: 1px solid rgba(139, 148, 158, 0.15);
+  background: #1a1a1a;
+  border-right: 1px solid #333;
   display: flex;
   flex-direction: column;
   z-index: 50;
@@ -87,17 +87,17 @@ const bottomItems = [
   align-items: center;
   gap: 12px;
   padding: 20px 18px;
-  border-bottom: 1px solid rgba(139, 148, 158, 0.15);
+  border-bottom: 1px solid #333;
   min-height: 64px;
 }
 .logo-icon {
   width: 32px;
   height: 32px;
   min-width: 32px;
-  background: #FFFA00;
-  color: #141414;
+  background: #ffffff;
+  color: #1a1a1a;
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -106,7 +106,7 @@ const bottomItems = [
 .logo-label {
   font-size: 14px;
   font-weight: 700;
-  color: #e6edf3;
+  color: #ffffff;
   white-space: nowrap;
 }
 
@@ -130,35 +130,35 @@ const bottomItems = [
   border-radius: 0;
 }
 .nav-item:hover {
-  background: #21262d;
+  background: #333;
 }
 .nav-item.active {
-  background: #1c2128;
+  background: #2a2a2a;
 }
 .nav-item.active .nav-icon {
-  color: #FFFA00;
+  color: #ffffff;
 }
 
 .nav-icon {
   font-size: 20px;
   min-width: 20px;
-  color: #8b949e;
+  color: #888;
   transition: color 0.15s;
 }
 .nav-item:hover .nav-icon,
 .nav-item.active .nav-icon {
-  color: #e6edf3;
+  color: #ffffff;
 }
 
 .nav-label {
   font-size: 13px;
-  color: #e6edf3;
+  color: #e0e0e0;
   font-weight: 500;
 }
 
 /* 底部工具 */
 .sidebar-bottom {
-  border-top: 1px solid rgba(139, 148, 158, 0.15);
+  border-top: 1px solid #333;
   padding: 8px 0;
 }
 
