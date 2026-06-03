@@ -65,10 +65,11 @@
           </div>
 
           <div v-if="panel.key === 'matches'" class="match-board">
+            <p class="match-league" v-if="recentMatches.length">{{ recentMatches[0].league }}</p>
             <div v-for="match in recentMatches" :key="match.id" class="match-row">
               <span>{{ match.stage }}</span>
               <strong>{{ match.teams }}</strong>
-              <small>{{ match.time }}</small>
+              <small>{{ match.winner ? match.winner + ' 胜' : match.time }}</small>
             </div>
           </div>
 
@@ -287,15 +288,19 @@ onMounted(async () => {
   window.addEventListener('keydown', handleKeydown)
   window.addEventListener('resize', syncViewportWidth)
   try {
-    const [teamRes, heroRes, matchRes] = await Promise.allSettled([
+    const [teamRes, heroRes, matchRes, leagueRes] = await Promise.allSettled([
       fetch('/api/query/team/ranking').then((r) => r.json()),
       fetch('/api/query/hero/top?sort=pick').then((r) => r.json()),
       fetch('/api/query/match/schedule').then((r) => r.json()),
+      fetch('/api/leagues?limit=50').then((r) => r.json()),
     ])
 
     const teams = teamRes.status === 'fulfilled' ? teamRes.value?.data : []
     const heroes = heroRes.status === 'fulfilled' ? heroRes.value?.data : []
-    const matches = matchRes.status === 'fulfilled' ? matchRes.value?.data : []
+    const matchData = matchRes.status === 'fulfilled' ? matchRes.value?.data : {}
+    const matches = matchData?.data || []
+    const leagues = leagueRes.status === 'fulfilled' ? leagueRes.value?.data : []
+    const leagueMap = Object.fromEntries((leagues || []).map(l => [l.leagueId, l.leagueName]))
 
     if (Array.isArray(teams)) {
       teamCount.value = teams.length
@@ -303,15 +308,27 @@ onMounted(async () => {
     }
     if (Array.isArray(heroes)) heroCount.value = heroes.length
     if (Array.isArray(matches) && matches.length) {
+      const lid = matches[0]?.leagueId || ''
+      const leagueName = leagueMap[lid] || 'KPL'
+
       recentMatches.value = matches
         .sort((a, b) => (b.startTime || '').localeCompare(a.startTime || ''))
-        .slice(0, 5)
-        .map((match, index) => ({
-          id: match.matchId || index,
-          stage: match.matchStageDesc || 'KPL',
-          teams: `${match.camp1TeamName || '蓝方'} ${match.camp1Score ?? '-'} : ${match.camp2Score ?? '-'} ${match.camp2TeamName || '红方'}`,
-          time: formatTime(match.startTime),
-        }))
+        .slice(0, 6)
+        .map((match, index) => {
+          const c1 = match.camp1TeamName || '蓝方'
+          const c2 = match.camp2TeamName || '红方'
+          const s1 = match.camp1Score ?? '-'
+          const s2 = match.camp2Score ?? '-'
+          const winner = match.winCamp === 1 ? c1 : match.winCamp === 2 ? c2 : ''
+          return {
+            id: match.matchId || index,
+            league: leagueName,
+            stage: match.matchStageDesc || '',
+            teams: `${c1}  ${s1} : ${s2}  ${c2}`,
+            winner,
+            time: formatTime(match.startTime),
+          }
+        })
     }
     updateContentEdges()
   } catch {
@@ -780,6 +797,14 @@ onBeforeUnmount(() => {
 
 .match-board {
   width: min(660px, 48vw);
+}
+
+.match-league {
+  margin: 0 0 4px;
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 2px;
 }
 
 .match-row {

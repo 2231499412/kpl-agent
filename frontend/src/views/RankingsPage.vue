@@ -1,5 +1,5 @@
 ﻿<template>
-  <main class="app-shell has-sidebar rankings-console">
+  <main class="app-shell has-sidebar rankings-console" :class="`theme-${theme}`">
     <section class="command-strip">
       <div class="brand-block">
         <div class="brand-mark">K</div>
@@ -19,6 +19,12 @@
         <span class="status-pill" :class="{ online: system.aiConfigured }">
           <i></i>AI {{ system.aiConfigured ? system.aiModel : 'Fallback' }}
         </span>
+        <button class="theme-toggle" :title="theme === 'light' ? '切换暗色' : '切换亮色'" @click="theme = theme === 'light' ? 'dark' : 'light'">
+          <span class="toggle-track" :class="{ on: theme === 'dark' }">
+            <span class="toggle-thumb" />
+          </span>
+          <small>{{ theme === 'light' ? 'LIGHT' : 'DARK' }}</small>
+        </button>
       </div>
     </section>
 
@@ -474,6 +480,9 @@ const md = new MarkdownIt({ html: false, breaks: true })
 function renderMd(text) { return md.render(text || '') }
 
 const leagues = ref([])
+const theme = ref(localStorage.getItem('kpl-theme') || 'light')
+watch(theme, (v) => localStorage.setItem('kpl-theme', v))
+
 const selectedLeagueId = ref('')
 const leagueMeta = ref({ matchCount: 0, teamCount: 0, playerCount: 0 })
 const system = ref({})
@@ -945,6 +954,33 @@ onMounted(async () => {
   --mono-accent: #1a1a1a;
   --el-segmented-item-selected-bg-color: rgba(0, 0, 0, 0.08);
   --el-segmented-item-selected-color: #1a1a1a;
+  --el-seg-bg: rgba(0, 0, 0, 0.08);
+  --el-seg-color: #1a1a1a;
+  --el-seg-border: rgba(0, 0, 0, 0.12);
+  --btn-bg: rgba(255, 255, 255, 0.6);
+  --btn-hover-bg: rgba(255, 255, 255, 0.9);
+  --primary-bg: #1a1a1a;
+  --primary-color: #f8f5ec;
+  --primary-hover-bg: #333;
+  --input-bg: rgba(255, 255, 255, 0.7);
+  --focus-ring: rgba(0, 0, 0, 0.06);
+  --table-header-bg: rgba(0, 0, 0, 0.04);
+  --table-hover-bg: rgba(0, 0, 0, 0.04);
+  --table-container-bg: rgba(255, 255, 255, 0.5);
+  --loading-bg: rgba(248, 245, 236, 0.7);
+  --loading-border: rgba(0, 0, 0, 0.1);
+  --loading-top: #1a1a1a;
+  --card-bg: rgba(255, 255, 255, 0.7);
+  --card-bg-alt: rgba(0, 0, 0, 0.03);
+  --stat-bg: rgba(0, 0, 0, 0.03);
+  --badge-color: #1a1a1a;
+  --badge-dim: rgba(26, 26, 26, 0.4);
+  --label-dim: rgba(26, 26, 26, 0.45);
+  --text-dim: rgba(26, 26, 26, 0.5);
+  --bar-bg: rgba(0, 0, 0, 0.08);
+  --bar-fill: #1a1a1a;
+  --dialog-bg: #fff;
+  --corner-border: rgba(0, 0, 0, 0.12);
   max-width: none;
   min-height: 100vh;
   padding: 28px 32px 36px 87px;
@@ -952,6 +988,47 @@ onMounted(async () => {
   background:
     linear-gradient(180deg, rgba(250, 248, 240, 0.98), rgba(245, 242, 232, 0.99)),
     #f8f5ec;
+}
+
+/* ── dark theme ── */
+.rankings-console.theme-dark {
+  --mono-bg: #0a0a0a;
+  --mono-panel: rgba(18, 18, 18, 0.92);
+  --mono-panel-soft: rgba(30, 30, 30, 0.82);
+  --mono-line: rgba(255, 255, 255, 0.12);
+  --mono-line-strong: rgba(255, 255, 255, 0.25);
+  --mono-ink: #e8e8e8;
+  --mono-soft: rgba(232, 232, 232, 0.65);
+  --mono-dim: rgba(232, 232, 232, 0.38);
+  --mono-accent: #e8e8e8;
+  --el-seg-bg: rgba(255, 255, 255, 0.08);
+  --el-seg-color: #e8e8e8;
+  --el-seg-border: rgba(255, 255, 255, 0.15);
+  --btn-bg: rgba(255, 255, 255, 0.08);
+  --btn-hover-bg: rgba(255, 255, 255, 0.14);
+  --primary-bg: #e8e8e8;
+  --primary-color: #0a0a0a;
+  --primary-hover-bg: #ccc;
+  --input-bg: rgba(255, 255, 255, 0.06);
+  --focus-ring: rgba(255, 255, 255, 0.08);
+  --table-header-bg: rgba(255, 255, 255, 0.06);
+  --table-hover-bg: rgba(255, 255, 255, 0.05);
+  --table-container-bg: rgba(255, 255, 255, 0.04);
+  --loading-bg: rgba(10, 10, 10, 0.7);
+  --loading-border: rgba(255, 255, 255, 0.15);
+  --loading-top: #e8e8e8;
+  --card-bg: rgba(255, 255, 255, 0.06);
+  --card-bg-alt: rgba(255, 255, 255, 0.03);
+  --stat-bg: rgba(255, 255, 255, 0.04);
+  --badge-color: #e8e8e8;
+  --badge-dim: rgba(232, 232, 232, 0.4);
+  --label-dim: rgba(232, 232, 232, 0.45);
+  --text-dim: rgba(232, 232, 232, 0.5);
+  --bar-bg: rgba(255, 255, 255, 0.1);
+  --bar-fill: #e8e8e8;
+  --dialog-bg: #1a1a1a;
+  --corner-border: rgba(255, 255, 255, 0.18);
+  background: linear-gradient(180deg, #0a0a0a, #141414);
 }
 
 .rankings-console .command-strip,
@@ -971,16 +1048,16 @@ onMounted(async () => {
   top: -1px;
   width: 36px;
   height: 36px;
-  border-left: 2px solid rgba(0, 0, 0, 0.12);
-  border-top: 2px solid rgba(0, 0, 0, 0.12);
+  border-left: 2px solid var(--corner-border);
+  border-top: 2px solid var(--corner-border);
   pointer-events: none;
 }
 
 .rankings-console .brand-mark {
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--mono-line-strong);
   border-radius: 0;
-  color: #1a1a1a;
-  background: rgba(0, 0, 0, 0.04);
+  color: var(--mono-ink);
+  background: var(--stat-bg);
 }
 
 .rankings-console .eyebrow,
@@ -1011,7 +1088,7 @@ onMounted(async () => {
 .rankings-console .reasoning-block {
   border-color: var(--mono-line);
   border-radius: 0;
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--card-bg);
   color: var(--mono-soft);
 }
 
@@ -1021,7 +1098,7 @@ onMounted(async () => {
 }
 
 .rankings-console .status-pill.online i {
-  background: #1a1a1a;
+  background: var(--mono-accent);
   box-shadow: 0 0 6px rgba(0, 0, 0, 0.2);
 }
 
@@ -1041,7 +1118,7 @@ onMounted(async () => {
   text-align: center;
   padding: 10px 0;
   border: 1px solid var(--mono-line);
-  background: rgba(0, 0, 0, 0.03);
+  background: var(--stat-bg);
 }
 .rankings-console .ls-val {
   display: block;
@@ -1074,21 +1151,21 @@ onMounted(async () => {
 }
 
 .rankings-console :deep(.el-button:not(.el-button--primary)) {
-  --el-button-bg-color: rgba(255, 255, 255, 0.6);
+  --el-button-bg-color: var(--btn-bg);
   --el-button-border-color: var(--mono-line);
   --el-button-text-color: var(--mono-soft);
-  --el-button-hover-bg-color: rgba(255, 255, 255, 0.9);
+  --el-button-hover-bg-color: var(--btn-hover-bg);
   --el-button-hover-border-color: var(--mono-line-strong);
   --el-button-hover-text-color: var(--mono-ink);
 }
 
 .rankings-console .primary-action,
 .rankings-console .sync-all-btn {
-  --el-button-bg-color: #1a1a1a;
-  --el-button-border-color: #1a1a1a;
-  --el-button-text-color: #f8f5ec;
-  --el-button-hover-bg-color: #333;
-  --el-button-hover-border-color: #333;
+  --el-button-bg-color: var(--primary-bg);
+  --el-button-border-color: var(--primary-bg);
+  --el-button-text-color: var(--primary-color);
+  --el-button-hover-bg-color: var(--primary-hover-bg);
+  --el-button-hover-border-color: var(--primary-hover-bg);
   border-radius: 0;
 }
 
@@ -1096,27 +1173,27 @@ onMounted(async () => {
 .rankings-console :deep(.el-select__wrapper),
 .rankings-console :deep(.el-segmented) {
   border-radius: 0 !important;
-  background: rgba(255, 255, 255, 0.7) !important;
+  background: var(--input-bg) !important;
   box-shadow: 0 0 0 1px var(--mono-line) inset !important;
-  --el-segmented-item-selected-bg-color: rgba(0, 0, 0, 0.08);
-  --el-segmented-item-selected-color: #1a1a1a;
+  --el-segmented-item-selected-bg-color: var(--el-seg-bg);
+  --el-segmented-item-selected-color: var(--el-seg-color);
   --el-segmented-item-color: var(--mono-soft);
 }
 
 .rankings-console :deep(.el-input__wrapper.is-focus),
 .rankings-console :deep(.el-select__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px var(--mono-accent) inset, 0 0 0 3px rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 0 0 1px var(--mono-accent) inset, 0 0 0 3px var(--focus-ring) !important;
 }
 
 .rankings-console :deep(.el-segmented__item-selected) {
   border-radius: 0 !important;
-  background-color: rgba(0, 0, 0, 0.08) !important;
-  color: #1a1a1a !important;
+  background-color: var(--el-seg-bg) !important;
+  color: var(--el-seg-color) !important;
   font-weight: 700;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--el-seg-border);
 }
 .rankings-console :deep(.el-segmented__item-selected .el-segmented__item-label) {
-  color: #1a1a1a !important;
+  color: var(--el-seg-color) !important;
 }
 .rankings-console :deep(.el-segmented__item:not(.el-segmented__item-selected)) {
   color: var(--mono-soft) !important;
@@ -1124,7 +1201,7 @@ onMounted(async () => {
 
 .rankings-console .table-container {
   border: 1px solid var(--mono-line);
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--table-container-bg);
   transition: opacity 0.15s ease;
 }
 .rankings-console .table-container.switching {
@@ -1134,18 +1211,18 @@ onMounted(async () => {
   opacity: 1;
 }
 .rankings-console :deep(.table-loading) {
-  background: rgba(248, 245, 236, 0.7) !important;
+  background: var(--loading-bg) !important;
 }
 .rankings-console :deep(.table-spinner) {
-  border-color: rgba(0, 0, 0, 0.1);
-  border-top-color: #1a1a1a;
+  border-color: var(--loading-border);
+  border-top-color: var(--loading-top);
 }
 
 .rankings-console :deep(.data-table) {
   --el-table-bg-color: transparent;
   --el-table-tr-bg-color: transparent;
-  --el-table-header-bg-color: rgba(0, 0, 0, 0.04);
-  --el-table-row-hover-bg-color: rgba(0, 0, 0, 0.04);
+  --el-table-header-bg-color: var(--table-header-bg);
+  --el-table-row-hover-bg-color: var(--table-hover-bg);
   --el-table-border-color: var(--mono-line);
   --el-table-text-color: var(--mono-ink);
   --el-table-header-text-color: var(--mono-soft);
@@ -1155,19 +1232,19 @@ onMounted(async () => {
 .rankings-console .pos-track {
   height: 3px;
   border-radius: 0;
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--bar-bg);
 }
 
 .rankings-console .rate-bar,
 .rankings-console .pos-fill {
   border-radius: 0;
-  background: #1a1a1a;
+  background: var(--bar-fill);
 }
 
 .rankings-console :deep(.el-dialog) {
   border: 1px solid var(--mono-line-strong) !important;
   border-radius: 0 !important;
-  background: #fff !important;
+  background: var(--dialog-bg) !important;
 }
 
 .rankings-console :deep(.el-dialog__title) {
@@ -1177,74 +1254,110 @@ onMounted(async () => {
 
 /* ── 详情弹窗内部组件覆写为白色主题 ── */
 .rankings-console :deep(.detail-dialog .el-dialog__header) {
-  border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+  border-bottom-color: var(--mono-line) !important;
 }
 .rankings-console :deep(.match-meta) {
-  color: rgba(26, 26, 26, 0.5) !important;
+  color: var(--mono-dim) !important;
 }
 .rankings-console :deep(.battle-card) {
-  background: rgba(0, 0, 0, 0.03) !important;
-  border-color: rgba(0, 0, 0, 0.08) !important;
+  background: var(--card-bg-alt) !important;
+  border-color: var(--mono-line) !important;
 }
 .rankings-console :deep(.player-card) {
-  background: rgba(0, 0, 0, 0.02) !important;
-  border-color: rgba(0, 0, 0, 0.08) !important;
+  background: var(--card-bg-alt) !important;
+  border-color: var(--mono-line) !important;
 }
 .rankings-console :deep(.player-card:hover) {
-  background: rgba(0, 0, 0, 0.05) !important;
-  border-color: rgba(0, 0, 0, 0.16) !important;
+  background: var(--btn-hover-bg) !important;
+  border-color: var(--mono-line-strong) !important;
 }
-.rankings-console :deep(.player-card.camp-blue) { border-left-color: #1a1a1a !important; }
-.rankings-console :deep(.player-card.camp-red) { border-left-color: rgba(0,0,0,0.3) !important; }
-.rankings-console :deep(.player-header b) { color: #1a1a1a !important; }
-.rankings-console :deep(.player-header small) { color: rgba(26,26,26,0.5) !important; }
-.rankings-console :deep(.player-stats) { color: #1a1a1a !important; }
-.rankings-console :deep(.player-damage) { color: rgba(26,26,26,0.45) !important; }
+.rankings-console :deep(.player-card.camp-blue) { border-left-color: var(--mono-ink) !important; }
+.rankings-console :deep(.player-card.camp-red) { border-left-color: var(--mono-dim) !important; }
+.rankings-console :deep(.player-header b) { color: var(--mono-ink) !important; }
+.rankings-console :deep(.player-header small) { color: var(--text-dim) !important; }
+.rankings-console :deep(.player-stats) { color: var(--mono-ink) !important; }
+.rankings-console :deep(.player-damage) { color: var(--label-dim) !important; }
 .rankings-console :deep(.equip-chip) {
-  background: rgba(0, 0, 0, 0.04) !important;
-  border-color: rgba(0, 0, 0, 0.08) !important;
-  color: rgba(26, 26, 26, 0.65) !important;
+  background: var(--stat-bg) !important;
+  border-color: var(--mono-line) !important;
+  color: var(--mono-soft) !important;
 }
 .rankings-console :deep(.profile-card) {
-  background: rgba(0, 0, 0, 0.03) !important;
-  border-color: rgba(0, 0, 0, 0.08) !important;
+  background: var(--card-bg-alt) !important;
+  border-color: var(--mono-line) !important;
 }
-.rankings-console :deep(.profile-header b) { color: #1a1a1a !important; }
-.rankings-console :deep(.profile-header small) { color: rgba(26,26,26,0.5) !important; }
-.rankings-console :deep(.intro-text) { color: rgba(26,26,26,0.7) !important; }
-.rankings-console :deep(.stat-label) { color: rgba(26,26,26,0.45) !important; }
-.rankings-console :deep(.battle-title) { color: #1a1a1a !important; }
-.rankings-console :deep(.detail-empty) { color: rgba(26,26,26,0.4) !important; }
-.rankings-console :deep(.equip-desc) { color: #1a1a1a !important; }
-.rankings-console :deep(.equip-desc b) { color: #1a1a1a !important; }
-.rankings-console :deep(.equip-section h4) { color: #1a1a1a !important; }
-.rankings-console :deep(.hero-equip-name) { color: #1a1a1a !important; }
-.rankings-console :deep(.hero-equip-cnt) { color: rgba(26,26,26,0.45) !important; }
-.rankings-console :deep(.pos-label) { color: #1a1a1a !important; }
-.rankings-console :deep(.pos-cnt) { color: rgba(26,26,26,0.5) !important; }
+.rankings-console :deep(.profile-header b) { color: var(--mono-ink) !important; }
+.rankings-console :deep(.profile-header small) { color: var(--text-dim) !important; }
+.rankings-console :deep(.intro-text) { color: var(--mono-soft) !important; }
+.rankings-console :deep(.stat-label) { color: var(--label-dim) !important; }
+.rankings-console :deep(.battle-title) { color: var(--mono-ink) !important; }
+.rankings-console :deep(.detail-empty) { color: var(--mono-dim) !important; }
+.rankings-console :deep(.equip-desc) { color: var(--mono-ink) !important; }
+.rankings-console :deep(.equip-desc b) { color: var(--mono-ink) !important; }
+.rankings-console :deep(.equip-section h4) { color: var(--mono-ink) !important; }
+.rankings-console :deep(.hero-equip-name) { color: var(--mono-ink) !important; }
+.rankings-console :deep(.hero-equip-cnt) { color: var(--label-dim) !important; }
+.rankings-console :deep(.pos-label) { color: var(--mono-ink) !important; }
+.rankings-console :deep(.pos-cnt) { color: var(--text-dim) !important; }
 .rankings-console :deep(.skeleton-row) {
-  background: linear-gradient(90deg, rgba(0,0,0,0.04) 25%, rgba(0,0,0,0.08) 50%, rgba(0,0,0,0.04) 75%) !important;
+  background: linear-gradient(90deg, var(--stat-bg) 25%, var(--btn-hover-bg) 50%, var(--stat-bg) 75%) !important;
 }
-.rankings-console :deep(.stage-final) { color: #1a1a1a !important; background: rgba(0,0,0,0.05) !important; }
-.rankings-console :deep(.stage-playoff) { color: #1a1a1a !important; background: rgba(0,0,0,0.04) !important; }
-.rankings-console :deep(.stage-regular) { color: rgba(26,26,26,0.5) !important; background: rgba(0,0,0,0.03) !important; }
-.rankings-console :deep(.win-blue) { color: #1a1a1a !important; }
-.rankings-console :deep(.win-red) { color: rgba(26,26,26,0.5) !important; }
-.rankings-console :deep(.rank-badge) { color: #1a1a1a !important; }
-.rankings-console :deep(.rank-n) { color: rgba(26,26,26,0.4) !important; }
+.rankings-console :deep(.stage-final) { color: var(--mono-ink) !important; background: var(--stat-bg) !important; }
+.rankings-console :deep(.stage-playoff) { color: var(--mono-ink) !important; background: var(--stat-bg) !important; }
+.rankings-console :deep(.stage-regular) { color: var(--mono-soft) !important; background: var(--stat-bg) !important; }
+.rankings-console :deep(.win-blue) { color: var(--mono-ink) !important; }
+.rankings-console :deep(.win-red) { color: var(--mono-dim) !important; }
+.rankings-console :deep(.rank-badge) { color: var(--mono-ink) !important; }
+.rankings-console :deep(.rank-n) { color: var(--mono-dim) !important; }
+
+/* ── theme toggle ── */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--mono-soft);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+.theme-toggle:hover { color: var(--mono-ink); }
+.toggle-track {
+  position: relative;
+  width: 32px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--mono-line-strong);
+  transition: background 0.2s;
+}
+.toggle-track.on { background: var(--mono-ink); }
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--mono-bg);
+  transition: transform 0.2s;
+}
+.toggle-track.on .toggle-thumb { transform: translateX(16px); }
 .rankings-console :deep(.stat-grid) { gap: 8px !important; }
 .rankings-console :deep(.stat-item) {
-  background: rgba(0, 0, 0, 0.03) !important;
-  border-color: rgba(0, 0, 0, 0.08) !important;
+  background: var(--stat-bg) !important;
+  border-color: var(--mono-line) !important;
 }
-.rankings-console :deep(.sv) { color: #1a1a1a !important; }
-.rankings-console :deep(.sl) { color: rgba(26, 26, 26, 0.45) !important; }
+.rankings-console :deep(.sv) { color: var(--mono-ink) !important; }
+.rankings-console :deep(.sl) { color: var(--label-dim) !important; }
 </style>
 
 <style>
 /* 强制覆盖 Element Plus segmented 选中文字颜色 */
 .rankings-console .el-segmented__item.is-selected,
 .rankings-console .el-segmented__item.is-selected .el-segmented__item-label {
-  color: #1a1a1a !important;
+  color: var(--mono-ink) !important;
 }
 </style>

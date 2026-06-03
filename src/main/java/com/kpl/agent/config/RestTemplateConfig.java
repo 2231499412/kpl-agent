@@ -13,6 +13,13 @@ import java.time.Duration;
 @Configuration
 public class RestTemplateConfig {
 
+    static {
+        // 让 QQ 系域名不走代理，避免挂 VPN 时赛事数据请求失败
+        String bypass = "*.qq.com|*.tga.qq.com|*.smoba.qq.com";
+        System.setProperty("http.nonProxyHosts", bypass);
+        System.setProperty("https.nonProxyHosts", bypass);
+    }
+
     @Bean
     public RestTemplate restTemplate(RestTemplateBuilder builder) {
         return builder
