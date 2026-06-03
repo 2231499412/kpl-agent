@@ -64,7 +64,7 @@
     </section>
 
     <!-- 对局详情弹窗 -->
-    <el-dialog v-model="detailVisible" :title="detailTitle" width="800" class="detail-dialog" destroy-on-close>
+    <el-dialog v-model="detailVisible" :title="detailTitle" width="880" class="detail-dialog" destroy-on-close>
       <template v-if="detailLoading">
         <div class="skeleton-wrap">
           <div class="skeleton-row" style="width:40%"></div>
@@ -76,32 +76,64 @@
         <div class="battle-list">
           <div v-for="(battle, bi) in detailData.battles" :key="bi" class="battle-card">
             <div class="battle-head">
-              <span class="battle-num">第{{ bi + 1 }} 局</span>
+              <span class="battle-num">第{{ bi + 1 }}局</span>
               <span class="battle-winner" :class="battle.battle?.winCamp === 1 ? 'camp-blue' : 'camp-red'">
                 {{ battle.battle?.winCamp === 1 ? currentMatch?.camp1TeamName : currentMatch?.camp2TeamName }} 获胜
               </span>
             </div>
-            <div class="player-grid">
-              <div v-for="pd in sortedPlayers(battle.players)" :key="pd.player?.playerName"
-                :class="['player-card', pd.player?.camp === 1 ? 'camp-blue' : 'camp-red']">
-                <div class="player-header">
-                  <img :src="'https://res.edata.qq.com/sgame/static/images/hero/' + pd.player?.heroId + '.jpg'" class="hero-img" />
-                  <div>
-                    <b>{{ pd.player?.playerName }}</b>
-                    <small>{{ pd.player?.heroName }} · {{ pd.player?.positionDesc || '' }}</small>
+            <div class="team-columns">
+              <div class="team-col camp-blue">
+                <div class="team-col-header">
+                  <span class="team-col-name">{{ currentMatch?.camp1TeamName || '蓝方' }}</span>
+                  <span v-if="battle.battle?.winCamp === 1" class="team-col-win">胜</span>
+                </div>
+                <div v-for="pd in sortedPlayers(battle.players).filter(p => p.player?.camp === 1)" :key="pd.player?.playerName" class="player-card camp-blue">
+                  <div class="player-header">
+                    <img :src="'https://res.edata.qq.com/sgame/static/images/hero/' + pd.player?.heroId + '.jpg'" class="hero-img" />
+                    <div>
+                      <b>{{ pd.player?.playerName }}</b>
+                      <small>{{ pd.player?.heroName }} · {{ pd.player?.positionDesc || '' }}</small>
+                    </div>
+                  </div>
+                  <div class="player-stats">
+                    <span>{{ pd.player?.killNum }}/{{ pd.player?.deathNum }}/{{ pd.player?.assistNum }}</span>
+                    <span>KDA {{ pd.player?.kda }}</span>
+                    <span v-if="pd.player?.isMvp" class="mvp-tag">MVP</span>
+                    <span v-if="pd.player?.isLoseMvp" class="mvp-tag lose">败方MVP</span>
+                  </div>
+                  <div class="equip-list">
+                    <span v-for="eq in pd.equips" :key="eq.equipId" class="equip-chip" :title="eq.equipName">
+                      <img v-if="eq.equipIcon" :src="eq.equipIcon" class="equip-mini-icon" />
+                      {{ eq.equipName }}
+                    </span>
                   </div>
                 </div>
-                <div class="player-stats">
-                  <span>{{ pd.player?.killNum }}/{{ pd.player?.deathNum }}/{{ pd.player?.assistNum }}</span>
-                  <span>KDA {{ pd.player?.kda }}</span>
-                  <span v-if="pd.player?.isMvp" class="mvp-tag">MVP</span>
-                  <span v-if="pd.player?.isLoseMvp" class="mvp-tag lose">败方MVP</span>
+              </div>
+              <div class="team-col camp-red">
+                <div class="team-col-header">
+                  <span class="team-col-name">{{ currentMatch?.camp2TeamName || '红方' }}</span>
+                  <span v-if="battle.battle?.winCamp === 2" class="team-col-win">胜</span>
                 </div>
-                <div class="equip-list">
-                  <span v-for="eq in pd.equips" :key="eq.equipId" class="equip-chip" :title="eq.equipName">
-                    <img v-if="eq.equipIcon" :src="eq.equipIcon" class="equip-mini-icon" />
-                    {{ eq.equipName }}
-                  </span>
+                <div v-for="pd in sortedPlayers(battle.players).filter(p => p.player?.camp === 2)" :key="pd.player?.playerName" class="player-card camp-red">
+                  <div class="player-header">
+                    <img :src="'https://res.edata.qq.com/sgame/static/images/hero/' + pd.player?.heroId + '.jpg'" class="hero-img" />
+                    <div>
+                      <b>{{ pd.player?.playerName }}</b>
+                      <small>{{ pd.player?.heroName }} · {{ pd.player?.positionDesc || '' }}</small>
+                    </div>
+                  </div>
+                  <div class="player-stats">
+                    <span>{{ pd.player?.killNum }}/{{ pd.player?.deathNum }}/{{ pd.player?.assistNum }}</span>
+                    <span>KDA {{ pd.player?.kda }}</span>
+                    <span v-if="pd.player?.isMvp" class="mvp-tag">MVP</span>
+                    <span v-if="pd.player?.isLoseMvp" class="mvp-tag lose">败方MVP</span>
+                  </div>
+                  <div class="equip-list">
+                    <span v-for="eq in pd.equips" :key="eq.equipId" class="equip-chip" :title="eq.equipName">
+                      <img v-if="eq.equipIcon" :src="eq.equipIcon" class="equip-mini-icon" />
+                      {{ eq.equipName }}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -139,10 +171,14 @@ const groupedMatches = computed(() => {
   const groups = {}
   for (const m of matches.value) {
     const stage = m.matchStageDesc || '其他'
-    if (!groups[stage]) groups[stage] = { stage, order: STAGE_ORDER[m.matchStage] ?? 99, matches: [] }
+    if (!groups[stage]) groups[stage] = { stage, matches: [] }
     groups[stage].matches.push(m)
   }
-  return Object.values(groups).sort((a, b) => a.order - b.order)
+  for (const g of Object.values(groups)) {
+    g.matches.sort((a, b) => (b.startTime || '').localeCompare(a.startTime || ''))
+    g.latest = g.matches[0]?.startTime || ''
+  }
+  return Object.values(groups).sort((a, b) => (b.latest || '').localeCompare(a.latest || ''))
 })
 
 async function init() {
@@ -210,8 +246,8 @@ onMounted(init)
 .matches-console {
   --mono-bg: #f8f5ec;
   --mono-panel: rgba(255, 255, 255, 0.92);
-  --mono-line: rgba(0, 0, 0, 0.12);
-  --mono-line-strong: rgba(0, 0, 0, 0.22);
+  --mono-line: rgba(0, 0, 0, 0.18);
+  --mono-line-strong: rgba(0, 0, 0, 0.32);
   --mono-ink: #1a1a1a;
   --mono-soft: rgba(26, 26, 26, 0.65);
   --mono-dim: rgba(26, 26, 26, 0.4);
@@ -233,8 +269,8 @@ onMounted(init)
 .matches-console.theme-dark {
   --mono-bg: #0a0a0a;
   --mono-panel: rgba(18, 18, 18, 0.92);
-  --mono-line: rgba(255, 255, 255, 0.12);
-  --mono-line-strong: rgba(255, 255, 255, 0.25);
+  --mono-line: rgba(255, 255, 255, 0.18);
+  --mono-line-strong: rgba(255, 255, 255, 0.32);
   --mono-ink: #e8e8e8;
   --mono-soft: rgba(232, 232, 232, 0.65);
   --mono-dim: rgba(232, 232, 232, 0.38);
@@ -351,21 +387,33 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
 .stage-count { color: var(--mono-dim); font-size: 12px; }
 
 /* ── match cards ── */
-.match-list { display: flex; flex-direction: column; gap: 8px; }
+.match-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--mono-line-strong);
+  background: var(--card-bg);
+}
 .match-card {
+  position: relative;
   display: grid;
   grid-template-columns: 100px 1fr 100px;
   align-items: center;
   gap: 18px;
   padding: 14px 18px;
-  border: 1px solid var(--mono-line);
-  background: var(--card-bg);
+  border-bottom: 1px solid var(--mono-line);
+  background: transparent;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
+.match-card:last-child { border-bottom: none; }
 .match-card:hover {
   background: var(--card-hover);
-  border-color: var(--mono-line-strong);
+  box-shadow: inset 3px 0 0 var(--mono-ink);
+  transform: translateX(4px);
+}
+.theme-dark .match-card:hover {
+  box-shadow: inset 3px 0 0 var(--mono-ink), 0 2px 12px rgba(0, 0, 0, 0.3);
 }
 
 .match-time { display: flex; flex-direction: column; }
@@ -376,7 +424,7 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: 18px;
 }
 .team-side {
   display: flex;
@@ -384,30 +432,38 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
   gap: 10px;
 }
 .team-name {
+  min-width: 72px;
+  white-space: nowrap;
+  text-align: center;
   font-size: 14px;
   font-weight: 600;
   color: var(--mono-soft);
   transition: color 0.15s;
+  line-height: 24px;
 }
 .team-side.winner .team-name {
   color: var(--winner-color);
   font-weight: 800;
 }
 .team-score {
+  width: 24px;
+  text-align: center;
   font-size: 20px;
   font-weight: 900;
   color: var(--mono-dim);
-  min-width: 24px;
-  text-align: center;
+  line-height: 24px;
 }
 .team-side.winner .team-score {
   color: var(--mono-ink);
 }
 .vs-divider {
+  width: 36px;
+  text-align: center;
   color: var(--mono-dim);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 2px;
+  line-height: 24px;
 }
 
 .match-meta {
@@ -436,15 +492,43 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
   padding-bottom: 8px;
   border-bottom: 1px solid var(--mono-line);
 }
-.battle-num { font-weight: 800; font-size: 14px; color: var(--mono-ink); }
+.battle-num {
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--mono-ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+}
 .battle-winner { font-size: 13px; font-weight: 700; }
 .battle-winner.camp-blue { color: var(--mono-ink); }
 .battle-winner.camp-red { color: var(--mono-dim); }
 
-.player-grid {
+.team-columns {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.team-col { display: flex; flex-direction: column; gap: 6px; }
+.team-col-header {
+  display: flex;
+  align-items: center;
   gap: 8px;
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--mono-line);
+}
+.team-col-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--mono-ink);
+}
+.team-col-win {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 1px 6px;
+  background: var(--stat-bg);
+  color: var(--mono-ink);
+  border: 1px solid var(--mono-line);
 }
 .player-card {
   padding: 10px 12px;
@@ -492,10 +576,35 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
 :deep(.el-dialog__title) { color: var(--mono-ink) !important; font-weight: 900 !important; }
 :deep(.el-dialog__header) { border-bottom: 1px solid var(--mono-line); padding-bottom: 12px; margin: 0; }
 :deep(.el-dialog__body) { height: 60vh; min-height: 300px; overflow-y: auto; padding: 16px 20px; }
-:deep(.el-input__wrapper), :deep(.el-select__wrapper) {
+:deep(.el-select__wrapper) {
   border-radius: 0 !important;
   background: var(--input-bg) !important;
   box-shadow: 0 0 0 1px var(--mono-line) inset !important;
+  min-height: 36px;
+}
+:deep(.el-select__placeholder),
+:deep(.el-select__selected-item .el-select__tags-text) {
+  color: var(--mono-ink) !important;
+  font-weight: 600;
+}
+:deep(.el-select__caret) {
+  color: var(--mono-soft) !important;
+}
+:deep(.el-select__suffix) {
+  color: var(--mono-soft) !important;
 }
 :deep(.el-button) { border-radius: 0; }
+:deep(.el-popper) {
+  border-radius: 0 !important;
+}
+:deep(.el-select-dropdown__item) {
+  font-size: 13px;
+}
+:deep(.el-select-dropdown__item.is-hovering) {
+  background: var(--stat-bg) !important;
+}
+:deep(.el-select-dropdown__item.is-selected) {
+  font-weight: 700;
+  color: var(--mono-ink) !important;
+}
 </style>

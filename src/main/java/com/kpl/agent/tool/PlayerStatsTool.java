@@ -2,6 +2,7 @@ package com.kpl.agent.tool;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.kpl.agent.entity.PlayerStats;
+import com.kpl.agent.mapper.BattlePlayerMapper;
 import com.kpl.agent.mapper.PlayerStatsMapper;
 import com.kpl.agent.service.QueryCacheService;
 import lombok.RequiredArgsConstructor;
@@ -22,18 +23,28 @@ import java.util.Map;
 public class PlayerStatsTool {
 
     private final PlayerStatsMapper playerStatsMapper;
+    private final BattlePlayerMapper battlePlayerMapper;
     private final QueryCacheService queryCacheService;
     private static final Duration CACHE_TTL = Duration.ofMinutes(10);
 
     /** 按选手名查询 */
     public Map<String, Object> queryByName(String playerName, String leagueId) {
-        String key = "kpl:%s:player:name:%s".formatted(leagueId, playerName);
+        String key = "kpl:v3:%s:player:name:%s".formatted(leagueId, playerName);
         return queryCacheService.getOrLoad(key, CACHE_TTL, () -> {
             List<PlayerStats> list = playerStatsMapper.selectList(
                     new LambdaQueryWrapper<PlayerStats>()
-                            .eq(PlayerStats::getLeagueId, leagueId)
+                            .eq(leagueId != null && !leagueId.isBlank(), PlayerStats::getLeagueId, leagueId)
                             .like(PlayerStats::getPlayerName, playerName));
-            return buildResult("player_by_name", playerName, list);
+            if (!list.isEmpty()) {
+                return buildResult("player_by_name", playerName, list);
+            }
+            List<Map<String, Object>> aggregated = battlePlayerMapper.aggregatePlayerStats(playerName, leagueId);
+            String type = "player_by_name_from_battles";
+            if (aggregated.isEmpty() && leagueId != null && !leagueId.isBlank()) {
+                aggregated = battlePlayerMapper.aggregatePlayerStats(playerName, null);
+                type = "player_by_name_from_all_battles";
+            }
+            return buildResult(type, playerName, aggregated);
         });
     }
 
@@ -90,7 +101,7 @@ public class PlayerStatsTool {
         });
     }
 
-    private Map<String, Object> buildResult(String type, String keyword, List<PlayerStats> list) {
+    private Map<String, Object> buildResult(String type, String keyword, List<?> list) {
         Map<String, Object> result = new HashMap<>();
         result.put("type", type);
         result.put("keyword", keyword);

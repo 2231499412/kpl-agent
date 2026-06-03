@@ -54,7 +54,9 @@ public class ReportGenerator {
             2. 数据要准确，引用具体数字
             3. 给出有价值的分析见解
             4. 语言简洁，避免废话
-            5. 如果数据为空或出错，礼貌告知用户
+            5. 优先使用资料库数据；如果 queryResult 中包含 webSearch，说明“资料库未命中/资料不足，以下结合联网搜索结果”，并引用网页标题或 URL
+            6. 不要把联网搜索结果伪装成资料库数据；无法确认的内容要明确说“不确定”
+            7. 如果资料库和联网搜索都为空或出错，礼貌告知用户，并建议换一种更具体的问法
             """;
 
     /**
@@ -87,6 +89,7 @@ public class ReportGenerator {
                 %s
 
                 请根据以上数据生成分析报告。
+                如果查询数据中有多个分区（例如 teamStats、players、recentMatches），请综合这些分区回答，不要只复述第一段数据。
                 """.formatted(userQuestion, intent, dataStr);
 
         try {
@@ -122,6 +125,7 @@ public class ReportGenerator {
                 %s
 
                 请根据以上数据生成分析报告。
+                如果查询数据中有多个分区（例如 teamStats、players、recentMatches），请综合这些分区回答，不要只复述第一段数据。
                 """.formatted(userQuestion, intent, dataStr);
 
         return callLlmStream(SYSTEM_PROMPT, userPrompt)

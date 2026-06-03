@@ -46,6 +46,11 @@ ai:
   api-key: ${AI_API_KEY:your-api-key-here}
   base-url: ${AI_BASE_URL:https://token-plan-cn.xiaomimimo.com/v1}
   model: ${AI_MODEL:mimo-v2.5}
+  web-search:
+    enabled: ${AI_WEB_SEARCH_ENABLED:true}
+    max-results: ${AI_WEB_SEARCH_MAX_RESULTS:5}
+    timeout-millis: ${AI_WEB_SEARCH_TIMEOUT_MILLIS:2500}
+    query-prefix: ${AI_WEB_SEARCH_QUERY_PREFIX:KPL 王者荣耀职业联赛}
 
 logging:
   level:

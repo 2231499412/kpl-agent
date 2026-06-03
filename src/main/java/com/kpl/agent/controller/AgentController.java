@@ -1,6 +1,8 @@
 package com.kpl.agent.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kpl.agent.service.KplAgentService;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -21,6 +23,7 @@ import java.util.concurrent.Executors;
 public class AgentController {
 
     private final KplAgentService agentService;
+    private final ObjectMapper objectMapper;
     private final ExecutorService sseExecutor = Executors.newCachedThreadPool();
 
     /**
@@ -39,15 +42,30 @@ public class AgentController {
     /**
      * Agent 流式对话（SSE）
      * POST /api/agent/chat/stream
+     *
+     * 事件格式：
+     *   data: {"t":"data","d":[...]}   ← 查询到的原始数据
+     *   data: {"t":"r","d":"..."}       ← AI 推理过程
+     *   data: {"t":"c","d":"..."}       ← AI 正式内容
+     *   data: [DONE]                    ← 结束
      */
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter chatStream(@RequestBody Map<String, String> request) {
+    public SseEmitter chatStream(@RequestBody Map<String, String> request, HttpServletResponse response) {
         String message = request.getOrDefault("message", "");
+        response.setHeader("Cache-Control", "no-cache, no-transform");
+        response.setHeader("X-Accel-Buffering", "no");
+        response.setHeader("Connection", "keep-alive");
         SseEmitter emitter = new SseEmitter(120_000L);
 
         sseExecutor.execute(() -> {
             try {
-                agentService.chatStream(message).subscribe(
+                // 先查询数据，立即推送给前端
+                var dataResult = agentService.queryData(message);
+                String dataJson = objectMapper.writeValueAsString(Map.of("t", "data", "d", dataResult));
+                emitter.send(SseEmitter.event().data(dataJson));
+
+                // 再流式生成 AI 分析
+                agentService.chatStreamWithData(message, dataResult).subscribe(
                         token -> {
                             try {
                                 emitter.send(SseEmitter.event().data(token));

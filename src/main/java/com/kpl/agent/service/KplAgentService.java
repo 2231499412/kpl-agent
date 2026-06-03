@@ -9,7 +9,10 @@ import org.springframework.stereotype.Service;
 
 import reactor.core.publisher.Flux;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -31,6 +34,7 @@ public class KplAgentService {
     private final ReportGenerator reportGenerator;
     private final AgentIntentRecognizer agentIntentRecognizer;
     private final LeagueQueryService leagueQueryService;
+    private final WebSearchService webSearchService;
 
     /** 意图类型枚举 */
     public enum Intent {
@@ -61,7 +65,11 @@ public class KplAgentService {
         String leagueId = leagueQueryService.requireLeagueId(null);
 
         // 3. 提取参数 + 调用对应工具
-        Map<String, Object> queryResult = routeToTool(agentIntent, userMessage, leagueId);
+        Map<String, Object> queryResult = enrichWithWebFallback(
+                routeToTool(agentIntent, userMessage, leagueId),
+                agentIntent,
+                userMessage
+        );
 
         // 4. LLM 生成分析报告
         return reportGenerator.generate(userMessage, agentIntent.intent().name(), queryResult);
@@ -79,7 +87,39 @@ public class KplAgentService {
         log.info("识别意图: {}", agentIntent);
 
         String leagueId = leagueQueryService.requireLeagueId(null);
-        Map<String, Object> queryResult = routeToTool(agentIntent, userMessage, leagueId);
+        Map<String, Object> queryResult = enrichWithWebFallback(
+                routeToTool(agentIntent, userMessage, leagueId),
+                agentIntent,
+                userMessage
+        );
+
+        return reportGenerator.generateStream(userMessage, agentIntent.intent().name(), queryResult);
+    }
+
+    /**
+     * 仅查询数据（不调用 LLM），用于流式模式先推送数据
+     */
+    public Map<String, Object> queryData(String userMessage) {
+        log.info("Agent 查询数据: {}", userMessage);
+
+        AgentIntent agentIntent = agentIntentRecognizer
+                .recognize(userMessage)
+                .orElseGet(() -> recognizeIntentByRule(userMessage));
+        log.info("识别意图: {}", agentIntent);
+
+        String leagueId = leagueQueryService.requireLeagueId(null);
+        return enrichWithWebFallback(routeToTool(agentIntent, userMessage, leagueId), agentIntent, userMessage);
+    }
+
+    /**
+     * 基于已查询的数据流式生成 AI 分析报告
+     */
+    public Flux<String> chatStreamWithData(String userMessage, Map<String, Object> queryResult) {
+        log.info("Agent 流式分析（已有数据）: {}", userMessage);
+
+        AgentIntent agentIntent = agentIntentRecognizer
+                .recognize(userMessage)
+                .orElseGet(() -> recognizeIntentByRule(userMessage));
 
         return reportGenerator.generateStream(userMessage, agentIntent.intent().name(), queryResult);
     }
@@ -109,6 +149,11 @@ public class KplAgentService {
         }
         if (containsAny(message, "胜率最高", "胜率排行")) {
             return new AgentIntent(Intent.HERO_TOP, null, null, "win", 10);
+        }
+        // 常见选手昵称/ID直接命中：如“小胖数据”“一诺表现”
+        String knownPlayerName = extractPlayerName(message);
+        if (knownPlayerName != null && containsAny(message, "数据", "表现", "KDA", "胜率", "英雄池", "常用英雄", "资料")) {
+            return new AgentIntent(Intent.PLAYER_QUERY, knownPlayerName, extractPosition(message), null, 10);
         }
         // 英雄查询
         if (containsAny(message, "英雄", "胜率", "出场率", "pick率")) {
@@ -147,8 +192,21 @@ public class KplAgentService {
         int limit = normalizeLimit(agentIntent.limit());
         return switch (agentIntent.intent()) {
             case PLAYER_QUERY -> {
-                if (subject != null) {
-                    yield playerStatsTool.queryByName(subject, leagueId);
+                String name = choosePlayerSubject(subject, message);
+                if (name != null) {
+                    Map<String, Object> playerStats = playerStatsTool.queryByName(name, leagueId);
+                    boolean useAllLeagues = isEmptyResult(playerStats)
+                            || "player_by_name_from_all_battles".equals(playerStats.get("type"));
+                    yield combineResults(
+                            "player_context",
+                            name,
+                            Map.of(
+                                    "playerStats", playerStats,
+                                    "heroPool", matchAnalysisTool.queryPlayerHeroes(name, useAllLeagues ? null : leagueId, Math.max(8, limit)),
+                                    "equips", equipStatsTool.queryByPlayer(name, useAllLeagues ? null : leagueId, Math.min(8, limit)),
+                                    "scope", useAllLeagues ? "当前赛事未命中，已跨全部赛事聚合" : "当前赛事"
+                            )
+                    );
                 }
                 String pos = agentIntent.position() != null ? agentIntent.position() : extractPosition(message);
                 if (pos != null) {
@@ -174,7 +232,15 @@ public class KplAgentService {
             case TEAM_QUERY -> {
                 String name = subject != null ? subject : extractTeamName(message);
                 if (name != null) {
-                    yield teamStatsTool.queryByName(name, leagueId);
+                    yield combineResults(
+                            "team_context",
+                            name,
+                            Map.of(
+                                    "teamStats", teamStatsTool.queryByName(name, leagueId),
+                                    "players", playerStatsTool.queryByTeam(name, leagueId),
+                                    "recentMatches", matchAnalysisTool.queryRecentMatches(name, leagueId, Math.max(5, limit))
+                            )
+                    );
                 }
                 yield teamStatsTool.queryRanking(leagueId);
             }
@@ -183,18 +249,84 @@ public class KplAgentService {
             case MATCH_QUERY -> {
                 String name = subject != null ? subject : extractTeamName(message);
                 if (name != null) {
-                    yield matchAnalysisTool.queryRecentMatches(name, leagueId, limit);
+                    yield combineResults(
+                            "match_context",
+                            name,
+                            Map.of(
+                                    "recentMatches", matchAnalysisTool.queryRecentMatches(name, leagueId, limit),
+                                    "teamStats", teamStatsTool.queryByName(name, leagueId),
+                                    "players", playerStatsTool.queryByTeam(name, leagueId)
+                            )
+                    );
                 }
-                yield Map.of("error", "请指定战队名");
+                yield matchAnalysisTool.queryBySchedule(leagueId);
             }
             case EQUIP_QUERY -> {
                 if (subject != null) {
-                    yield equipStatsTool.queryByHero(subject, leagueId, limit);
+                    Map<String, Object> heroEquip = equipStatsTool.queryByHero(subject, leagueId, limit);
+                    if (!isEmptyResult(heroEquip)) {
+                        yield heroEquip;
+                    }
+                    yield equipStatsTool.queryByPlayer(subject, leagueId, limit);
                 }
                 yield Map.of("error", "请指定英雄名，例如：公孙离出什么装备");
             }
             default -> Map.of("error", "抱歉，我没理解您的问题。可以试试：XX选手数据、XX英雄胜率、AG战绩、积分榜");
         };
+    }
+
+    private Map<String, Object> enrichWithWebFallback(Map<String, Object> localResult, AgentIntent intent, String message) {
+        boolean shouldSearch = intent.intent() == Intent.UNKNOWN || isEmptyResult(localResult);
+        if (!shouldSearch) {
+            return localResult;
+        }
+
+        Map<String, Object> enriched = new HashMap<>(localResult);
+        enriched.put("localDataStatus", localResult.containsKey("error") ? "error" : "empty");
+        enriched.put("webSearch", webSearchService.search(message));
+        return enriched;
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean isEmptyResult(Map<String, Object> result) {
+        if (result == null || result.isEmpty() || result.containsKey("error")) {
+            return true;
+        }
+        return isEmptyData(result.get("data"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean isEmptyData(Object data) {
+        if (data == null) {
+            return true;
+        }
+        if (data instanceof List<?> list) {
+            return list.isEmpty();
+        }
+        if (data instanceof Map<?, ?> map) {
+            if (map.isEmpty()) {
+                return true;
+            }
+            if (map.containsKey("data")) {
+                return isEmptyData(map.get("data"));
+            }
+            return map.values().stream().allMatch(value -> {
+                if (value instanceof Map<?, ?> nested) {
+                    return isEmptyResult((Map<String, Object>) nested);
+                }
+                return isEmptyData(value);
+            });
+        }
+        return false;
+    }
+
+    private Map<String, Object> combineResults(String type, String keyword, Map<String, Object> sections) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("type", type);
+        result.put("keyword", keyword);
+        result.put("count", sections.size());
+        result.put("data", sections);
+        return result;
     }
 
     // ==================== 参数提取工具方法 ====================
@@ -229,7 +361,7 @@ public class KplAgentService {
             Pattern pattern = Pattern.compile(p);
             Matcher matcher = pattern.matcher(message);
             if (matcher.find()) {
-                return matcher.group(1);
+                return cleanEntityName(matcher.group(1));
             }
         }
         return null;
@@ -237,10 +369,11 @@ public class KplAgentService {
 
     private String[] playerPatterns() {
         return new String[]{
-                "([\\u4e00-\\u9fa5a-zA-Z0-9]+)选手",
-                "选手([\\u4e00-\\u9fa5a-zA-Z0-9]+)",
-                "([\\u4e00-\\u9fa5a-zA-Z0-9]+)的数据",
-                "([\\u4e00-\\u9fa5a-zA-Z0-9]+)表现"
+                "选手[“\"']?([\\u4e00-\\u9fa5a-zA-Z0-9·.]+)[”\"']?",
+                "[“\"']([\\u4e00-\\u9fa5a-zA-Z0-9·.]+)[”\"']",
+                "([\\u4e00-\\u9fa5a-zA-Z0-9·.]+)的数据",
+                "([\\u4e00-\\u9fa5a-zA-Z0-9·.]+)表现",
+                "([\\u4e00-\\u9fa5a-zA-Z0-9·.]{1,12})选手"
         };
     }
 
@@ -279,11 +412,92 @@ public class KplAgentService {
                         break;
                     }
                 }
-                if (sb.length() > 0) return sb.toString();
+                if (sb.length() > 0) {
+                    return cleanEntityName(sb.toString());
+                }
             }
         }
         return null;
     }
+
+    private String choosePlayerSubject(String llmSubject, String message) {
+        String extracted = extractPlayerName(message);
+        String subject = cleanEntityName(llmSubject);
+        if (isBadPlayerSubject(subject) || extracted != null) {
+            subject = extracted != null ? extracted : subject;
+        }
+        return PLAYER_ALIASES.getOrDefault(subject, subject);
+    }
+
+    private String extractPlayerName(String message) {
+        String quoted = extractQuotedEntity(message);
+        if (quoted != null && !isBadPlayerSubject(quoted)) {
+            return PLAYER_ALIASES.getOrDefault(quoted, quoted);
+        }
+        String extracted = extractKeyword(message, playerPatterns());
+        if (extracted != null && !isBadPlayerSubject(extracted)) {
+            return PLAYER_ALIASES.getOrDefault(extracted, extracted);
+        }
+        for (String alias : PLAYER_ALIASES.keySet()) {
+            if (message.contains(alias)) {
+                return PLAYER_ALIASES.get(alias);
+            }
+        }
+        return null;
+    }
+
+    private String extractQuotedEntity(String message) {
+        Matcher matcher = Pattern.compile("[“\"']([^”\"']{1,20})[”\"']").matcher(message);
+        if (matcher.find()) {
+            return cleanEntityName(matcher.group(1));
+        }
+        return null;
+    }
+
+    private String cleanEntityName(String name) {
+        if (name == null) {
+            return null;
+        }
+        String cleaned = name.trim()
+                .replace("“", "")
+                .replace("”", "")
+                .replace("\"", "")
+                .replace("'", "");
+        while (cleaned.length() > 1 && "的了呢吧吗啊".indexOf(cleaned.charAt(cleaned.length() - 1)) >= 0) {
+            cleaned = cleaned.substring(0, cleaned.length() - 1);
+        }
+        return cleaned.isBlank() ? null : cleaned;
+    }
+
+    private boolean isBadPlayerSubject(String name) {
+        if (name == null || name.isBlank()) {
+            return true;
+        }
+        if (name.length() > 16) {
+            return true;
+        }
+        return List.of("KPL", "了解KPL", "王者荣耀", "职业联赛", "选手", "数据", "表现")
+                .stream()
+                .anyMatch(stop -> Objects.equals(stop, name));
+    }
+
+    private static final Map<String, String> PLAYER_ALIASES = Map.ofEntries(
+            Map.entry("小胖", "小胖"),
+            Map.entry("重庆狼队小胖", "小胖"),
+            Map.entry("狼队小胖", "小胖"),
+            Map.entry("一诺", "一诺"),
+            Map.entry("AG一诺", "一诺"),
+            Map.entry("成都AG一诺", "一诺"),
+            Map.entry("清融", "清融"),
+            Map.entry("花海", "花海"),
+            Map.entry("无畏", "无畏"),
+            Map.entry("暖阳", "暖阳"),
+            Map.entry("Fly", "Fly"),
+            Map.entry("fly", "Fly"),
+            Map.entry("妖刀", "妖刀"),
+            Map.entry("向鱼", "向鱼"),
+            Map.entry("归期", "归期")
+    );
 
     private boolean containsAny(String text, String... keywords) {
         for (String kw : keywords) {

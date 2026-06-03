@@ -10,15 +10,6 @@
       </div>
 
       <div class="status-line">
-        <span class="status-pill" :class="{ online: system.database === 'UP' }">
-          <i></i>DB {{ system.database || '...' }}
-        </span>
-        <span class="status-pill" :class="{ online: system.redis === 'UP' }">
-          <i></i>Redis {{ system.redis || '...' }}
-        </span>
-        <span class="status-pill" :class="{ online: system.aiConfigured }">
-          <i></i>AI {{ system.aiConfigured ? system.aiModel : 'Fallback' }}
-        </span>
         <button class="theme-toggle" :title="theme === 'light' ? '切换暗色' : '切换亮色'" @click="theme = theme === 'light' ? 'dark' : 'light'">
           <span class="toggle-track" :class="{ on: theme === 'dark' }">
             <span class="toggle-thumb" />
@@ -1185,6 +1176,17 @@ onMounted(async () => {
   box-shadow: 0 0 0 1px var(--mono-accent) inset, 0 0 0 3px var(--focus-ring) !important;
 }
 
+.rankings-console :deep(.el-select__placeholder),
+.rankings-console :deep(.el-select__selected-item .el-select__placeholder) {
+  color: var(--mono-ink) !important;
+}
+.rankings-console :deep(.el-select__placeholder.is-transparent) {
+  color: var(--mono-dim) !important;
+}
+.rankings-console :deep(.el-select__caret) {
+  color: var(--mono-soft) !important;
+}
+
 .rankings-console :deep(.el-segmented__item-selected) {
   border-radius: 0 !important;
   background-color: var(--el-seg-bg) !important;
@@ -1356,8 +1358,69 @@ onMounted(async () => {
 
 <style>
 /* 强制覆盖 Element Plus segmented 选中文字颜色 */
+.rankings-console .el-select__placeholder,
+.rankings-console .el-select__selected-item .el-select__placeholder {
+  color: var(--mono-ink) !important;
+}
+.rankings-console .el-select__placeholder.is-transparent {
+  color: var(--mono-dim) !important;
+}
+.rankings-console .el-select__caret { color: var(--mono-soft) !important; }
+
 .rankings-console .el-segmented__item.is-selected,
 .rankings-console .el-segmented__item.is-selected .el-segmented__item-label {
   color: var(--mono-ink) !important;
+}
+
+/* 下拉面板全局样式 */
+.el-select__popper {
+  border: 1px solid rgba(0,0,0,0.3) !important;
+  border-radius: 0 !important;
+  box-shadow: 4px 4px 0 rgba(0,0,0,0.08) !important;
+  background: #fff !important;
+}
+.el-select-dropdown__list { padding: 4px 0 !important; }
+.el-select-dropdown__item {
+  padding: 8px 16px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #1a1a1a !important;
+  border-radius: 0 !important;
+  transition: background 0.1s, padding-left 0.15s;
+}
+.el-select-dropdown__item.is-hovering {
+  background: rgba(0,0,0,0.04) !important;
+  padding-left: 20px !important;
+}
+.el-select-dropdown__item.is-selected {
+  font-weight: 800 !important;
+  color: #1a1a1a !important;
+  position: relative;
+}
+.el-select-dropdown__item.is-selected::after {
+  content: '';
+  position: absolute;
+  left: 6px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 14px;
+  background: #1a1a1a;
+}
+
+/* 暗色主题下拉 */
+.theme-dark .el-select__popper {
+  border-color: rgba(255,255,255,0.25) !important;
+  background: #1a1a1a !important;
+  box-shadow: 4px 4px 0 rgba(0,0,0,0.3) !important;
+}
+.theme-dark .el-select-dropdown__item {
+  color: #e8e8e8 !important;
+}
+.theme-dark .el-select-dropdown__item.is-hovering {
+  background: rgba(255,255,255,0.06) !important;
+}
+.theme-dark .el-select-dropdown__item.is-selected {
+  color: #e8e8e8 !important;
+}
+.theme-dark .el-select-dropdown__item.is-selected::after {
+  background: #e8e8e8;
 }
 </style>
