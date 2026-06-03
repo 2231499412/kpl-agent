@@ -4,7 +4,7 @@ ALTER TABLE battle_player_equip
 
 -- 回填已有数据：通过 battle -> match 关联
 UPDATE battle_player_equip e
-    INNER JOIN battle b ON e.battle_id = b.battle_id
+    INNER JOIN battle b ON e.battle_id COLLATE utf8mb4_unicode_ci = b.battle_id
     INNER JOIN `match` m ON b.match_id = m.match_id
 SET e.league_id = m.league_id
 WHERE e.league_id IS NULL;

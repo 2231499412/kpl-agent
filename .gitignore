@@ -44,7 +44,12 @@ frontend/dist/
 docker-compose.override.yml
 
 ### Sensitive ###
+.env
 *.env
 !.env.example
 .gstack/
 init-data-baota.sql
+
+### Root images (reference only) ###
+/loading-bg.jpg
+/主页.jpg

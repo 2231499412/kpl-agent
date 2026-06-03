@@ -1,5 +1,5 @@
-<template>
-  <main class="app-shell has-sidebar">
+﻿<template>
+  <main class="app-shell has-sidebar rankings-console">
     <section class="command-strip">
       <div class="brand-block">
         <div class="brand-mark">K</div>
@@ -25,7 +25,7 @@
     <section class="layout-grid">
       <aside class="side-rail panel">
         <div class="section-head">
-          <span>赛事信号</span>
+          <span>赛事选择</span>
           <el-button :icon="Refresh" circle class="icon-ghost" @click="refreshAll" />
         </div>
 
@@ -45,23 +45,22 @@
         </div>
         <div class="league-plate muted" v-else>
           <span>NO DATA</span>
-          <strong>等待同步</strong>
-          <small>先拉取赛事列表</small>
+          <strong>暂无数据</strong>
+          <small>请选择赛事</small>
         </div>
 
-        <div class="sync-grid">
-          <el-button :icon="Download" :loading="loading.sync" class="sync-all-btn" @click="runSync('/api/sync/all')">同步全部历史</el-button>
-          <el-button :icon="Lightning" :loading="loading.sync" @click="runSync('/api/sync/latest')">最新赛季</el-button>
-          <el-button :icon="RefreshRight" :loading="loading.sync" @click="runSync('/api/sync/latest/incremental')">增量刷新</el-button>
-          <el-button :icon="Aim" :loading="loading.sync" @click="runSync(`/api/sync/latest/deep-incremental?matchLimit=10${selectedLeagueId ? '&leagueId=' + selectedLeagueId : ''}`)">对局详情</el-button>
-        </div>
-
-        <div class="job-feed">
-          <div class="mini-title">同步队列</div>
-          <div v-for="job in jobs" :key="job.id" class="job-row">
-            <span :class="['job-state', job.status?.toLowerCase()]">{{ job.status }}</span>
-            <b>{{ job.jobType }}</b>
-            <small>{{ formatTime(job.startedAt) }}</small>
+        <div class="league-stats" v-if="currentLeague">
+          <div class="league-stat-item">
+            <span class="ls-val">{{ leagueMeta.matchCount }}</span>
+            <span class="ls-label">比赛</span>
+          </div>
+          <div class="league-stat-item">
+            <span class="ls-val">{{ leagueMeta.teamCount }}</span>
+            <span class="ls-label">战队</span>
+          </div>
+          <div class="league-stat-item">
+            <span class="ls-val">{{ leagueMeta.playerCount }}</span>
+            <span class="ls-label">选手</span>
           </div>
         </div>
       </aside>
@@ -245,7 +244,7 @@
               <h4>分路偏好</h4>
               <div class="position-bars">
                 <div v-for="p in detailData.positions" :key="p.positionDesc" class="position-bar-row">
-                  <span class="pos-label">{{ p.positionDesc || '未知' }}</span>
+                  <span class="pos-label">{{ p.positionDesc || '其他' }}</span>
                   <div class="pos-track"><div class="pos-fill" :style="{ width: positionPercent(p.cnt, detailData.positions) + '%' }"></div></div>
                   <span class="pos-cnt">{{ p.cnt }}</span>
                 </div>
@@ -463,14 +462,10 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import MarkdownIt from 'markdown-it'
 import {
-  Aim,
   ChatLineRound,
   DataAnalysis,
-  Download,
-  Lightning,
   Position,
   Refresh,
-  RefreshRight,
   Search
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -479,8 +474,8 @@ const md = new MarkdownIt({ html: false, breaks: true })
 function renderMd(text) { return md.render(text || '') }
 
 const leagues = ref([])
-const jobs = ref([])
 const selectedLeagueId = ref('')
+const leagueMeta = ref({ matchCount: 0, teamCount: 0, playerCount: 0 })
 const system = ref({})
 const queryMode = ref('ranking')
 const queryKeyword = ref('')
@@ -500,7 +495,6 @@ const detailData = ref(null)
 const detailRow = ref(null)
 
 const loading = ref({
-  sync: false,
   query: false,
   agent: false
 })
@@ -636,8 +630,9 @@ async function request(path, options = {}) {
 }
 
 async function refreshAll() {
-  await Promise.allSettled([loadStatus(), loadLeagues(), loadJobs()])
+  await Promise.allSettled([loadStatus(), loadLeagues()])
   await loadDashboard()
+  await loadLeagueMeta()
 }
 
 async function loadStatus() {
@@ -651,14 +646,28 @@ async function loadLeagues() {
   }
 }
 
-async function loadJobs() {
-  jobs.value = await request('/api/sync/jobs?limit=6')
-}
-
 async function loadDashboard() {
   if (selectedLeagueId.value) {
     await runQuery()
   }
+  await loadLeagueMeta()
+}
+
+async function loadLeagueMeta() {
+  if (!selectedLeagueId.value) return
+  try {
+    const lid = selectedLeagueId.value
+    const [teams, players, matches] = await Promise.all([
+      request(`/api/query/team/ranking?leagueId=${lid}`).catch(() => ({ data: [] })),
+      request(`/api/query/player/top?sort=kda&leagueId=${lid}`).catch(() => ({ data: [] })),
+      request(`/api/query/match/schedule?leagueId=${lid}`).catch(() => ({ data: [] }))
+    ])
+    leagueMeta.value = {
+      matchCount: matches?.count ?? matches?.data?.length ?? 0,
+      teamCount: teams?.count ?? teams?.data?.length ?? 0,
+      playerCount: players?.count ?? players?.data?.length ?? 0
+    }
+  } catch { /* ignore */ }
 }
 
 async function loadTeamRanking() {
@@ -668,19 +677,6 @@ async function loadTeamRanking() {
 
 async function loadHonors() {
   queryResult.value = await request('/api/query/team/honors')
-}
-
-async function runSync(path) {
-  loading.value.sync = true
-  try {
-    const data = await request(path, { method: 'POST' })
-    ElMessage.success(data.result || '同步完成')
-    await refreshAll()
-  } catch (error) {
-    ElMessage.error(error.message)
-  } finally {
-    loading.value.sync = false
-  }
 }
 
 async function runQuery() {
@@ -935,3 +931,245 @@ onMounted(async () => {
   await refreshAll()
 })
 </script>
+
+<style scoped>
+.rankings-console {
+  --mono-bg: #050505;
+  --mono-panel: rgba(18, 18, 18, 0.86);
+  --mono-panel-soft: rgba(30, 30, 30, 0.76);
+  --mono-line: rgba(245, 245, 245, 0.14);
+  --mono-line-strong: rgba(245, 245, 245, 0.32);
+  --mono-ink: #f1f1ef;
+  --mono-soft: rgba(241, 241, 239, 0.68);
+  --mono-dim: rgba(241, 241, 239, 0.4);
+  --mono-accent: #ededeb;
+  --el-segmented-item-selected-bg-color: #e7e7e4;
+  --el-segmented-item-selected-color: #0b0b0b;
+  max-width: none;
+  min-height: 100vh;
+  padding: 28px 32px 36px 87px;
+  color: var(--mono-ink);
+  background:
+    linear-gradient(90deg, rgba(5, 5, 5, 0.98), rgba(24, 24, 24, 0.9) 48%, rgba(7, 7, 7, 0.98)),
+    repeating-linear-gradient(90deg, rgba(245, 245, 245, 0.035) 0 1px, transparent 1px 96px),
+    repeating-linear-gradient(0deg, rgba(245, 245, 245, 0.025) 0 1px, transparent 1px 54px);
+}
+
+.rankings-console .command-strip,
+.rankings-console .panel {
+  position: relative;
+  border: 1px solid var(--mono-line);
+  border-radius: 0;
+  background:
+    linear-gradient(135deg, var(--mono-panel), rgba(8, 8, 8, 0.74)),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.055), transparent 34% 74%, rgba(255, 255, 255, 0.035));
+  backdrop-filter: blur(16px);
+  box-shadow: inset 0 0 38px rgba(255, 255, 255, 0.035), 0 18px 64px rgba(0, 0, 0, 0.32);
+}
+
+.rankings-console .command-strip::before,
+.rankings-console .panel::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: -1px;
+  width: 36px;
+  height: 36px;
+  border-left: 2px solid rgba(245, 245, 245, 0.54);
+  border-top: 2px solid rgba(245, 245, 245, 0.54);
+  pointer-events: none;
+}
+
+.rankings-console .brand-mark {
+  border: 1px solid var(--mono-line-strong);
+  border-radius: 0;
+  color: var(--mono-ink);
+  background: #101010;
+  box-shadow: inset 0 0 18px rgba(255, 255, 255, 0.08);
+}
+
+.rankings-console .eyebrow,
+.rankings-console .section-head span,
+.rankings-console .mini-title {
+  color: var(--mono-soft);
+  font-weight: 900;
+  letter-spacing: 1.8px;
+}
+
+.rankings-console h1,
+.rankings-console .metric-tile strong,
+.rankings-console .league-plate strong,
+.rankings-console .stat-val,
+.rankings-console .sv {
+  color: var(--mono-ink);
+}
+
+.rankings-console .status-pill,
+.rankings-console .league-plate,
+.rankings-console .metric-tile,
+.rankings-console .battle-card,
+.rankings-console .player-card,
+.rankings-console .profile-card,
+.rankings-console .equip-stat-card,
+.rankings-console .hero-equip-item,
+.rankings-console .bubble,
+.rankings-console .reasoning-block {
+  border-color: var(--mono-line);
+  border-radius: 0;
+  background: rgba(12, 12, 12, 0.62);
+  color: var(--mono-soft);
+}
+
+.rankings-console .status-pill.online {
+  color: var(--mono-ink);
+  border-color: var(--mono-line-strong);
+}
+
+.rankings-console .status-pill.online i {
+  background: var(--mono-accent);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.34);
+}
+
+.rankings-console .layout-grid {
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.rankings-console .league-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+.rankings-console .league-stat-item {
+  text-align: center;
+  padding: 10px 0;
+  border: 1px solid var(--mono-line);
+  background: rgba(12, 12, 12, 0.4);
+}
+.rankings-console .ls-val {
+  display: block;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--mono-ink);
+  line-height: 1.2;
+}
+.rankings-console .ls-label {
+  display: block;
+  font-size: 11px;
+  color: var(--mono-dim);
+  margin-top: 2px;
+  letter-spacing: 1px;
+}
+
+.rankings-console .side-rail,
+.rankings-console .query-panel,
+.rankings-console .agent-panel {
+  padding: 20px;
+}
+
+.rankings-console .section-head {
+  border-bottom: 1px solid var(--mono-line);
+  padding-bottom: 12px;
+}
+
+.rankings-console :deep(.el-button) {
+  border-radius: 0;
+}
+
+.rankings-console :deep(.el-button:not(.el-button--primary)) {
+  --el-button-bg-color: rgba(16, 16, 16, 0.78);
+  --el-button-border-color: var(--mono-line);
+  --el-button-text-color: var(--mono-soft);
+  --el-button-hover-bg-color: rgba(54, 54, 54, 0.86);
+  --el-button-hover-border-color: var(--mono-line-strong);
+  --el-button-hover-text-color: var(--mono-ink);
+}
+
+.rankings-console .primary-action,
+.rankings-console .sync-all-btn {
+  --el-button-bg-color: #e7e7e4;
+  --el-button-border-color: #e7e7e4;
+  --el-button-text-color: #0b0b0b;
+  --el-button-hover-bg-color: #ffffff;
+  --el-button-hover-border-color: #ffffff;
+  border-radius: 0;
+}
+
+.rankings-console :deep(.el-input__wrapper),
+.rankings-console :deep(.el-select__wrapper),
+.rankings-console :deep(.el-segmented) {
+  border-radius: 0 !important;
+  background: rgba(12, 12, 12, 0.72) !important;
+  box-shadow: 0 0 0 1px var(--mono-line) inset !important;
+  --el-segmented-item-selected-bg-color: #e7e7e4;
+  --el-segmented-item-selected-color: #0b0b0b;
+  --el-segmented-item-color: var(--mono-soft);
+}
+
+.rankings-console :deep(.el-input__wrapper.is-focus),
+.rankings-console :deep(.el-select__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px var(--mono-accent) inset, 0 0 0 3px rgba(255, 255, 255, 0.06) !important;
+}
+
+.rankings-console :deep(.el-segmented__item-selected) {
+  border-radius: 0 !important;
+  background-color: #e7e7e4 !important;
+  color: #0b0b0b !important;
+  font-weight: 700;
+}
+.rankings-console :deep(.el-segmented__item-selected .el-segmented__item-label) {
+  color: #0b0b0b !important;
+}
+.rankings-console :deep(.el-segmented__item:not(.el-segmented__item-selected)) {
+  color: var(--mono-soft) !important;
+}
+
+.rankings-console .table-container {
+  border: 1px solid var(--mono-line);
+  background: rgba(10, 10, 10, 0.58);
+}
+
+.rankings-console :deep(.data-table) {
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: rgba(18, 18, 18, 0.96);
+  --el-table-row-hover-bg-color: rgba(255, 255, 255, 0.06);
+  --el-table-border-color: rgba(255, 255, 255, 0.1);
+  --el-table-text-color: var(--mono-ink);
+  --el-table-header-text-color: var(--mono-soft);
+}
+
+.rankings-console .rate-track,
+.rankings-console .pos-track {
+  height: 3px;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.rankings-console .rate-bar,
+.rankings-console .pos-fill {
+  border-radius: 0;
+  background: linear-gradient(90deg, #8d8d8a, #f2f2ef);
+}
+
+.rankings-console :deep(.el-dialog) {
+  border: 1px solid var(--mono-line-strong) !important;
+  border-radius: 0 !important;
+  background: linear-gradient(135deg, rgba(24, 24, 24, 0.98), rgba(8, 8, 8, 0.96)) !important;
+}
+
+.rankings-console :deep(.el-dialog__title) {
+  color: var(--mono-ink) !important;
+  font-weight: 900 !important;
+}
+</style>
+
+<style>
+/* 强制覆盖 Element Plus segmented 选中文字颜色 */
+.rankings-console .el-segmented__item.is-selected,
+.rankings-console .el-segmented__item.is-selected .el-segmented__item-label {
+  color: #0b0b0b !important;
+}
+</style>

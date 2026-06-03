@@ -54,8 +54,8 @@ public class QueryController {
             @RequestParam(required = false) String leagueId) {
         String resolvedLeagueId = leagueQueryService.requireLeagueId(leagueId);
         Map<String, Object> data = switch (sort) {
-            case "win" -> playerStatsTool.queryTopWinRate(resolvedLeagueId, 5, 20);
-            default -> playerStatsTool.queryTopKda(resolvedLeagueId, 5, 20);
+            case "win" -> playerStatsTool.queryTopWinRate(resolvedLeagueId, 5, 9999);
+            default -> playerStatsTool.queryTopKda(resolvedLeagueId, 5, 9999);
         };
         return ApiResponse.ok(data);
     }
@@ -67,9 +67,9 @@ public class QueryController {
             @RequestParam(required = false) String leagueId) {
         String resolvedLeagueId = leagueQueryService.requireLeagueId(leagueId);
         Map<String, Object> data = switch (sort) {
-            case "ban" -> heroStatsTool.queryTopBanRate(resolvedLeagueId, 10);
-            case "win" -> heroStatsTool.queryTopWinRate(resolvedLeagueId, 5, 10);
-            default -> heroStatsTool.queryTopPickRate(resolvedLeagueId, 10);
+            case "ban" -> heroStatsTool.queryTopBanRate(resolvedLeagueId, 9999);
+            case "win" -> heroStatsTool.queryTopWinRate(resolvedLeagueId, 5, 9999);
+            default -> heroStatsTool.queryTopPickRate(resolvedLeagueId, 9999);
         };
         return ApiResponse.ok(data);
     }

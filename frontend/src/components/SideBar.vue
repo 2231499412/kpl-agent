@@ -1,10 +1,8 @@
 <template>
-  <aside class="sidebar" @mouseenter="expanded = true" @mouseleave="expanded = false">
+  <aside class="sidebar" :class="{ expanded }" @mouseenter="expanded = true" @mouseleave="expanded = false">
     <div class="sidebar-logo" @click="router.push('/')">
       <div class="logo-icon">K</div>
-      <transition name="fade-text">
-        <span v-if="expanded" class="logo-label">KPL Agent</span>
-      </transition>
+      <span class="logo-label">KPL Agent</span>
     </div>
 
     <nav class="sidebar-nav">
@@ -16,30 +14,27 @@
         @click="router.push(item.route)"
       >
         <el-icon class="nav-icon"><component :is="item.icon" /></el-icon>
-        <transition name="fade-text">
-          <span v-if="expanded" class="nav-label">{{ item.label }}</span>
-        </transition>
+        <span class="nav-label">{{ item.label }}</span>
       </div>
     </nav>
 
     <div class="sidebar-bottom">
       <div class="nav-item" @click="router.push('/')">
         <el-icon class="nav-icon"><HomeFilled /></el-icon>
-        <transition name="fade-text">
-          <span v-if="expanded" class="nav-label">返回首页</span>
-        </transition>
+        <span class="nav-label">返回首页</span>
       </div>
     </div>
   </aside>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { HomeFilled } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
+const expanded = ref(false)
 
 const navItems = [
   { id: 'rankings', label: '数据排行', icon: 'Trophy', route: '/rankings' },
@@ -62,15 +57,18 @@ const activeNav = computed(() => {
   top: 0;
   bottom: 0;
   width: 67.5px;
-  background: #0d0d14;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  background:
+    linear-gradient(180deg, rgba(250, 248, 240, 0.98), rgba(245, 242, 232, 0.99)),
+    #f8f5ec;
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
   z-index: 50;
-  transition: width 0.3s ease-in-out;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.06);
 }
-.sidebar:hover {
+.sidebar.expanded {
   width: 202.5px;
 }
 
@@ -79,33 +77,40 @@ const activeNav = computed(() => {
   align-items: center;
   gap: 12px;
   padding: 20px 18px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   min-height: 64px;
   cursor: pointer;
   transition: background 0.15s;
 }
 .sidebar-logo:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .logo-icon {
   width: 32px;
   height: 32px;
   min-width: 32px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
-  color: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.06);
+  color: #1a1a1a;
   font-size: 18px;
   font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: 0;
 }
 .logo-label {
   font-size: 14px;
   font-weight: 700;
-  color: #ffffff;
+  color: #1a1a1a;
   white-space: nowrap;
+  visibility: hidden;
+  transition: visibility 0s 0.2s;
+}
+.expanded .logo-label {
+  visibility: visible;
+  transition: visibility 0s 0.08s;
 }
 
 .sidebar-nav {
@@ -124,53 +129,51 @@ const activeNav = computed(() => {
   cursor: pointer;
   transition: background 0.15s;
   white-space: nowrap;
+  border-left: 2px solid transparent;
 }
 .nav-item:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.05);
 }
 .nav-item.active {
-  background: rgba(255, 68, 68, 0.08);
+  border-left-color: #1a1a1a;
+  background: rgba(0, 0, 0, 0.07);
 }
 .nav-item.active .nav-icon {
-  color: var(--accent);
+  color: #1a1a1a;
 }
 .nav-item.active .nav-label {
-  color: var(--accent);
+  color: #1a1a1a;
+  font-weight: 600;
 }
 
 .nav-icon {
   font-size: 20px;
   min-width: 20px;
-  color: #666;
+  color: rgba(0, 0, 0, 0.4);
   transition: color 0.15s;
 }
 .nav-item:hover .nav-icon {
-  color: #ccc;
+  color: #1a1a1a;
 }
 
 .nav-label {
   font-size: 13px;
-  color: #aaa;
+  color: rgba(0, 0, 0, 0.55);
   font-weight: 500;
-  transition: color 0.15s;
+  white-space: nowrap;
+  visibility: hidden;
+  transition: visibility 0s 0.2s;
+}
+.expanded .nav-label {
+  visibility: visible;
+  transition: visibility 0s 0.08s;
 }
 .nav-item:hover .nav-label {
-  color: #e0e0e0;
+  color: #1a1a1a;
 }
 
 .sidebar-bottom {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
   padding: 8px 0;
-}
-
-.fade-text-enter-active {
-  transition: opacity 0.2s ease 0.1s;
-}
-.fade-text-leave-active {
-  transition: opacity 0.1s ease;
-}
-.fade-text-enter-from,
-.fade-text-leave-to {
-  opacity: 0;
 }
 </style>
