@@ -934,25 +934,24 @@ onMounted(async () => {
 
 <style scoped>
 .rankings-console {
-  --mono-bg: #050505;
-  --mono-panel: rgba(18, 18, 18, 0.86);
-  --mono-panel-soft: rgba(30, 30, 30, 0.76);
-  --mono-line: rgba(245, 245, 245, 0.14);
-  --mono-line-strong: rgba(245, 245, 245, 0.32);
-  --mono-ink: #f1f1ef;
-  --mono-soft: rgba(241, 241, 239, 0.68);
-  --mono-dim: rgba(241, 241, 239, 0.4);
-  --mono-accent: #ededeb;
-  --el-segmented-item-selected-bg-color: #e7e7e4;
-  --el-segmented-item-selected-color: #0b0b0b;
+  --mono-bg: #f8f5ec;
+  --mono-panel: rgba(255, 255, 255, 0.92);
+  --mono-panel-soft: rgba(255, 255, 255, 0.82);
+  --mono-line: rgba(0, 0, 0, 0.18);
+  --mono-line-strong: rgba(0, 0, 0, 0.3);
+  --mono-ink: #1a1a1a;
+  --mono-soft: rgba(26, 26, 26, 0.65);
+  --mono-dim: rgba(26, 26, 26, 0.4);
+  --mono-accent: #1a1a1a;
+  --el-segmented-item-selected-bg-color: rgba(0, 0, 0, 0.08);
+  --el-segmented-item-selected-color: #1a1a1a;
   max-width: none;
   min-height: 100vh;
   padding: 28px 32px 36px 87px;
   color: var(--mono-ink);
   background:
-    linear-gradient(90deg, rgba(5, 5, 5, 0.98), rgba(24, 24, 24, 0.9) 48%, rgba(7, 7, 7, 0.98)),
-    repeating-linear-gradient(90deg, rgba(245, 245, 245, 0.035) 0 1px, transparent 1px 96px),
-    repeating-linear-gradient(0deg, rgba(245, 245, 245, 0.025) 0 1px, transparent 1px 54px);
+    linear-gradient(180deg, rgba(250, 248, 240, 0.98), rgba(245, 242, 232, 0.99)),
+    #f8f5ec;
 }
 
 .rankings-console .command-strip,
@@ -960,11 +959,8 @@ onMounted(async () => {
   position: relative;
   border: 1px solid var(--mono-line);
   border-radius: 0;
-  background:
-    linear-gradient(135deg, var(--mono-panel), rgba(8, 8, 8, 0.74)),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.055), transparent 34% 74%, rgba(255, 255, 255, 0.035));
-  backdrop-filter: blur(16px);
-  box-shadow: inset 0 0 38px rgba(255, 255, 255, 0.035), 0 18px 64px rgba(0, 0, 0, 0.32);
+  background: var(--mono-panel);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 .rankings-console .command-strip::before,
@@ -975,17 +971,16 @@ onMounted(async () => {
   top: -1px;
   width: 36px;
   height: 36px;
-  border-left: 2px solid rgba(245, 245, 245, 0.54);
-  border-top: 2px solid rgba(245, 245, 245, 0.54);
+  border-left: 2px solid rgba(0, 0, 0, 0.12);
+  border-top: 2px solid rgba(0, 0, 0, 0.12);
   pointer-events: none;
 }
 
 .rankings-console .brand-mark {
-  border: 1px solid var(--mono-line-strong);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 0;
-  color: var(--mono-ink);
-  background: #101010;
-  box-shadow: inset 0 0 18px rgba(255, 255, 255, 0.08);
+  color: #1a1a1a;
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .rankings-console .eyebrow,
@@ -1016,7 +1011,7 @@ onMounted(async () => {
 .rankings-console .reasoning-block {
   border-color: var(--mono-line);
   border-radius: 0;
-  background: rgba(12, 12, 12, 0.62);
+  background: rgba(255, 255, 255, 0.7);
   color: var(--mono-soft);
 }
 
@@ -1026,8 +1021,8 @@ onMounted(async () => {
 }
 
 .rankings-console .status-pill.online i {
-  background: var(--mono-accent);
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.34);
+  background: #1a1a1a;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.2);
 }
 
 .rankings-console .layout-grid {
@@ -1046,7 +1041,7 @@ onMounted(async () => {
   text-align: center;
   padding: 10px 0;
   border: 1px solid var(--mono-line);
-  background: rgba(12, 12, 12, 0.4);
+  background: rgba(0, 0, 0, 0.03);
 }
 .rankings-console .ls-val {
   display: block;
@@ -1079,21 +1074,21 @@ onMounted(async () => {
 }
 
 .rankings-console :deep(.el-button:not(.el-button--primary)) {
-  --el-button-bg-color: rgba(16, 16, 16, 0.78);
+  --el-button-bg-color: rgba(255, 255, 255, 0.6);
   --el-button-border-color: var(--mono-line);
   --el-button-text-color: var(--mono-soft);
-  --el-button-hover-bg-color: rgba(54, 54, 54, 0.86);
+  --el-button-hover-bg-color: rgba(255, 255, 255, 0.9);
   --el-button-hover-border-color: var(--mono-line-strong);
   --el-button-hover-text-color: var(--mono-ink);
 }
 
 .rankings-console .primary-action,
 .rankings-console .sync-all-btn {
-  --el-button-bg-color: #e7e7e4;
-  --el-button-border-color: #e7e7e4;
-  --el-button-text-color: #0b0b0b;
-  --el-button-hover-bg-color: #ffffff;
-  --el-button-hover-border-color: #ffffff;
+  --el-button-bg-color: #1a1a1a;
+  --el-button-border-color: #1a1a1a;
+  --el-button-text-color: #f8f5ec;
+  --el-button-hover-bg-color: #333;
+  --el-button-hover-border-color: #333;
   border-radius: 0;
 }
 
@@ -1101,26 +1096,27 @@ onMounted(async () => {
 .rankings-console :deep(.el-select__wrapper),
 .rankings-console :deep(.el-segmented) {
   border-radius: 0 !important;
-  background: rgba(12, 12, 12, 0.72) !important;
+  background: rgba(255, 255, 255, 0.7) !important;
   box-shadow: 0 0 0 1px var(--mono-line) inset !important;
-  --el-segmented-item-selected-bg-color: #e7e7e4;
-  --el-segmented-item-selected-color: #0b0b0b;
+  --el-segmented-item-selected-bg-color: rgba(0, 0, 0, 0.08);
+  --el-segmented-item-selected-color: #1a1a1a;
   --el-segmented-item-color: var(--mono-soft);
 }
 
 .rankings-console :deep(.el-input__wrapper.is-focus),
 .rankings-console :deep(.el-select__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px var(--mono-accent) inset, 0 0 0 3px rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 0 0 1px var(--mono-accent) inset, 0 0 0 3px rgba(0, 0, 0, 0.06) !important;
 }
 
 .rankings-console :deep(.el-segmented__item-selected) {
   border-radius: 0 !important;
-  background-color: #e7e7e4 !important;
-  color: #0b0b0b !important;
+  background-color: rgba(0, 0, 0, 0.08) !important;
+  color: #1a1a1a !important;
   font-weight: 700;
+  border: 1px solid rgba(0, 0, 0, 0.12);
 }
 .rankings-console :deep(.el-segmented__item-selected .el-segmented__item-label) {
-  color: #0b0b0b !important;
+  color: #1a1a1a !important;
 }
 .rankings-console :deep(.el-segmented__item:not(.el-segmented__item-selected)) {
   color: var(--mono-soft) !important;
@@ -1128,15 +1124,29 @@ onMounted(async () => {
 
 .rankings-console .table-container {
   border: 1px solid var(--mono-line);
-  background: rgba(10, 10, 10, 0.58);
+  background: rgba(255, 255, 255, 0.5);
+  transition: opacity 0.15s ease;
+}
+.rankings-console .table-container.switching {
+  opacity: 0.4;
+}
+.rankings-console .table-container.entering {
+  opacity: 1;
+}
+.rankings-console :deep(.table-loading) {
+  background: rgba(248, 245, 236, 0.7) !important;
+}
+.rankings-console :deep(.table-spinner) {
+  border-color: rgba(0, 0, 0, 0.1);
+  border-top-color: #1a1a1a;
 }
 
 .rankings-console :deep(.data-table) {
   --el-table-bg-color: transparent;
   --el-table-tr-bg-color: transparent;
-  --el-table-header-bg-color: rgba(18, 18, 18, 0.96);
-  --el-table-row-hover-bg-color: rgba(255, 255, 255, 0.06);
-  --el-table-border-color: rgba(255, 255, 255, 0.1);
+  --el-table-header-bg-color: rgba(0, 0, 0, 0.04);
+  --el-table-row-hover-bg-color: rgba(0, 0, 0, 0.04);
+  --el-table-border-color: var(--mono-line);
   --el-table-text-color: var(--mono-ink);
   --el-table-header-text-color: var(--mono-soft);
 }
@@ -1145,31 +1155,96 @@ onMounted(async () => {
 .rankings-console .pos-track {
   height: 3px;
   border-radius: 0;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.08);
 }
 
 .rankings-console .rate-bar,
 .rankings-console .pos-fill {
   border-radius: 0;
-  background: linear-gradient(90deg, #8d8d8a, #f2f2ef);
+  background: #1a1a1a;
 }
 
 .rankings-console :deep(.el-dialog) {
   border: 1px solid var(--mono-line-strong) !important;
   border-radius: 0 !important;
-  background: linear-gradient(135deg, rgba(24, 24, 24, 0.98), rgba(8, 8, 8, 0.96)) !important;
+  background: #fff !important;
 }
 
 .rankings-console :deep(.el-dialog__title) {
   color: var(--mono-ink) !important;
   font-weight: 900 !important;
 }
+
+/* ── 详情弹窗内部组件覆写为白色主题 ── */
+.rankings-console :deep(.detail-dialog .el-dialog__header) {
+  border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+}
+.rankings-console :deep(.match-meta) {
+  color: rgba(26, 26, 26, 0.5) !important;
+}
+.rankings-console :deep(.battle-card) {
+  background: rgba(0, 0, 0, 0.03) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+.rankings-console :deep(.player-card) {
+  background: rgba(0, 0, 0, 0.02) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+.rankings-console :deep(.player-card:hover) {
+  background: rgba(0, 0, 0, 0.05) !important;
+  border-color: rgba(0, 0, 0, 0.16) !important;
+}
+.rankings-console :deep(.player-card.camp-blue) { border-left-color: #1a1a1a !important; }
+.rankings-console :deep(.player-card.camp-red) { border-left-color: rgba(0,0,0,0.3) !important; }
+.rankings-console :deep(.player-header b) { color: #1a1a1a !important; }
+.rankings-console :deep(.player-header small) { color: rgba(26,26,26,0.5) !important; }
+.rankings-console :deep(.player-stats) { color: #1a1a1a !important; }
+.rankings-console :deep(.player-damage) { color: rgba(26,26,26,0.45) !important; }
+.rankings-console :deep(.equip-chip) {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: rgba(26, 26, 26, 0.65) !important;
+}
+.rankings-console :deep(.profile-card) {
+  background: rgba(0, 0, 0, 0.03) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+.rankings-console :deep(.profile-header b) { color: #1a1a1a !important; }
+.rankings-console :deep(.profile-header small) { color: rgba(26,26,26,0.5) !important; }
+.rankings-console :deep(.intro-text) { color: rgba(26,26,26,0.7) !important; }
+.rankings-console :deep(.stat-label) { color: rgba(26,26,26,0.45) !important; }
+.rankings-console :deep(.battle-title) { color: #1a1a1a !important; }
+.rankings-console :deep(.detail-empty) { color: rgba(26,26,26,0.4) !important; }
+.rankings-console :deep(.equip-desc) { color: #1a1a1a !important; }
+.rankings-console :deep(.equip-desc b) { color: #1a1a1a !important; }
+.rankings-console :deep(.equip-section h4) { color: #1a1a1a !important; }
+.rankings-console :deep(.hero-equip-name) { color: #1a1a1a !important; }
+.rankings-console :deep(.hero-equip-cnt) { color: rgba(26,26,26,0.45) !important; }
+.rankings-console :deep(.pos-label) { color: #1a1a1a !important; }
+.rankings-console :deep(.pos-cnt) { color: rgba(26,26,26,0.5) !important; }
+.rankings-console :deep(.skeleton-row) {
+  background: linear-gradient(90deg, rgba(0,0,0,0.04) 25%, rgba(0,0,0,0.08) 50%, rgba(0,0,0,0.04) 75%) !important;
+}
+.rankings-console :deep(.stage-final) { color: #1a1a1a !important; background: rgba(0,0,0,0.05) !important; }
+.rankings-console :deep(.stage-playoff) { color: #1a1a1a !important; background: rgba(0,0,0,0.04) !important; }
+.rankings-console :deep(.stage-regular) { color: rgba(26,26,26,0.5) !important; background: rgba(0,0,0,0.03) !important; }
+.rankings-console :deep(.win-blue) { color: #1a1a1a !important; }
+.rankings-console :deep(.win-red) { color: rgba(26,26,26,0.5) !important; }
+.rankings-console :deep(.rank-badge) { color: #1a1a1a !important; }
+.rankings-console :deep(.rank-n) { color: rgba(26,26,26,0.4) !important; }
+.rankings-console :deep(.stat-grid) { gap: 8px !important; }
+.rankings-console :deep(.stat-item) {
+  background: rgba(0, 0, 0, 0.03) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+.rankings-console :deep(.sv) { color: #1a1a1a !important; }
+.rankings-console :deep(.sl) { color: rgba(26, 26, 26, 0.45) !important; }
 </style>
 
 <style>
 /* 强制覆盖 Element Plus segmented 选中文字颜色 */
 .rankings-console .el-segmented__item.is-selected,
 .rankings-console .el-segmented__item.is-selected .el-segmented__item-label {
-  color: #0b0b0b !important;
+  color: #1a1a1a !important;
 }
 </style>

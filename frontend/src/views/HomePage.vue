@@ -330,12 +330,12 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .home-stage {
-  --ink: #eef7f4;
-  --soft: rgba(238, 247, 244, 0.68);
-  --dim: rgba(238, 247, 244, 0.42);
-  --cyan: #88f7ee;
-  --mint: #39d8c2;
-  --gold: #d7be72;
+  --ink: var(--kpl-ink);
+  --soft: var(--kpl-soft);
+  --dim: var(--kpl-dim);
+  --cyan: var(--kpl-cyan);
+  --mint: var(--kpl-mint);
+  --gold: var(--kpl-gold);
   --panel: rgba(8, 18, 20, 0.62);
   --panel-line: rgba(155, 245, 229, 0.18);
   position: fixed;
@@ -343,7 +343,7 @@ onBeforeUnmount(() => {
   min-width: 1120px;
   overflow: hidden;
   color: var(--ink);
-  background: #05090a;
+  background: var(--kpl-bg);
   outline: none;
   isolation: isolate;
 }

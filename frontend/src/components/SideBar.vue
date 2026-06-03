@@ -64,7 +64,7 @@ const activeNav = computed(() => {
   display: flex;
   flex-direction: column;
   z-index: 50;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
   overflow: hidden;
   box-shadow: 2px 0 12px rgba(0, 0, 0, 0.06);
 }

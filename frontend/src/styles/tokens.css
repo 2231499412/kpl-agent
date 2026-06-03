@@ -1,0 +1,32 @@
+/* KPL Data Agent — shared design tokens */
+
+:root {
+  /* ── color: dark base ── */
+  --kpl-bg: #05090a;
+  --kpl-panel: rgba(18, 18, 18, 0.86);
+  --kpl-panel-soft: rgba(30, 30, 30, 0.76);
+  --kpl-line: rgba(245, 245, 245, 0.14);
+  --kpl-line-strong: rgba(245, 245, 245, 0.32);
+
+  /* ── color: text ── */
+  --kpl-ink: #eef7f4;
+  --kpl-soft: rgba(238, 247, 244, 0.68);
+  --kpl-dim: rgba(238, 247, 244, 0.42);
+
+  /* ── color: accents (shared between homepage & console) ── */
+  --kpl-cyan: #88f7ee;
+  --kpl-mint: #39d8c2;
+  --kpl-gold: #d7be72;
+
+  /* ── typography ── */
+  --kpl-font: "Inter", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --kpl-mono: "Cascadia Mono", "Consolas", monospace;
+  --kpl-weight-bold: 700;
+  --kpl-weight-black: 900;
+  --kpl-tracking-wide: 1.8px;
+
+  /* ── transitions ── */
+  --kpl-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --kpl-ease-snap: cubic-bezier(0.78, 0, 0.16, 1);
+  --kpl-duration: 0.22s;
+}

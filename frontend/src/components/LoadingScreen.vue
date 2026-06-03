@@ -134,17 +134,17 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .loading-screen {
-  --ink: #eef7f4;
-  --soft: rgba(238, 247, 244, 0.7);
-  --dim: rgba(238, 247, 244, 0.38);
-  --cyan: #88f7ee;
-  --gold: #d7be72;
+  --ink: #e8e8e8;
+  --soft: rgba(232, 232, 232, 0.7);
+  --dim: rgba(232, 232, 232, 0.38);
+  --cyan: #999;
+  --gold: #bbb;
   position: fixed;
   inset: 0;
   z-index: 100;
   overflow: hidden;
   color: var(--ink);
-  background: #030809;
+  background: #0a0a0a;
   transition: opacity 0.52s ease;
   isolation: isolate;
 }
@@ -159,8 +159,8 @@ onBeforeUnmount(() => {
   inset: 0;
   z-index: -4;
   background-image:
-    linear-gradient(90deg, rgba(3, 8, 9, 0.95) 0%, rgba(5, 19, 20, 0.72) 48%, rgba(3, 8, 9, 0.9) 100%),
-    linear-gradient(180deg, rgba(9, 48, 48, 0.22), rgba(3, 8, 9, 0.9)),
+    linear-gradient(90deg, rgba(8, 8, 8, 0.95) 0%, rgba(18, 18, 18, 0.72) 48%, rgba(8, 8, 8, 0.9) 100%),
+    linear-gradient(180deg, rgba(30, 30, 30, 0.22), rgba(8, 8, 8, 0.9)),
     var(--loading-bg);
   background-size: cover;
   background-position: center;
@@ -174,9 +174,9 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: 0;
   background:
-    repeating-linear-gradient(0deg, rgba(136, 247, 238, 0.05) 0 1px, transparent 1px 42px),
-    repeating-linear-gradient(90deg, rgba(136, 247, 238, 0.045) 0 1px, transparent 1px 96px),
-    linear-gradient(116deg, transparent 0 42%, rgba(136, 247, 238, 0.16) 42% 42.25%, transparent 42.25% 100%);
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 42px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 96px),
+    linear-gradient(116deg, transparent 0 42%, rgba(255, 255, 255, 0.16) 42% 42.25%, transparent 42.25% 100%);
   mask-image: linear-gradient(90deg, #000 0 70%, transparent 96%);
 }
 
@@ -186,8 +186,8 @@ onBeforeUnmount(() => {
   z-index: -2;
   pointer-events: none;
   background:
-    linear-gradient(180deg, transparent 0%, rgba(136, 247, 238, 0.12) 48%, transparent 52%),
-    radial-gradient(circle at 66% 42%, rgba(136, 247, 238, 0.16), transparent 24%);
+    linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.12) 48%, transparent 52%),
+    radial-gradient(circle at 66% 42%, rgba(255, 255, 255, 0.16), transparent 24%);
   background-size: 100% 18px, auto;
   mix-blend-mode: screen;
   opacity: 0.34;
@@ -213,13 +213,13 @@ onBeforeUnmount(() => {
   width: min(780px, calc(100vw - 80px));
   min-height: 438px;
   padding: 42px;
-  border: 1px solid rgba(136, 247, 238, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   background:
-    linear-gradient(135deg, rgba(7, 19, 21, 0.76), rgba(7, 18, 20, 0.5)),
-    linear-gradient(90deg, rgba(136, 247, 238, 0.12), transparent 28% 72%, rgba(215, 190, 114, 0.1));
+    linear-gradient(135deg, rgba(15, 15, 15, 0.76), rgba(12, 12, 12, 0.5)),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.12), transparent 28% 72%, rgba(255, 255, 255, 0.1));
   backdrop-filter: blur(18px);
   box-shadow:
-    inset 0 0 48px rgba(136, 247, 238, 0.07),
+    inset 0 0 48px rgba(255, 255, 255, 0.07),
     0 28px 90px rgba(0, 0, 0, 0.42);
   animation: frame-enter 0.72s cubic-bezier(0.2, 0.9, 0.15, 1) both;
 }
@@ -231,7 +231,7 @@ onBeforeUnmount(() => {
   left: -56px;
   right: -56px;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(136, 247, 238, 0.65), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
 }
 
 .terminal-frame::before {
@@ -289,12 +289,12 @@ onBeforeUnmount(() => {
   width: 52px;
   height: 52px;
   place-items: center;
-  border: 1px solid rgba(136, 247, 238, 0.36);
+  border: 1px solid rgba(255, 255, 255, 0.36);
   color: var(--cyan);
   background: rgba(3, 12, 14, 0.78);
   font-size: 28px;
   font-weight: 900;
-  box-shadow: inset 0 0 20px rgba(136, 247, 238, 0.18);
+  box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.18);
 }
 
 .brand-kicker {
@@ -318,11 +318,11 @@ h1 {
   min-height: 208px;
   margin: 34px 0 26px;
   padding: 18px 148px 18px 18px;
-  border: 1px solid rgba(136, 247, 238, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   background:
-    linear-gradient(90deg, rgba(136, 247, 238, 0.06) 0 1px, transparent 1px 100%),
-    linear-gradient(0deg, rgba(136, 247, 238, 0.05) 0 1px, transparent 1px 100%),
-    rgba(2, 8, 10, 0.48);
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 100%),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 100%),
+    rgba(10, 10, 10, 0.48);
   background-size: 46px 46px;
   overflow: hidden;
 }
@@ -331,7 +331,7 @@ h1 {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(110deg, transparent 0 58%, rgba(136, 247, 238, 0.1) 58% 58.35%, transparent 58.35% 100%);
+  background: linear-gradient(110deg, transparent 0 58%, rgba(255, 255, 255, 0.1) 58% 58.35%, transparent 58.35% 100%);
   pointer-events: none;
 }
 
@@ -339,8 +339,8 @@ h1 {
   position: absolute;
   z-index: 2;
   pointer-events: none;
-  background: rgba(136, 247, 238, 0.72);
-  box-shadow: 0 0 18px rgba(136, 247, 238, 0.32);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.32);
   transition: transform 0.34s cubic-bezier(0.78, 0, 0.16, 1);
 }
 
@@ -367,10 +367,10 @@ h1 {
   top: 0;
   width: 112px;
   height: 62px;
-  border: 1px solid rgba(136, 247, 238, 0.76);
+  border: 1px solid rgba(255, 255, 255, 0.76);
   transform: translate(calc(var(--locator-x) - 56px), calc(var(--locator-y) - 31px));
   transition: transform 0.34s cubic-bezier(0.78, 0, 0.16, 1);
-  box-shadow: inset 0 0 24px rgba(136, 247, 238, 0.08), 0 0 18px rgba(136, 247, 238, 0.2);
+  box-shadow: inset 0 0 24px rgba(255, 255, 255, 0.08), 0 0 18px rgba(255, 255, 255, 0.2);
 }
 
 .locator-bracket::before,
@@ -397,8 +397,8 @@ h1 {
   width: 232px;
   min-height: 76px;
   padding: 14px 16px;
-  border: 1px solid rgba(136, 247, 238, 0.14);
-  background: rgba(6, 20, 22, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(14, 14, 14, 0.62);
   transition: border-color 0.24s ease, background 0.24s ease, color 0.24s ease;
 }
 
@@ -423,8 +423,8 @@ h1 {
 }
 
 .locator-node.active {
-  border-color: rgba(136, 247, 238, 0.62);
-  background: rgba(19, 55, 55, 0.74);
+  border-color: rgba(255, 255, 255, 0.62);
+  background: rgba(30, 30, 30, 0.74);
 }
 
 .locator-node small,
@@ -465,8 +465,8 @@ h1 {
   align-content: center;
   gap: 8px;
   padding: 16px;
-  border-left: 1px solid rgba(136, 247, 238, 0.18);
-  background: linear-gradient(90deg, rgba(2, 8, 10, 0.12), rgba(2, 8, 10, 0.72));
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+  background: linear-gradient(90deg, rgba(10, 10, 10, 0.12), rgba(10, 10, 10, 0.72));
 }
 
 .locator-readout span,
@@ -496,10 +496,10 @@ h1 {
   height: 3px;
   margin-top: 14px;
   border: 0;
-  background: rgba(136, 247, 238, 0.13);
+  background: rgba(255, 255, 255, 0.13);
   box-shadow:
-    0 -8px 0 rgba(136, 247, 238, 0.035),
-    0 8px 0 rgba(136, 247, 238, 0.035);
+    0 -8px 0 rgba(255, 255, 255, 0.035),
+    0 8px 0 rgba(255, 255, 255, 0.035);
   overflow: visible;
 }
 
@@ -507,7 +507,7 @@ h1 {
   position: absolute;
   inset: 0 auto 0 0;
   background: linear-gradient(90deg, var(--cyan), var(--gold));
-  box-shadow: 0 0 16px rgba(136, 247, 238, 0.46);
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.46);
   transition: width 0.016s linear;
 }
 
@@ -519,7 +519,7 @@ h1 {
   width: 1px;
   height: 11px;
   background: var(--gold);
-  box-shadow: 0 0 14px rgba(215, 190, 114, 0.65);
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.65);
 }
 
 .progress-track span {
@@ -529,7 +529,7 @@ h1 {
   width: calc(100% / 18);
   height: 11px;
   top: -4px;
-  border-right: 1px solid rgba(136, 247, 238, 0.18);
+  border-right: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .switch-lines {
@@ -546,7 +546,7 @@ h1 {
   right: -14vw;
   top: calc(var(--line-index) * 10.5vh);
   height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(136, 247, 238, 0.95), rgba(215, 190, 114, 0.76), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.76), transparent);
   transform: translateX(-110%);
 }
 
@@ -565,8 +565,8 @@ h1 {
   z-index: 3;
   pointer-events: none;
   background:
-    linear-gradient(90deg, transparent 0 24%, rgba(136, 247, 238, 0.08) 24% 24.3%, transparent 24.3% 100%),
-    linear-gradient(105deg, rgba(3, 8, 9, 0.96), rgba(6, 24, 25, 0.92));
+    linear-gradient(90deg, transparent 0 24%, rgba(255, 255, 255, 0.08) 24% 24.3%, transparent 24.3% 100%),
+    linear-gradient(105deg, rgba(8, 8, 8, 0.96), rgba(15, 15, 15, 0.92));
   clip-path: polygon(0 0, 0 0, 0 100%, 0 100%);
 }
 
