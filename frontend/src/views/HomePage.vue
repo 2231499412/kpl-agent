@@ -21,23 +21,23 @@
     <header class="home-topbar">
       <router-link to="/" class="home-brand" aria-label="KPL 数据中枢">
         <span class="brand-sigil">K</span>
-        <span>KPL DATA AGENT</span>
+        <span class="brand-text">KPL<span class="brand-dot">·</span>DATA</span>
       </router-link>
       <nav class="home-nav" aria-label="主页功能导航">
-        <button
+        <a
           v-for="(panel, index) in panels"
           :key="panel.key"
           :class="{ active: activeIndex === index }"
-          type="button"
-          @click="goToPanel(index)"
+          @click.prevent="goToPanel(index)"
+          href="#"
         >
           {{ panel.nav }}
-        </button>
+        </a>
       </nav>
     </header>
 
     <section class="panel-rail" :style="{ transform: `translate3d(${-activeIndex * viewportWidth}px, 0, 0)` }">
-      <article v-for="panel in panels" :key="panel.key" class="home-panel">
+      <article v-for="(panel, index) in panels" :key="panel.key" class="home-panel" :class="{ active: activeIndex === index }">
         <div class="panel-inner">
           <p class="panel-kicker">{{ panel.kicker }}</p>
           <h1 v-if="panel.key === 'hero'" class="panel-title hero-title">{{ panel.title }}</h1>
@@ -484,19 +484,22 @@ onBeforeUnmount(() => {
 
 .home-topbar {
   position: absolute;
-  top: 28px;
-  left: 42px;
-  right: 42px;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 5;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  height: 72px;
+  padding: 0 52px;
+  background: linear-gradient(180deg, rgba(2, 5, 6, 0.6) 0%, rgba(2, 5, 6, 0.15) 70%, transparent 100%);
 }
 
 .home-brand {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   color: var(--ink);
   text-decoration: none;
   font-size: 12px;
@@ -506,44 +509,81 @@ onBeforeUnmount(() => {
 
 .brand-sigil {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   place-items: center;
-  border: 1px solid rgba(136, 247, 238, 0.32);
-  background: rgba(3, 12, 14, 0.72);
+  border: 1px solid rgba(136, 247, 238, 0.28);
+  background: rgba(3, 12, 14, 0.6);
   color: var(--cyan);
-  font-size: 21px;
-  box-shadow: inset 0 0 18px rgba(136, 247, 238, 0.14);
+  font-size: 18px;
+  font-weight: 900;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.home-brand:hover .brand-sigil {
+  border-color: var(--cyan);
+  box-shadow: 0 0 20px rgba(136, 247, 238, 0.2);
+}
+
+.brand-text {
+  font-size: 14px;
+  letter-spacing: 4px;
+  font-weight: 800;
+}
+
+.brand-dot {
+  color: var(--cyan);
+  margin: 0 1px;
 }
 
 .home-nav {
-  position: relative;
   display: flex;
-  gap: 6px;
-  padding: 6px;
-  border: 1px solid rgba(136, 247, 238, 0.14);
-  background: rgba(2, 8, 10, 0.58);
-  backdrop-filter: blur(18px);
-  overflow: visible;
+  align-items: center;
+  gap: 0;
 }
 
-.home-nav button {
+.home-nav a {
   position: relative;
-  z-index: 2;
-  min-width: 74px;
-  height: 34px;
-  border: 0;
-  color: var(--dim);
-  background: transparent;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  height: 72px;
+  padding: 0 24px;
+  color: rgba(238, 247, 244, 0.5);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  transition: color 0.3s;
 }
 
-.home-nav button.active,
-.home-nav button:hover {
-  color: #031010;
-  background: linear-gradient(135deg, var(--cyan), var(--gold));
+.home-nav a::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: var(--cyan);
+  transform: translateX(-50%);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 8px rgba(136, 247, 238, 0.4);
+}
+
+.home-nav a:hover {
+  color: var(--ink);
+}
+
+.home-nav a:hover::after {
+  width: 100%;
+}
+
+.home-nav a.active {
+  color: var(--cyan);
+}
+
+.home-nav a.active::after {
+  width: 100%;
+  background: var(--cyan);
 }
 
 .panel-rail {
@@ -576,6 +616,16 @@ onBeforeUnmount(() => {
 
 .panel-inner {
   width: min(720px, 52vw);
+  opacity: 0;
+  transform: translateX(60px);
+  transition:
+    opacity 0.55s cubic-bezier(0.4, 0, 0.2, 1) 0.18s,
+    transform 0.55s cubic-bezier(0.4, 0, 0.2, 1) 0.18s;
+}
+
+.home-panel.active .panel-inner {
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .panel-kicker {
@@ -833,8 +883,13 @@ onBeforeUnmount(() => {
     min-width: 0;
   }
 
-  .home-nav {
-    display: none;
+  .home-topbar {
+    padding: 0 28px;
+  }
+
+  .home-nav a {
+    padding: 0 16px;
+    font-size: 12px;
   }
 
   .home-panel {
