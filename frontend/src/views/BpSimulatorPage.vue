@@ -5,7 +5,7 @@
 
     <header class="match-header">
       <section class="team-head team-blue">
-        <div class="ban-strip">
+        <div class="ban-strip" v-if="!isBlindPick">
           <button
             v-for="(hero, i) in currentGameObj.blueBans"
             :key="`blue-ban-${i}`"
@@ -43,7 +43,7 @@
           </div>
           <div class="team-logo team-logo-red"><img :src="luckinLogo" alt="瑞幸咖啡"></div>
         </div>
-        <div class="ban-strip">
+        <div class="ban-strip" v-if="!isBlindPick">
           <button
             v-for="(hero, i) in currentGameObj.redBans"
             :key="`red-ban-${i}`"
@@ -84,7 +84,7 @@
       </div>
 
       <div class="center-console">
-        <div class="phase-kicker">{{ bpDone ? 'BP 完成' : currentStepObj.type === 'ban' ? '禁用阶段' : '选择阶段' }}</div>
+        <div class="phase-kicker">{{ isBlindPick ? '巅峰对决 · ' : '' }}{{ bpDone ? 'BP 完成' : currentStepObj.type === 'ban' ? '禁用阶段' : '选择阶段' }}</div>
         <div class="turn-side" :class="currentStepObj.side">
           {{ bpDone ? '阵容锁定' : currentStepObj.side === 'blue' ? '蓝方操作' : '红方操作' }}
         </div>
@@ -93,7 +93,8 @@
           <span :class="currentStepObj.side" :style="{ width: `${(timerLeft / 30) * 100}%` }" />
         </div>
         <strong class="phase-name">{{ bpDone ? '本局 BP 已完成' : currentStepObj.label }}</strong>
-        <p>{{ bpDone ? '可标记胜负或切换下一局' : '点击高亮槽位选择英雄' }}</p>
+        <p v-if="isBlindPick && !bpDone">无 Ban · 双方可选相同英雄</p>
+        <p v-else>{{ bpDone ? '可标记胜负或切换下一局' : '点击高亮槽位选择英雄' }}</p>
         <div class="final-mark"><span />决赛<span /></div>
       </div>
 
@@ -522,15 +523,29 @@ const bpSequence = [
   { type: 'pick', side: 'blue', label: '蓝方 Pick 5' },
 ]
 
-function createGameState() {
+const blindPickSequence = [
+  { type: 'pick', side: 'blue', label: '蓝方 Pick 1' },
+  { type: 'pick', side: 'red', label: '红方 Pick 1' },
+  { type: 'pick', side: 'blue', label: '蓝方 Pick 2' },
+  { type: 'pick', side: 'red', label: '红方 Pick 2' },
+  { type: 'pick', side: 'blue', label: '蓝方 Pick 3' },
+  { type: 'pick', side: 'red', label: '红方 Pick 3' },
+  { type: 'pick', side: 'blue', label: '蓝方 Pick 4' },
+  { type: 'pick', side: 'red', label: '红方 Pick 4' },
+  { type: 'pick', side: 'blue', label: '蓝方 Pick 5' },
+  { type: 'pick', side: 'red', label: '红方 Pick 5' },
+]
+
+function createGameState(blindPick = false) {
   return {
-    blueBans: [null, null, null, null],
-    redBans: [null, null, null, null],
+    blueBans: blindPick ? [] : [null, null, null, null],
+    redBans: blindPick ? [] : [null, null, null, null],
     bluePicks: [null, null, null, null, null],
     redPicks: [null, null, null, null, null],
     currentStep: 0,
     blueIsFirst: true,
     winner: null,
+    blindPick,
   }
 }
 
@@ -540,18 +555,23 @@ const boOpen = ref(false)
 const games = ref(Array.from({ length: 5 }, createGameState))
 const currentGame = ref(0)
 const currentGameObj = computed(() => games.value[currentGame.value])
+const isBlindPick = computed(() => (boFormat.value === 7 && currentGame.value === 6) || (boFormat.value === 9 && currentGame.value === 8))
+const activeSequence = computed(() => isBlindPick.value ? blindPickSequence : bpSequence)
 
 function changeBo(n) {
   stopTimer()
   boFormat.value = n
   boOpen.value = false
-  games.value = Array.from({ length: n }, createGameState)
+  games.value = Array.from({ length: n }, (_, i) => {
+    const isLast = (n === 7 && i === 6) || (n === 9 && i === 8)
+    return createGameState(isLast)
+  })
   currentGame.value = 0
   lastPickedHero.value = null
   startTimer()
 }
-const currentStepObj = computed(() => bpSequence[currentGameObj.value.currentStep] || { type: 'done', side: '', label: '完成' })
-const bpDone = computed(() => currentGameObj.value.currentStep >= bpSequence.length)
+const currentStepObj = computed(() => activeSequence.value[currentGameObj.value.currentStep] || { type: 'done', side: '', label: '完成' })
+const bpDone = computed(() => currentGameObj.value.currentStep >= activeSequence.value.length)
 const activeSlotText = computed(() => {
   if (bpDone.value) return ''
   const side = currentStepObj.value.side === 'blue' ? '左侧蓝方' : '右侧红方'
@@ -559,10 +579,12 @@ const activeSlotText = computed(() => {
   return `请点击${side}${action}，打开英雄选择器。`
 })
 const remainingActionText = computed(() => {
+  if (bpDone.value) return '本局操作结束'
   const game = currentGameObj.value
-  const banLeft = game.blueBans.concat(game.redBans).filter(item => !item).length
   const pickLeft = game.bluePicks.concat(game.redPicks).filter(item => !item).length
-  return bpDone.value ? '本局操作结束' : `剩余 ${banLeft} 个禁用位 · ${pickLeft} 个选择位`
+  if (isBlindPick.value) return `剩余 ${pickLeft} 个选择位`
+  const banLeft = game.blueBans.concat(game.redBans).filter(item => !item).length
+  return `剩余 ${banLeft} 个禁用位 · ${pickLeft} 个选择位`
 })
 const blueWins = computed(() => games.value.filter(game => game.winner === 'blue').length)
 const redWins = computed(() => games.value.filter(game => game.winner === 'red').length)
@@ -596,7 +618,7 @@ function startTimer() {
 }
 
 function getSlotInfo(step) {
-  const sequence = bpSequence[step]
+  const sequence = activeSequence.value[step]
   if (!sequence) return null
   const key = `${sequence.side}${sequence.type === 'ban' ? 'Bans' : 'Picks'}`
   const arr = currentGameObj.value[key]
@@ -626,14 +648,17 @@ function onSlotClick(type, side, idx, hero) {
   const key = `${side}${type === 'ban' ? 'Bans' : 'Picks'}`
   if (hero) {
     // 只允许移除最近一步放置的英雄，并回退步骤
-    const prevStep = currentGameObj.value.currentStep - 1
-    const prevSeq = bpSequence[prevStep]
+    const game = currentGameObj.value
+    const prevStep = game.currentStep - 1
+    const seq = activeSequence.value
+    const prevSeq = seq[prevStep]
     if (prevSeq && prevSeq.type === type && prevSeq.side === side) {
-      const arr = currentGameObj.value[key]
-      const lastFilledIdx = arr.map(Boolean).lastIndexOf(true)
-      if (lastFilledIdx === idx) {
-        currentGameObj.value[key][idx] = null
-        currentGameObj.value.currentStep = prevStep
+      // 计算上一步对应的槽位索引
+      const stepsOfSame = seq.filter(s => s.type === type && s.side === side)
+      const expectedIdx = stepsOfSame.indexOf(prevSeq)
+      if (expectedIdx === idx) {
+        game[key][idx] = null
+        game.currentStep = prevStep
         startTimer()
       }
     }
@@ -646,6 +671,13 @@ function onSlotClick(type, side, idx, hero) {
 
 function isHeroUsed(hero) {
   const game = currentGameObj.value
+  if (isBlindPick.value) {
+    // 巅峰对决：双方可选相同英雄，只检查当前操作方
+    const side = pickerTarget.value?.side
+    if (!side) return false
+    const picks = side === 'blue' ? game.bluePicks : game.redPicks
+    return picks.some(item => item?.heroName === hero.heroName)
+  }
   return [...game.blueBans, ...game.redBans, ...game.bluePicks, ...game.redPicks]
     .some(item => item?.heroName === hero.heroName)
 }
@@ -663,17 +695,29 @@ function pickHero(hero) {
 }
 
 function advanceStep() {
-  if (currentGameObj.value.currentStep < bpSequence.length) currentGameObj.value.currentStep += 1
+  if (currentGameObj.value.currentStep < activeSequence.value.length) currentGameObj.value.currentStep += 1
   startTimer()
 }
 
 function undo() {
-  if (!currentGameObj.value.currentStep) return
-  currentGameObj.value.currentStep -= 1
-  const info = getSlotInfo(currentGameObj.value.currentStep)
-  if (info) {
-    const lastFilled = info.arr.map(Boolean).lastIndexOf(true)
-    if (lastFilled >= 0) info.arr[lastFilled] = null
+  const game = currentGameObj.value
+  if (!game.currentStep) return
+  game.currentStep -= 1
+  const seq = activeSequence.value
+  const step = seq[game.currentStep]
+  if (!step) return
+  if (step.type === 'ban') {
+    // ban index = floor(step / 2) for both sides in regular sequence
+    const banSteps = seq.filter(s => s.type === 'ban' && s.side === step.side)
+    const idx = banSteps.indexOf(step)
+    const arr = step.side === 'blue' ? game.blueBans : game.redBans
+    if (idx >= 0 && idx < arr.length) arr[idx] = null
+  } else {
+    // pick index = number of prior pick steps for this side
+    const pickSteps = seq.filter(s => s.type === 'pick' && s.side === step.side)
+    const idx = pickSteps.indexOf(step)
+    const arr = step.side === 'blue' ? game.bluePicks : game.redPicks
+    if (idx >= 0 && idx < arr.length) arr[idx] = null
   }
   startTimer()
 }
@@ -702,7 +746,9 @@ function markWin(side) {
 }
 
 function isGameDone(index) {
-  return games.value[index].currentStep >= bpSequence.length
+  const game = games.value[index]
+  const seq = game.blindPick ? blindPickSequence : bpSequence
+  return game.currentStep >= seq.length
 }
 
 function getGameWinner(index) {
