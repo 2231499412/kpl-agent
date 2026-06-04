@@ -120,4 +120,39 @@ onMounted(async () => {
   font-size: 11px;
   color: var(--muted);
 }
+
+@media (max-width: 767px) {
+  .ticker-section {
+    padding: 0 12px;
+  }
+
+  .ticker-header {
+    margin-bottom: 10px;
+  }
+
+  .ticker-scroll {
+    gap: 8px;
+  }
+
+  .ticker-item {
+    min-width: 220px;
+    padding: 12px 14px;
+  }
+
+  .ticker-teams {
+    gap: 6px;
+  }
+
+  .ticker-team {
+    max-width: 72px;
+    overflow: hidden;
+    font-size: 12px;
+    text-overflow: ellipsis;
+  }
+
+  .ticker-score {
+    min-width: 38px;
+    font-size: 14px;
+  }
+}
 </style>

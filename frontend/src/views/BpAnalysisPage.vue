@@ -149,9 +149,10 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { getTheme, setTheme } from '../utils/theme'
 
-const theme = ref(localStorage.getItem('kpl-theme') || 'light')
-watch(theme, (v) => localStorage.setItem('kpl-theme', v))
+const theme = ref(getTheme())
+watch(theme, (v) => setTheme(v))
 
 const leagues = ref([])
 const selectedLeagueId = ref('')
@@ -504,6 +505,214 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
 .bp-console :deep(.el-select__wrapper.is-focused) { border-color: var(--mono-ink) !important; }
 .bp-console :deep(.el-select__placeholder) { color: var(--mono-soft) !important; }
 .bp-console :deep(.el-select__caret) { color: var(--mono-soft) !important; }
+
+@media (max-width: 767px) {
+  .bp-console {
+    width: 100%;
+    min-width: 0;
+    height: 100dvh;
+    padding: 10px 8px calc(82px + env(safe-area-inset-bottom));
+    overflow: hidden;
+  }
+
+  .command-strip {
+    min-width: 0;
+    padding: 10px 12px;
+  }
+
+  .brand-block,
+  .status-line {
+    min-width: 0;
+  }
+
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    font-size: 14px;
+  }
+
+  h1 {
+    font-size: 18px;
+  }
+
+  .theme-toggle small {
+    display: none;
+  }
+
+  .bp-body {
+    min-width: 0;
+    padding: 10px 0 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .ctrl-bar {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+
+  .league-select {
+    width: 100%;
+  }
+
+  .sort-group {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sort-btn {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    white-space: nowrap;
+  }
+
+  .tier-legend {
+    margin-left: 0;
+    justify-content: space-between;
+  }
+
+  .tier-tag {
+    flex: 1;
+    height: 24px;
+  }
+
+  .summary-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .summary-card {
+    min-width: 0;
+    padding: 12px;
+  }
+
+  .s-val {
+    font-size: 20px;
+  }
+
+  .s-label {
+    overflow: hidden;
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .hero-grid {
+    gap: 8px;
+  }
+
+  .hero-sort-leave-active {
+    width: 100%;
+  }
+
+  .hero-row {
+    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-areas:
+      "rank hero"
+      "bar bar"
+      "stats stats";
+    gap: 10px;
+    min-width: 0;
+    padding: 12px;
+    overflow: hidden;
+    border-color: var(--mono-line);
+  }
+
+  .hero-row:hover {
+    box-shadow: none;
+  }
+
+  .row-rank {
+    grid-area: rank;
+    min-width: 0;
+  }
+
+  .rank-num {
+    min-width: 18px;
+    text-align: left;
+  }
+
+  .row-hero {
+    grid-area: hero;
+    min-width: 0;
+  }
+
+  .hero-img {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 auto;
+  }
+
+  .hero-name {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 15px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .row-bp-bar {
+    grid-area: bar;
+    min-width: 0;
+  }
+
+  .bp-track {
+    min-width: 0;
+  }
+
+  .bp-pct {
+    min-width: 46px;
+  }
+
+  .row-stats {
+    grid-area: stats;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+    min-width: 0;
+    border-top: 1px solid var(--mono-line);
+    padding-top: 8px;
+  }
+
+  .stat-cell {
+    min-width: 0;
+    padding: 0 4px;
+  }
+
+  .stat-val {
+    font-size: 12px;
+  }
+
+  .stat-label {
+    font-size: 8px;
+  }
+
+  .detail-dialog :deep(.el-dialog__body) {
+    max-height: calc(82dvh - 56px);
+    overflow-y: auto;
+    padding: 12px;
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .player-chip {
+    grid-template-columns: 1fr auto;
+    gap: 6px;
+  }
+
+  .p-team,
+  .p-games {
+    text-align: left;
+  }
+}
 </style>
 
 <style>

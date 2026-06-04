@@ -36,6 +36,18 @@ const routes = [
     name: 'bp-analysis',
     component: () => import('../views/BpAnalysisPage.vue'),
     meta: { title: 'KPL - BP 分析', showSidebar: true }
+  },
+  {
+    path: '/tier-list',
+    name: 'tier-list',
+    component: () => import('../views/TierListPage.vue'),
+    meta: { title: 'KPL - 英雄梯度榜', showSidebar: true }
+  },
+  {
+    path: '/bp-simulator',
+    name: 'bp-simulator',
+    component: () => import('../views/BpSimulatorPage.vue'),
+    meta: { title: 'KPL - BP 模拟器', showSidebar: true }
   }
 ]
 

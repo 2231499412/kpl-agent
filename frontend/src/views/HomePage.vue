@@ -103,7 +103,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Box, Calendar, ChatDotRound, DataAnalysis, Trophy } from '@element-plus/icons-vue'
-import homeBg from '../assets/home-bg.jpg'
+import homeBg from '../assets/home-bg.webp'
 
 const activeIndex = ref(0)
 const locked = ref(false)
@@ -295,11 +295,14 @@ onMounted(async () => {
       fetch('/api/leagues?limit=50').then((r) => r.json()),
     ])
 
-    const teams = teamRes.status === 'fulfilled' ? teamRes.value?.data : []
-    const heroes = heroRes.status === 'fulfilled' ? heroRes.value?.data : []
+    const teamData = teamRes.status === 'fulfilled' ? teamRes.value?.data : {}
+    const teams = Array.isArray(teamData?.data) ? teamData.data : Array.isArray(teamData) ? teamData : []
+    const heroData = heroRes.status === 'fulfilled' ? heroRes.value?.data : {}
+    const heroes = Array.isArray(heroData?.data) ? heroData.data : Array.isArray(heroData) ? heroData : []
     const matchData = matchRes.status === 'fulfilled' ? matchRes.value?.data : {}
-    const matches = matchData?.data || []
-    const leagues = leagueRes.status === 'fulfilled' ? leagueRes.value?.data : []
+    const matches = Array.isArray(matchData?.data) ? matchData.data : Array.isArray(matchData) ? matchData : []
+    const leagueData = leagueRes.status === 'fulfilled' ? leagueRes.value?.data : []
+    const leagues = Array.isArray(leagueData) ? leagueData : []
     const leagueMap = Object.fromEntries((leagues || []).map(l => [l.leagueId, l.leagueName]))
 
     if (Array.isArray(teams)) {
@@ -938,6 +941,94 @@ onBeforeUnmount(() => {
   .match-board,
   .agent-console {
     width: min(620px, 78vw);
+  }
+}
+
+@media (max-width: 767px) {
+  .home-stage {
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .home-topbar {
+    height: 58px;
+    padding: 0 12px;
+  }
+
+  .home-brand {
+    min-width: 0;
+  }
+
+  .home-nav {
+    display: none;
+  }
+
+  .home-panel {
+    min-height: 100dvh;
+    padding: 86px 16px 54px;
+  }
+
+  .panel-inner,
+  .match-board,
+  .agent-console {
+    width: 100%;
+    max-width: none;
+  }
+
+  .hero-title,
+  .panel-title {
+    max-width: 100%;
+    font-size: 38px;
+    line-height: 1.08;
+  }
+
+  .hero-copy,
+  .panel-copy {
+    max-width: 100%;
+    font-size: 13px;
+  }
+
+  .hero-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .hero-actions button,
+  .hero-actions a {
+    min-width: 0;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .metric-grid,
+  .tool-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .metric-card,
+  .tool-card {
+    min-height: 112px;
+    padding: 14px 12px;
+  }
+
+  .match-board {
+    overflow-x: auto;
+  }
+
+  .match-row {
+    min-width: 520px;
+  }
+
+  .agent-console {
+    padding: 16px;
+  }
+
+  .slide-meter,
+  .scroll-cue {
+    display: none;
   }
 }
 </style>

@@ -80,9 +80,10 @@
 
 <script setup>
 import { nextTick, onMounted, ref, watch } from 'vue'
+import { getTheme, setTheme } from '../utils/theme'
 
-const theme = ref(localStorage.getItem('kpl-theme') || 'light')
-watch(theme, (v) => localStorage.setItem('kpl-theme', v))
+const theme = ref(getTheme())
+watch(theme, (v) => setTheme(v))
 
 const messages = ref([])
 const inputText = ref('')
@@ -674,4 +675,122 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
   animation: spin 0.6s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 767px) {
+  .agent-console {
+    height: 100dvh;
+    padding: 12px 12px calc(76px + env(safe-area-inset-bottom));
+  }
+
+  .command-strip {
+    min-height: 56px;
+    padding: 10px 12px;
+  }
+
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+    font-size: 16px;
+  }
+
+  h1 {
+    font-size: 17px;
+  }
+
+  .theme-toggle small {
+    display: none;
+  }
+
+  .chat-area {
+    padding: 14px 0;
+    gap: 14px;
+  }
+
+  .welcome {
+    justify-content: flex-start;
+    padding-top: 10vh;
+  }
+
+  .welcome-icon {
+    width: 46px;
+    height: 46px;
+    font-size: 16px;
+  }
+
+  .welcome h2 {
+    font-size: 19px;
+  }
+
+  .welcome p {
+    max-width: 280px;
+    font-size: 13px;
+  }
+
+  .quick-grid {
+    width: 100%;
+    max-width: none;
+    margin-top: 14px;
+    justify-content: stretch;
+  }
+
+  .quick-btn {
+    flex: 1 1 calc(50% - 4px);
+    min-height: 38px;
+    padding: 7px 8px;
+    font-size: 12px;
+  }
+
+  .msg {
+    max-width: 100%;
+    gap: 8px;
+  }
+
+  .msg-avatar {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    font-size: 10px;
+  }
+
+  .msg-body {
+    max-width: calc(100vw - 64px);
+    padding: 10px 12px;
+  }
+
+  .msg.user .msg-body {
+    max-width: calc(100vw - 78px);
+  }
+
+  .data-list {
+    max-height: 168px;
+    overflow-y: auto;
+  }
+
+  .data-text {
+    font-size: 11px;
+  }
+
+  .reasoning-content {
+    max-height: 140px;
+    overflow-y: auto;
+  }
+
+  .input-bar {
+    padding: 10px 0 0;
+    background: transparent;
+  }
+
+  .input-wrap {
+    padding: 7px 8px 7px 10px;
+  }
+
+  .input-wrap textarea {
+    font-size: 14px;
+  }
+
+  .send-btn {
+    min-width: 56px;
+    padding: 6px 10px;
+  }
+}
 </style>

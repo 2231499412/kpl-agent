@@ -111,7 +111,7 @@
           <div v-if="loading.query" class="table-loading">
             <div class="table-spinner"></div>
           </div>
-          <el-table class="data-table" :data="tableRows" height="360" empty-text=""
+          <el-table :key="tableRenderKey" ref="mainTableRef" class="data-table" :data="tableRows" height="360" empty-text=""
             row-class-name="clickable-row"
             @row-click="onRowClick($event)">
             <el-table-column label="#" width="60" align="center">
@@ -120,9 +120,10 @@
                 <span v-else class="rank-badge rank-n">{{ $index + 1 }}</span>
               </template>
             </el-table-column>
-            <el-table-column v-for="col in tableColumns" :key="col.prop" :prop="col.prop" :label="col.label"
-              min-width="120"
-              :align="isNameCol(col.prop) ? 'left' : 'center'">
+            <el-table-column v-for="col in tableColumns" :key="`${tableRenderKey}-${col.prop}`" :prop="col.prop" :label="col.label"
+              :min-width="isStickySubjectCol(col.prop) ? 130 : 100"
+              :align="isNameCol(col.prop) ? 'left' : 'center'"
+              :class-name="isStickySubjectCol(col.prop) ? 'sticky-col' : ''">
               <template #default="{ row }" v-if="isRateCol(col.prop)">
                 <div class="rate-cell">
                   <span class="rate-num">{{ row[col.prop] }}</span>
@@ -145,6 +146,18 @@
               </template>
               <template #default="{ row }" v-else-if="queryMode === 'match' && col.prop === 'matchStageDesc'">
                 <span :class="['stage-tag', stageClass(row.matchStage)]">{{ row.matchStageDesc }}</span>
+              </template>
+              <template #default="{ row }" v-else-if="queryMode === 'match' && col.prop === 'camp1TeamName'">
+                <div class="name-cell">
+                  <img v-if="row.camp1TeamIcon" :src="row.camp1TeamIcon" class="cell-icon team-icon" />
+                  <span>{{ row.camp1TeamName }}</span>
+                </div>
+              </template>
+              <template #default="{ row }" v-else-if="queryMode === 'match' && col.prop === 'camp2TeamName'">
+                <div class="name-cell">
+                  <img v-if="row.camp2TeamIcon" :src="row.camp2TeamIcon" class="cell-icon team-icon" />
+                  <span>{{ row.camp2TeamName }}</span>
+                </div>
               </template>
               <template #default="{ row }" v-else-if="col.prop === 'teamName'">
                 <div class="name-cell">
@@ -456,7 +469,8 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { getTheme, setTheme } from '../utils/theme'
 import MarkdownIt from 'markdown-it'
 import {
   ChatLineRound,
@@ -471,8 +485,8 @@ const md = new MarkdownIt({ html: false, breaks: true })
 function renderMd(text) { return md.render(text || '') }
 
 const leagues = ref([])
-const theme = ref(localStorage.getItem('kpl-theme') || 'light')
-watch(theme, (v) => localStorage.setItem('kpl-theme', v))
+const theme = ref(getTheme())
+watch(theme, (v) => setTheme(v))
 
 const selectedLeagueId = ref('')
 const leagueMeta = ref({ matchCount: 0, teamCount: 0, playerCount: 0 })
@@ -494,10 +508,15 @@ const detailLoading = ref(false)
 const detailData = ref(null)
 const detailRow = ref(null)
 
+const teamIconMap = ref({})
+
 const loading = ref({
   query: false,
   agent: false
 })
+
+const isMobileViewport = ref(false)
+const mainTableRef = ref(null)
 
 // 表格切换动效
 const tableState = ref('')
@@ -550,7 +569,9 @@ const placeholder = computed(() => {
 
 const rawData = computed(() => {
   const data = queryResult.value?.data
+  // 兼容 { data: [...] } 和 { data: { data: [...] } } 两种结构
   if (Array.isArray(data)) return data
+  if (data?.data && Array.isArray(data.data)) return data.data
   return Array.isArray(queryResult.value) ? queryResult.value : []
 })
 
@@ -565,7 +586,12 @@ const tableRows = computed(() => {
   }
   return rows
 })
-const resultCount = computed(() => queryResult.value?.count ?? tableRows.value.length)
+// 数据变化后重新绑定滚动监听
+watch(tableRows, () => {
+  nextTick(() => setupStickyScroll())
+})
+
+const resultCount = computed(() => queryResult.value?.data?.count ?? queryResult.value?.count ?? tableRows.value.length)
 const tableColumns = computed(() => {
   const columns = {
     ranking: [
@@ -615,6 +641,83 @@ const tableColumns = computed(() => {
   return (columns[queryMode.value] || columns.ranking).map(([prop, label]) => ({ prop, label }))
 })
 
+const stickySubjectProp = computed(() => {
+  const map = {
+    ranking: 'teamName',
+    playerTop: 'playerName',
+    heroTop: 'heroName',
+    match: 'camp1TeamName',
+    honors: 'teamName',
+    equip: 'equipName'
+  }
+  return map[queryMode.value] || ''
+})
+
+const tableRenderKey = computed(() => {
+  return `${queryMode.value}-${isMobileViewport.value ? 'mobile-sticky' : 'desktop'}-${stickySubjectProp.value}`
+})
+
+function updateMobileViewport() {
+  isMobileViewport.value = window.innerWidth <= 767 || window.matchMedia('(max-width: 767px)').matches
+  nextTick(() => {
+    mainTableRef.value?.doLayout?.()
+    setupStickyScroll()
+  })
+}
+
+function isStickySubjectCol(prop) {
+  return isMobileViewport.value && prop === stickySubjectProp.value
+}
+
+// 重置表格滚动到最左边
+function resetTableScroll() {
+  const tableEl = mainTableRef.value?.$el
+  if (!tableEl) return
+  const bodyWrapper = tableEl.querySelector('.el-table__body-wrapper')
+  if (bodyWrapper) {
+    bodyWrapper.scrollLeft = 0
+    // 清除 sticky 列的 transform
+    bodyWrapper.querySelectorAll('td.sticky-col .cell').forEach(cell => {
+      cell.style.transform = 'translateX(0)'
+    })
+  }
+}
+
+// JS 滚动同步固定列
+let stickyScrollCleanup = null
+function setupStickyScroll() {
+  if (stickyScrollCleanup) {
+    stickyScrollCleanup()
+    stickyScrollCleanup = null
+  }
+  if (!isMobileViewport.value || !mainTableRef.value) return
+
+  nextTick(() => {
+    const tableEl = mainTableRef.value?.$el
+    if (!tableEl) return
+    const bodyWrapper = tableEl.querySelector('.el-table__body-wrapper')
+    if (!bodyWrapper) return
+
+    const onScroll = () => {
+      const sl = bodyWrapper.scrollLeft
+      // 固定 body 中的 sticky 列（header 不滚动，无需处理）
+      bodyWrapper.querySelectorAll('td.sticky-col .cell').forEach(cell => {
+        cell.style.transform = `translateX(${sl}px)`
+      })
+    }
+
+    bodyWrapper.addEventListener('scroll', onScroll, { passive: true })
+    stickyScrollCleanup = () => bodyWrapper.removeEventListener('scroll', onScroll)
+  })
+}
+
+watch(tableRenderKey, () => {
+  nextTick(() => {
+    mainTableRef.value?.doLayout?.()
+    setupStickyScroll()
+  })
+})
+
 async function request(path, options = {}) {
   const response = await fetch(path, {
     headers: {
@@ -630,9 +733,42 @@ async function request(path, options = {}) {
 }
 
 async function refreshAll() {
-  await Promise.allSettled([loadStatus(), loadLeagues()])
+  await Promise.allSettled([loadStatus(), loadLeagues(), loadTeamIcons()])
   await loadDashboard()
   await loadLeagueMeta()
+}
+
+async function loadTeamIcons() {
+  try {
+    const res = await request('/api/query/team/ranking')
+    const teams = res?.data?.data || res?.data || []
+    const map = {}
+    if (Array.isArray(teams)) teams.forEach(t => { if (t.teamName && t.teamIcon) map[t.teamName] = t.teamIcon })
+    teamIconMap.value = map
+  } catch { /* ignore */ }
+}
+
+function mergeTeamIcons(rows) {
+  return rows.map(row => {
+    if (row.teamIcon) return row
+    // 比赛数据用 camp1TeamName/camp2TeamName
+    if (row.camp1TeamName || row.camp2TeamName) {
+      return {
+        ...row,
+        camp1TeamIcon: row.camp1TeamIcon || getTeamIcon(row.camp1TeamName),
+        camp2TeamIcon: row.camp2TeamIcon || getTeamIcon(row.camp2TeamName),
+      }
+    }
+    return { ...row, teamIcon: getTeamIcon(row.teamName) }
+  })
+}
+
+function getTeamIcon(name) {
+  if (!name) return ''
+  return teamIconMap.value[name]
+    || Object.entries(teamIconMap.value).find(([n]) => n.includes(name) || name.includes(n))?.[1]
+    || fuzzyMatchIcon(name)
+    || ''
 }
 
 async function loadStatus() {
@@ -673,10 +809,39 @@ async function loadLeagueMeta() {
 async function loadTeamRanking() {
   queryMode.value = 'ranking'
   queryResult.value = await request(`/api/query/team/ranking${leagueParam()}`)
+  nextTick(resetTableScroll)
 }
 
 async function loadHonors() {
-  queryResult.value = await request('/api/query/team/honors')
+  const res = await request('/api/query/team/honors')
+  // 荣誉榜 API 返回 { data: { data: [...] } }
+  const rows = (res?.data?.data || res?.data || res || []).filter(row => !['AS仙阁', 'BA黑凤梨'].includes(row.teamName))
+  if (Array.isArray(rows)) {
+    const merged = rows.map(row => {
+      if (row.teamIcon) return row
+      const icon = teamIconMap.value[row.teamName]
+        || Object.entries(teamIconMap.value).find(([name]) => name.includes(row.teamName) || row.teamName.includes(name))?.[1]
+        || fuzzyMatchIcon(row.teamName)
+        || ''
+      return { ...row, teamIcon: icon }
+    })
+    if (res?.data?.data) res.data.data = merged
+    else if (res?.data) res.data = merged
+  }
+  queryResult.value = res
+  nextTick(resetTableScroll)
+}
+
+// 关键词模糊匹配队标
+function fuzzyMatchIcon(teamName) {
+  const keywords = ['AG', '狼队', 'WB', 'JDG', 'TTG', 'Hero', 'eStar', 'DYG', 'DRG', 'KSG', 'LGD', 'TES', 'EDG', 'RNG', 'RW', 'WE', '情久', 'TCG']
+  for (const kw of keywords) {
+    if (teamName.includes(kw)) {
+      const match = Object.entries(teamIconMap.value).find(([name]) => name.includes(kw))
+      if (match) return match[1]
+    }
+  }
+  return null
 }
 
 async function runQuery() {
@@ -713,7 +878,12 @@ async function runQuery() {
         ? `/api/query/equip/search?name=${keyword}${leagueJoin()}&limit=10`
         : `/api/query/equip/top${lp ? lp + '&' : '?'}limit=10`
     }
-    queryResult.value = await request(url)
+    const res = await request(url)
+    // 兼容 { data: [...] } 和 { data: { data: [...] } } 两种结构
+    if (res?.data?.data && Array.isArray(res.data.data)) res.data.data = mergeTeamIcons(res.data.data)
+    else if (res?.data && Array.isArray(res.data)) res.data = mergeTeamIcons(res.data)
+    queryResult.value = res
+    nextTick(resetTableScroll)
   } catch (error) {
     ElMessage.error(error.message)
   } finally {
@@ -928,7 +1098,14 @@ function sortedPlayers(players, camp1Name) {
 }
 
 onMounted(async () => {
+  updateMobileViewport()
+  window.addEventListener('resize', updateMobileViewport)
   await refreshAll()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateMobileViewport)
+  if (stickyScrollCleanup) stickyScrollCleanup()
 })
 </script>
 
@@ -1354,6 +1531,170 @@ onMounted(async () => {
 }
 .rankings-console :deep(.sv) { color: var(--mono-ink) !important; }
 .rankings-console :deep(.sl) { color: var(--label-dim) !important; }
+
+/* ── 荣誉详情弹窗 ── */
+.rankings-console :deep(.honor-detail) {
+  display: flex; gap: 16px; margin-bottom: 16px;
+}
+.rankings-console :deep(.honor-big) {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 24px 16px; border: 1px solid var(--mono-line); background: var(--stat-bg);
+}
+.rankings-console :deep(.honor-big .honor-gold) {
+  font-size: 42px; font-weight: 900; color: #d4a017;
+  text-shadow: 0 2px 8px rgba(212, 160, 23, 0.2);
+}
+.rankings-console :deep(.honor-big .honor-silver) {
+  font-size: 42px; font-weight: 900; color: #8a8a8a;
+  text-shadow: 0 2px 8px rgba(138, 138, 138, 0.2);
+}
+.rankings-console :deep(.honor-big .sl) {
+  font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--mono-dim);
+}
+.rankings-console :deep(.tag-list) {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.rankings-console :deep(.honor-tag) {
+  display: inline-block; padding: 5px 12px;
+  font-size: 12px; font-weight: 600; border-radius: 0;
+}
+.rankings-console :deep(.honor-tag.gold) {
+  background: rgba(212, 160, 23, 0.1); color: #b8860b;
+  border: 1px solid rgba(212, 160, 23, 0.3);
+}
+.rankings-console :deep(.honor-tag.silver) {
+  background: rgba(138, 138, 138, 0.1); color: #666;
+  border: 1px solid rgba(138, 138, 138, 0.3);
+}
+.theme-dark.rankings-console :deep(.honor-tag.gold) {
+  background: rgba(212, 160, 23, 0.15); color: #d4a017;
+  border-color: rgba(212, 160, 23, 0.35);
+}
+.theme-dark.rankings-console :deep(.honor-tag.silver) {
+  background: rgba(138, 138, 138, 0.12); color: #aaa;
+  border-color: rgba(138, 138, 138, 0.3);
+}
+
+@media (max-width: 767px) {
+  .rankings-console {
+    min-height: 100dvh;
+    padding: 12px 12px calc(78px + env(safe-area-inset-bottom)) !important;
+    overflow-x: hidden;
+  }
+
+  .rankings-console .command-strip {
+    min-height: 56px;
+    padding: 10px 12px;
+  }
+
+  .rankings-console .brand-mark {
+    width: 34px;
+    height: 34px;
+    font-size: 16px;
+  }
+
+  .rankings-console h1 {
+    font-size: 17px;
+  }
+
+  .rankings-console .theme-toggle small {
+    display: none;
+  }
+
+  .rankings-console .layout-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .rankings-console .side-rail,
+  .rankings-console .query-panel,
+  .rankings-console .agent-panel {
+    min-width: 0;
+    padding: 12px;
+  }
+
+  .rankings-console .league-stats,
+  .rankings-console .metric-row,
+  .rankings-console .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rankings-console .table-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .rankings-console :deep(.data-table) {
+    min-width: 700px;
+  }
+
+  /* 粘性首列 - JS transform 实现 */
+  .rankings-console :deep(td.sticky-col) {
+    position: relative !important;
+    z-index: 2 !important;
+    background: var(--mono-panel) !important;
+  }
+  .rankings-console :deep(td.sticky-col .cell) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    will-change: transform;
+  }
+  .rankings-console :deep(td.sticky-col::after) {
+    content: "";
+    position: absolute;
+    top: 0; right: -6px; bottom: 0;
+    width: 6px;
+    background: linear-gradient(90deg, rgba(0,0,0,0.06), transparent);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .theme-dark.rankings-console :deep(td.sticky-col::after) {
+    background: linear-gradient(90deg, rgba(0,0,0,0.2), transparent);
+  }
+
+  .rankings-console :deep(.name-cell) {
+    min-width: 0;
+  }
+  .rankings-console :deep(.name-cell span),
+  .rankings-console :deep(.equip-cell span) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .rankings-console :deep(.el-segmented) {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .rankings-console :deep(.el-segmented__group) {
+    min-width: max-content;
+  }
+
+  .rankings-console :deep(.el-dialog) {
+    width: calc(100vw - 16px) !important;
+    margin-top: 7vh !important;
+  }
+
+  .rankings-console :deep(.detail-dialog .el-dialog__body) {
+    max-height: calc(86dvh - 64px);
+    padding: 12px;
+  }
+
+  .rankings-console :deep(.stat-grid) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rankings-console :deep(.hero-table-row) {
+    min-width: 340px;
+    padding: 7px 8px;
+  }
+}
 </style>
 
 <style>

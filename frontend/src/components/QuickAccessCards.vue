@@ -120,4 +120,19 @@ const cards = [
   background: var(--accent-muted);
   border: 1px solid rgba(255, 68, 68, 0.2);
 }
+
+@media (max-width: 767px) {
+  .cards-section {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 0 12px;
+  }
+  .card-icon {
+    width: 42px;
+    height: 42px;
+    margin-bottom: 10px;
+  }
+  .card-title { font-size: 15px; }
+  .card-desc { font-size: 11px; }
+}
 </style>

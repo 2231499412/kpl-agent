@@ -88,4 +88,18 @@ onMounted(async () => {
   color: var(--text-secondary);
   font-weight: 500;
 }
+
+@media (max-width: 767px) {
+  .stats-section {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 0 12px;
+  }
+  .stat-number {
+    font-size: 28px;
+  }
+  .stat-label {
+    font-size: 12px;
+  }
+}
 </style>

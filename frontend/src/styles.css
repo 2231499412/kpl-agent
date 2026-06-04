@@ -972,6 +972,77 @@ h1 {
   border-radius: 50%;
 }
 
+/* ─── 浅色主题弹窗覆盖 ─── */
+.bp-console.theme-light .el-dialog {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12) !important;
+}
+.bp-console.theme-light .el-dialog__title {
+  color: #1a1a1a !important;
+}
+.bp-console.theme-light .el-dialog__headerbtn .el-dialog__close {
+  color: rgba(0, 0, 0, 0.4) !important;
+}
+.bp-console.theme-light .el-dialog__headerbtn:hover .el-dialog__close {
+  color: rgba(0, 0, 0, 0.7) !important;
+}
+.bp-console.theme-light .el-dialog__header {
+  border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+}
+.bp-console.theme-light .el-overlay {
+  background: rgba(0, 0, 0, 0.35) !important;
+}
+.bp-console.theme-light .hero-picker-dialog .search-input {
+  border-color: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.03);
+  color: #1a1a1a;
+}
+.bp-console.theme-light .hero-picker-dialog .search-input::placeholder {
+  color: rgba(0, 0, 0, 0.35);
+}
+.bp-console.theme-light .hero-picker-dialog .role-tab {
+  border-color: rgba(0, 0, 0, 0.1);
+  color: rgba(0, 0, 0, 0.6);
+}
+.bp-console.theme-light .hero-picker-dialog .role-tab:hover {
+  color: #1a1a1a;
+  background: rgba(0, 0, 0, 0.06);
+}
+.bp-console.theme-light .picker-card {
+  border-color: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.03);
+}
+.bp-console.theme-light .picker-card:hover {
+  border-color: #1a1a1a;
+  background: rgba(0, 0, 0, 0.06);
+}
+.bp-console.theme-light .picker-name {
+  color: rgba(0, 0, 0, 0.6);
+}
+.bp-console.theme-light .picker-role {
+  color: rgba(0, 0, 0, 0.35);
+}
+.bp-console.theme-light .picker-score {
+  color: #1a1a1a;
+}
+.bp-console.theme-light .tier-name {
+  color: #1a1a1a;
+}
+.bp-console.theme-light .tier-count {
+  color: rgba(0, 0, 0, 0.35);
+}
+.bp-console.theme-light .picker-body {
+  border-color: rgba(0, 0, 0, 0.1);
+}
+.bp-console.theme-light .tier-header {
+  border-bottom-color: rgba(0, 0, 0, 0.1);
+}
+.bp-console.theme-light .picker-avatar-placeholder {
+  background: rgba(0, 0, 0, 0.1);
+  color: rgba(0, 0, 0, 0.35);
+}
+
 /* ─── 装备详情 ─── */
 .equip-section {
   margin-bottom: 16px;
@@ -1332,4 +1403,162 @@ h1 {
 .counter-value {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
+}
+
+/* ─── Responsive application shell ─── */
+@media (max-width: 1023px) {
+  body {
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .app-shell {
+    width: 100%;
+    max-width: none;
+  }
+
+  .layout-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  body {
+    min-width: 0;
+    overscroll-behavior-y: contain;
+  }
+
+  .app-shell,
+  .app-shell.has-sidebar {
+    min-height: 100dvh;
+    margin-left: 0;
+    padding: 12px 12px calc(78px + env(safe-area-inset-bottom));
+  }
+
+  .command-strip {
+    min-height: 58px;
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .brand-block {
+    min-width: 0;
+    gap: 9px;
+  }
+
+  .brand-mark {
+    width: 34px;
+    min-width: 34px;
+    font-size: 17px;
+  }
+
+  .eyebrow {
+    display: none;
+  }
+
+  h1 {
+    overflow: hidden;
+    font-size: 17px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .status-line {
+    min-width: 0;
+    gap: 6px;
+  }
+
+  .layout-grid,
+  .bottom-grid {
+    margin-top: 10px;
+    gap: 10px;
+  }
+
+  .side-rail,
+  .query-panel,
+  .agent-panel {
+    padding: 12px;
+  }
+
+  .query-bar {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .query-bar .el-input {
+    flex-basis: 100%;
+  }
+
+  .sort-select {
+    width: min(42vw, 160px);
+  }
+
+  .metric-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .metric-tile {
+    min-height: 60px;
+    padding: 10px;
+  }
+
+  .metric-tile strong {
+    font-size: 18px;
+  }
+
+  .agent-input {
+    grid-template-columns: 1fr auto;
+  }
+
+  .player-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-dialog .el-dialog__body {
+    height: auto;
+    max-height: calc(88dvh - 58px);
+    padding: 12px;
+  }
+
+  .el-dialog {
+    width: calc(100vw - 16px) !important;
+    max-width: none !important;
+    margin: 8vh auto 0 !important;
+    border-radius: 8px !important;
+  }
+
+  .el-dialog__header {
+    padding: 14px 14px 10px !important;
+  }
+
+  .el-overlay-dialog {
+    overflow: hidden;
+  }
+
+  .data-table {
+    width: 100%;
+  }
+
+  .table-container,
+  .md-body,
+  .msg-text {
+    overflow-x: auto;
+  }
+
+  .bgm-control {
+    right: 12px;
+    bottom: calc(78px + env(safe-area-inset-bottom));
+    width: 34px;
+    height: 34px;
+  }
 }

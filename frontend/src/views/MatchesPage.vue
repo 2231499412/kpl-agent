@@ -1,5 +1,7 @@
 <template>
   <main class="app-shell has-sidebar matches-console" :class="`theme-${theme}`">
+    <div class="grid-overlay" aria-hidden="true"></div>
+    <div class="noise-overlay" aria-hidden="true"></div>
     <section class="command-strip">
       <div class="brand-block">
         <div class="brand-mark">K</div>
@@ -39,6 +41,7 @@
               </div>
               <div class="match-teams">
                 <div class="team-side" :class="{ winner: match.winCamp === 1 }">
+                  <img v-if="teamIcons[match.camp1TeamName]" :src="teamIcons[match.camp1TeamName]" class="team-logo" />
                   <span class="team-name">{{ match.camp1TeamName || '蓝方' }}</span>
                   <span class="team-score">{{ match.camp1Score ?? '-' }}</span>
                 </div>
@@ -46,6 +49,7 @@
                 <div class="team-side" :class="{ winner: match.winCamp === 2 }">
                   <span class="team-score">{{ match.camp2Score ?? '-' }}</span>
                   <span class="team-name">{{ match.camp2TeamName || '红方' }}</span>
+                  <img v-if="teamIcons[match.camp2TeamName]" :src="teamIcons[match.camp2TeamName]" class="team-logo" />
                 </div>
               </div>
               <div class="match-meta">
@@ -146,14 +150,16 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { getTheme, setTheme } from '../utils/theme'
 
-const theme = ref(localStorage.getItem('kpl-theme') || 'light')
-watch(theme, (v) => localStorage.setItem('kpl-theme', v))
+const theme = ref(getTheme())
+watch(theme, (v) => setTheme(v))
 
 const leagues = ref([])
 const selectedLeagueId = ref('')
 const matches = ref([])
 const loading = ref(false)
+const teamIcons = ref({})
 const detailVisible = ref(false)
 const detailLoading = ref(false)
 const detailData = ref(null)
@@ -183,9 +189,17 @@ const groupedMatches = computed(() => {
 
 async function init() {
   try {
-    const res = await fetch('/api/leagues?limit=50')
-    const data = await res.json()
-    leagues.value = data?.data || []
+    const [leagueRes, teamRes] = await Promise.allSettled([
+      fetch('/api/leagues?limit=50').then(r => r.json()),
+      fetch('/api/query/team/ranking').then(r => r.json()),
+    ])
+    leagues.value = leagueRes.status === 'fulfilled' ? leagueRes.value?.data || [] : []
+    if (teamRes.status === 'fulfilled') {
+      const teams = teamRes.value?.data?.data || []
+      const map = {}
+      teams.forEach(t => { if (t.teamName && t.teamIcon) map[t.teamName] = t.teamIcon })
+      teamIcons.value = map
+    }
     if (leagues.value.length) {
       selectedLeagueId.value = leagues.value[0].leagueId
       await loadMatches()
@@ -263,7 +277,13 @@ onMounted(init)
   min-height: 100vh;
   padding: 28px 32px 36px 87px;
   color: var(--mono-ink);
+  position: relative;
+}
+.matches-console::before {
+  content: "";
+  position: absolute; inset: 0; z-index: -3;
   background: linear-gradient(180deg, rgba(250, 248, 240, 0.98), rgba(245, 242, 232, 0.99)), #f8f5ec;
+  pointer-events: none;
 }
 
 .matches-console.theme-dark {
@@ -282,7 +302,37 @@ onMounted(init)
   --corner-border: rgba(255, 255, 255, 0.18);
   --winner-color: #e8e8e8;
   --dialog-bg: #1a1a1a;
+  background: none;
+}
+.matches-console.theme-dark::before {
   background: linear-gradient(180deg, #0a0a0a, #141414);
+}
+
+/* ── 网格纹理 ── */
+.grid-overlay {
+  position: absolute; inset: 0; z-index: -2; pointer-events: none;
+  background:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.04) 0 1px, transparent 1px 80px),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.04) 0 1px, transparent 1px 80px);
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 20%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 20%, transparent 80%);
+}
+.theme-dark .grid-overlay {
+  background:
+    repeating-linear-gradient(90deg, rgba(136, 247, 238, 0.04) 0 1px, transparent 1px 80px),
+    repeating-linear-gradient(0deg, rgba(136, 247, 238, 0.04) 0 1px, transparent 1px 80px);
+}
+
+.noise-overlay {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: radial-gradient(rgba(0, 0, 0, 0.08) 0.7px, transparent 0.7px);
+  background-size: 4px 4px;
+  opacity: 0.3;
+}
+.theme-dark .noise-overlay {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.1) 0.7px, transparent 0.7px);
+  opacity: 0.15;
+  mix-blend-mode: screen;
 }
 
 /* ── command strip ── */
@@ -430,6 +480,10 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
   display: flex;
   align-items: center;
   gap: 10px;
+}
+.team-logo {
+  width: 28px; height: 28px; object-fit: contain;
+  border-radius: 4px; flex-shrink: 0;
 }
 .team-name {
   min-width: 72px;
@@ -606,5 +660,52 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
 :deep(.el-select-dropdown__item.is-selected) {
   font-weight: 700;
   color: var(--mono-ink) !important;
+}
+
+@media (max-width: 767px) {
+  .matches-console {
+    min-height: 100dvh;
+    padding: 12px 12px calc(78px + env(safe-area-inset-bottom));
+  }
+  .command-strip { min-height: 56px; padding: 10px 12px; }
+  .brand-mark { width: 34px; height: 34px; font-size: 16px; }
+  h1 { font-size: 17px; }
+  .league-select { width: 138px; }
+  .theme-toggle small { display: none; }
+  .match-content { padding-top: 12px; }
+  .match-card {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 12px;
+  }
+  .match-time {
+    display: flex;
+    justify-content: space-between;
+    min-width: 0;
+    width: 100%;
+  }
+  .match-teams {
+    grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr);
+    gap: 6px;
+  }
+  .team-name {
+    overflow: hidden;
+    max-width: 100%;
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .match-meta { justify-content: flex-start; flex-wrap: wrap; font-size: 11px; }
+  .battle-card { padding: 12px; }
+  .team-columns { grid-template-columns: 1fr; gap: 10px; }
+  .player-stats,
+  .equip-list { overflow-x: auto; flex-wrap: nowrap; }
+  :deep(.el-dialog) { width: calc(100vw - 16px) !important; }
+  :deep(.el-dialog__body) {
+    height: auto;
+    max-height: calc(86dvh - 60px);
+    min-height: 0;
+    padding: 12px;
+  }
 }
 </style>

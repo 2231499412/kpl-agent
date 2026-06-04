@@ -143,9 +143,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { getTheme, setTheme } from '../utils/theme'
 
-const theme = ref(localStorage.getItem('kpl-theme') || 'light')
+const theme = ref(getTheme())
+watch(theme, (v) => setTheme(v))
 
 const leagues = ref([])
 const selectedLeagueId = ref('')
@@ -548,5 +550,104 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
 :deep(.el-input__wrapper) {
   border-radius: 0 !important; background: var(--input-bg) !important;
   box-shadow: 0 0 0 1px var(--mono-line) inset !important;
+}
+
+@media (max-width: 767px) {
+  .equip-console {
+    min-height: 100dvh;
+    padding: 12px 12px calc(78px + env(safe-area-inset-bottom));
+  }
+  .command-strip {
+    min-height: 56px;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .brand-mark { width: 34px; height: 34px; font-size: 16px; }
+  h1 { font-size: 17px; }
+  .league-select { width: 132px; }
+  .theme-toggle small { display: none; }
+  .query-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 0;
+  }
+  .mode-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .mode-tabs button {
+    min-height: 38px;
+    padding: 6px 4px;
+    font-size: 12px;
+  }
+  .search-hint {
+    max-width: none;
+    width: 100%;
+    margin-top: 0;
+  }
+  .equip-table {
+    --equip-table-columns: 34px minmax(92px, 1fr) 68px 46px;
+    overflow-x: hidden;
+  }
+  .equip-row {
+    min-width: 0;
+    padding: 0 6px;
+  }
+  .col-secondary {
+    display: none;
+  }
+  .header-row .col-secondary,
+  .equip-row:not(.header-row) .col-primary,
+  .equip-row:not(.header-row) .col-secondary,
+  .header-row .col-bar {
+    transform: none;
+  }
+  .col-num {
+    padding: 0 4px;
+    text-align: center;
+  }
+  .col-bar {
+    width: auto;
+    justify-content: flex-end;
+    gap: 0;
+    padding-left: 0;
+  }
+  .rate-track {
+    display: none;
+  }
+  .rate-text {
+    display: inline-block;
+    min-width: 34px;
+    text-align: right;
+    font-size: 11px;
+  }
+  .equip-icon {
+    width: 24px;
+    height: 24px;
+  }
+  .equip-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .entity-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .entity-card {
+    min-height: 92px;
+  }
+  .detail-info {
+    gap: 10px;
+  }
+  .position-card {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+  }
+  :deep(.el-dialog) { width: calc(100vw - 16px) !important; }
+  :deep(.el-dialog__body) {
+    max-height: calc(86dvh - 60px);
+    padding: 12px;
+  }
 }
 </style>
