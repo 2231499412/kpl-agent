@@ -44,6 +44,12 @@ const routes = [
     meta: { title: 'KPL - 英雄梯度榜', showSidebar: true }
   },
   {
+    path: '/hero-gallery',
+    name: 'hero-gallery',
+    component: () => import('../views/HeroGalleryPage.vue'),
+    meta: { title: 'KPL - 英雄原画画廊', showSidebar: true }
+  },
+  {
     path: '/bp-simulator',
     name: 'bp-simulator',
     component: () => import('../views/BpSimulatorPage.vue'),

@@ -51,6 +51,7 @@ const navItems = [
   { id: 'bp-analysis', label: 'BP 分析', icon: 'DataAnalysis', route: '/bp-analysis' },
   { id: 'tier-list', label: '梯度榜', icon: 'Histogram', route: '/tier-list' },
   { id: 'bp-simulator', label: 'BP模拟器', icon: 'Operation', route: '/bp-simulator' },
+  { id: 'hero-gallery', label: '原画画廊', icon: 'Picture', route: '/hero-gallery' },
 ]
 
 const activeNav = computed(() => {
@@ -257,7 +258,7 @@ const activeNav = computed(() => {
 
   .sidebar-nav {
     display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-columns: repeat(8, minmax(0, 1fr));
     width: 100%;
     padding: 0;
     overflow: visible;
