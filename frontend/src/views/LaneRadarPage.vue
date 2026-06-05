@@ -59,6 +59,7 @@
           <div class="score-center">
             <strong>{{ currentGameTitle }}</strong>
             <span>{{ currentScoreLabel }}</span>
+            <em v-if="radarData.battle?.gameDuration" class="game-duration">{{ gameDurationText(radarData.battle.gameDuration) }}</em>
           </div>
           <div class="win-badge" :class="{ blue: winnerCamp === 1, red: winnerCamp === 2 }">胜</div>
           <div class="team-name right">{{ currentMatch?.camp2TeamName || radarData.red.teamName }}</div>
@@ -318,6 +319,19 @@ const SideVisual = defineComponent({
         h('strong', shortPlayer(props.side.playerName)),
         h('span', `${props.side.heroName || '-'} · ${props.side.positionDesc || ''}`),
       ]),
+      props.side.isMvp ? h('div', { class: 'mvp-badge' }, 'MVP') : null,
+      props.side.isLoseMvp ? h('div', { class: 'mvp-badge lose-mvp' }, '败方MVP') : null,
+      props.side.symbolIds ? h('div', { class: 'symbol-strip' },
+        String(props.side.symbolIds).split(',').filter(Boolean).map(id =>
+          h('img', {
+            key: id,
+            src: `https://game.gtimg.cn/images/yxzj/img201606/symbol/${id.trim()}.jpg`,
+            alt: id.trim(),
+            class: 'symbol-icon',
+            onError: event => { event.target.style.display = 'none' },
+          })
+        )
+      ) : null,
     ]
   }
 })
@@ -465,6 +479,14 @@ function kdaText(side) {
 
 function formatInt(value) {
   return Math.round(Number(value) || 0).toLocaleString()
+}
+
+function gameDurationText(duration) {
+  if (!duration) return ''
+  const totalSec = duration > 10000 ? Math.round(duration / 1000) : Math.round(duration)
+  const m = Math.floor(totalSec / 60)
+  const s = totalSec % 60
+  return `${m}:${String(s).padStart(2, '0')}`
 }
 
 function formatRaw(metric) {
@@ -640,15 +662,19 @@ onUnmounted(() => {
 
 :global(.el-select__dropdown),
 :global(.el-popper.is-light),
-:global(.el-select-dropdown) {
+:global(.el-popper.is-dark),
+:global(.el-select-dropdown),
+:global(.el-tooltip__popper) {
   background: #fff !important;
   border: 1px solid rgba(0, 0, 0, 0.12) !important;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
+  color: #1a1a1a !important;
 }
 
 :global(.el-select-dropdown__item) {
   color: #1a1a1a !important;
   font-weight: 600 !important;
+  background: transparent !important;
 }
 
 :global(.el-select-dropdown__item.hover),
@@ -658,9 +684,14 @@ onUnmounted(() => {
 }
 
 :global(.el-select-dropdown__item.is-selected) {
-  color: #f8f5ec !important;
+  color: #1a1a1a !important;
   font-weight: 900 !important;
-  background: #1a1a1a !important;
+  background: rgba(0, 0, 0, 0.06) !important;
+}
+
+:global(.el-select-dropdown__empty) {
+  color: rgba(26, 26, 26, 0.4) !important;
+  background: #fff !important;
 }
 
 :global(.el-select__placeholder),
@@ -885,6 +916,48 @@ onUnmounted(() => {
   color: rgba(255,255,255,.78);
   font-size: 13px;
   font-weight: 900;
+}
+
+.mvp-badge {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  padding: 3px 12px;
+  background: linear-gradient(135deg, #f7d36b, #b9861b);
+  color: #5f4706;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 2px;
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(185, 134, 27, .3);
+}
+.mvp-badge.lose-mvp {
+  background: linear-gradient(135deg, #c0c0c0, #888);
+  color: #333;
+  font-size: 10px;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .15);
+}
+
+.symbol-strip {
+  position: absolute;
+  bottom: 52px;
+  left: 12px;
+  right: 12px;
+  z-index: 4;
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.symbol-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, .3);
+  object-fit: cover;
 }
 
 .radar-poster {
@@ -1324,6 +1397,13 @@ onUnmounted(() => {
   font-size: clamp(22px, 2.6vw, 36px);
   letter-spacing: 4px;
   color: var(--accent-deep);
+}
+.game-duration {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--mono-dim);
+  font-style: normal;
+  letter-spacing: 1px;
 }
 
 .win-badge {

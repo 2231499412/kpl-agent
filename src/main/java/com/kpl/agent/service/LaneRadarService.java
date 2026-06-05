@@ -134,6 +134,9 @@ public class LaneRadarService {
         side.put("damage", playerDamage(sample));
         side.put("beHurt", playerBeHurt(sample));
         side.put("durationMinutes", round(sample.minutes(), 2));
+        side.put("isMvp", safeInt(player.getIsMvp()));
+        side.put("isLoseMvp", safeInt(player.getIsLoseMvp()));
+        side.put("symbolIds", player.getSymbolIds());
         side.put("equips", buildEquips(equipMap.getOrDefault(player.getPlayerName(), List.of())));
         side.put("metrics", definitions.stream().map(def -> buildMetric(def, sample, pool)).toList());
         return side;
