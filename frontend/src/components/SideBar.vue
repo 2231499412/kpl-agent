@@ -28,7 +28,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { HomeFilled } from '@element-plus/icons-vue'
 
@@ -40,6 +40,7 @@ const theme = ref(localStorage.getItem('kpl-theme') || 'light')
 function onThemeChanged(e) {
   theme.value = e.detail || 'light'
 }
+
 onMounted(() => window.addEventListener('theme-changed', onThemeChanged))
 onUnmounted(() => window.removeEventListener('theme-changed', onThemeChanged))
 
@@ -47,11 +48,12 @@ const navItems = [
   { id: 'rankings', label: '数据排行', icon: 'Trophy', route: '/rankings' },
   { id: 'matches', label: '赛程', icon: 'Calendar', route: '/matches' },
   { id: 'equipment', label: '装备分析', icon: 'Box', route: '/equipment' },
-  { id: 'agent', label: 'AI 复盘', icon: 'ChatDotRound', route: '/agent' },
-  { id: 'bp-analysis', label: 'BP 分析', icon: 'DataAnalysis', route: '/bp-analysis' },
+  { id: 'agent', label: 'AI复盘', icon: 'ChatDotRound', route: '/agent' },
+  { id: 'bp-analysis', label: 'BP分析', icon: 'DataAnalysis', route: '/bp-analysis' },
   { id: 'tier-list', label: '梯度榜', icon: 'Histogram', route: '/tier-list' },
   { id: 'bp-simulator', label: 'BP模拟器', icon: 'Operation', route: '/bp-simulator' },
   { id: 'hero-gallery', label: '原画画廊', icon: 'Picture', route: '/hero-gallery' },
+  { id: 'lane-radar', label: '对位雷达', icon: 'Aim', route: '/lane-radar' },
 ]
 
 const activeNav = computed(() => {
@@ -67,15 +69,16 @@ const activeNav = computed(() => {
   top: 0;
   bottom: 0;
   width: 67.5px;
-  background: #1a1a1a;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  z-index: 50;
   display: flex;
   flex-direction: column;
-  z-index: 50;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
   overflow: hidden;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background: #1a1a1a;
   box-shadow: 2px 0 12px rgba(0, 0, 0, 0.2);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
 }
+
 .sidebar.expanded {
   width: 202.5px;
 }
@@ -84,36 +87,34 @@ const activeNav = computed(() => {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-height: 64px;
   padding: 20px 18px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  min-height: 64px;
   cursor: pointer;
   transition: background 0.15s;
 }
-.sidebar-logo:hover {
-  background: rgba(255, 255, 255, 0.06);
-}
+.sidebar-logo:hover { background: rgba(255, 255, 255, 0.06); }
 
 .logo-icon {
   width: 32px;
   height: 32px;
   min-width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(255, 255, 255, 0.1);
   color: #e8e8e8;
   font-size: 18px;
   font-weight: 900;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 0;
 }
+
 .logo-label {
+  visibility: hidden;
+  color: #e8e8e8;
   font-size: 14px;
   font-weight: 700;
-  color: #e8e8e8;
   white-space: nowrap;
-  visibility: hidden;
   transition: visibility 0s 0.2s;
 }
 .expanded .logo-label {
@@ -124,71 +125,64 @@ const activeNav = computed(() => {
 .sidebar-nav {
   flex: 1;
   padding: 12px 0;
-  overflow-y: auto;
   overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 0 18px;
   height: 44px;
-  cursor: pointer;
-  transition: background 0.15s;
-  white-space: nowrap;
+  padding: 0 18px;
   border-left: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
 }
-.nav-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-}
+.nav-item:hover { background: rgba(255, 255, 255, 0.06); }
 .nav-item.active {
   border-left-color: #e8e8e8;
   background: rgba(255, 255, 255, 0.1);
 }
-.nav-item.active .nav-icon {
-  color: #e8e8e8;
-}
-.nav-item.active .nav-label {
-  color: #e8e8e8;
-  font-weight: 600;
-}
 
 .nav-icon {
-  font-size: 20px;
   min-width: 20px;
   color: rgba(255, 255, 255, 0.45);
+  font-size: 20px;
   transition: color 0.15s;
 }
-.nav-item:hover .nav-icon {
+.nav-item:hover .nav-icon,
+.nav-item.active .nav-icon {
   color: #e8e8e8;
 }
 
 .nav-label {
-  font-size: 13px;
+  visibility: hidden;
   color: rgba(255, 255, 255, 0.55);
+  font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
-  visibility: hidden;
   transition: visibility 0s 0.2s;
 }
 .expanded .nav-label {
   visibility: visible;
   transition: visibility 0s 0.08s;
 }
-.nav-item:hover .nav-label {
+.nav-item:hover .nav-label,
+.nav-item.active .nav-label {
   color: #e8e8e8;
+  font-weight: 600;
 }
 
 .sidebar-bottom {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
   padding: 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* 暗色主题 → 白色侧边栏 */
 .sidebar.theme-dark {
-  background: #ffffff;
   border-right-color: rgba(0, 0, 0, 0.1);
+  background: #ffffff;
   box-shadow: 2px 0 12px rgba(0, 0, 0, 0.08);
 }
 .sidebar.theme-dark .logo-icon {
@@ -196,43 +190,21 @@ const activeNav = computed(() => {
   background: rgba(0, 0, 0, 0.06);
   color: #1a1a1a;
 }
-.sidebar.theme-dark .logo-label {
-  color: #1a1a1a;
-}
-.sidebar.theme-dark .sidebar-logo {
-  border-bottom-color: rgba(0, 0, 0, 0.08);
-}
-.sidebar.theme-dark .sidebar-logo:hover {
-  background: rgba(0, 0, 0, 0.04);
-}
-.sidebar.theme-dark .nav-icon {
-  color: rgba(0, 0, 0, 0.4);
-}
-.sidebar.theme-dark .nav-item:hover .nav-icon {
-  color: #1a1a1a;
-}
-.sidebar.theme-dark .nav-item:hover {
-  background: rgba(0, 0, 0, 0.04);
-}
+.sidebar.theme-dark .logo-label { color: #1a1a1a; }
+.sidebar.theme-dark .sidebar-logo { border-bottom-color: rgba(0, 0, 0, 0.08); }
+.sidebar.theme-dark .sidebar-logo:hover,
+.sidebar.theme-dark .nav-item:hover { background: rgba(0, 0, 0, 0.04); }
+.sidebar.theme-dark .nav-icon { color: rgba(0, 0, 0, 0.4); }
+.sidebar.theme-dark .nav-item:hover .nav-icon,
+.sidebar.theme-dark .nav-item.active .nav-icon { color: #1a1a1a; }
 .sidebar.theme-dark .nav-item.active {
   border-left-color: #1a1a1a;
   background: rgba(0, 0, 0, 0.06);
 }
-.sidebar.theme-dark .nav-item.active .nav-icon {
-  color: #1a1a1a;
-}
-.sidebar.theme-dark .nav-item.active .nav-label {
-  color: #1a1a1a;
-}
-.sidebar.theme-dark .nav-label {
-  color: rgba(0, 0, 0, 0.55);
-}
-.sidebar.theme-dark .nav-item:hover .nav-label {
-  color: #1a1a1a;
-}
-.sidebar.theme-dark .sidebar-bottom {
-  border-top-color: rgba(0, 0, 0, 0.08);
-}
+.sidebar.theme-dark .nav-label { color: rgba(0, 0, 0, 0.55); }
+.sidebar.theme-dark .nav-item:hover .nav-label,
+.sidebar.theme-dark .nav-item.active .nav-label { color: #1a1a1a; }
+.sidebar.theme-dark .sidebar-bottom { border-top-color: rgba(0, 0, 0, 0.08); }
 
 @media (max-width: 767px) {
   .sidebar,
@@ -258,7 +230,7 @@ const activeNav = computed(() => {
 
   .sidebar-nav {
     display: grid;
-    grid-template-columns: repeat(8, minmax(0, 1fr));
+    grid-template-columns: repeat(9, minmax(0, 1fr));
     width: 100%;
     padding: 0;
     overflow: visible;
@@ -277,30 +249,7 @@ const activeNav = computed(() => {
 
   .nav-item.active {
     border-left-color: transparent;
-    border-top-color: #1a1a1a;
-  }
-
-  /* 移动端暗色主题 → 白色底栏 */
-  .sidebar.theme-dark,
-  .sidebar.theme-dark.expanded {
-    background: rgba(255, 255, 255, 0.96);
-    border-color: rgba(0, 0, 0, 0.1);
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08);
-  }
-  .sidebar.theme-dark .nav-item.active {
-    border-top-color: #ffffff;
-  }
-  .sidebar.theme-dark .nav-icon {
-    color: rgba(0, 0, 0, 0.4);
-  }
-  .sidebar.theme-dark .nav-label {
-    color: rgba(0, 0, 0, 0.55);
-  }
-  .sidebar.theme-dark .nav-item.active .nav-icon {
-    color: #1a1a1a;
-  }
-  .sidebar.theme-dark .nav-item.active .nav-label {
-    color: #1a1a1a;
+    border-top-color: #e8e8e8;
   }
 
   .nav-icon {
@@ -313,10 +262,21 @@ const activeNav = computed(() => {
     display: block;
     max-width: 100%;
     overflow: hidden;
+    visibility: visible;
     font-size: 9px;
     line-height: 1.1;
     text-overflow: ellipsis;
-    visibility: visible;
+  }
+
+  .sidebar.theme-dark,
+  .sidebar.theme-dark.expanded {
+    border-color: rgba(0, 0, 0, 0.1);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08);
+  }
+
+  .sidebar.theme-dark .nav-item.active {
+    border-top-color: #1a1a1a;
   }
 }
 </style>

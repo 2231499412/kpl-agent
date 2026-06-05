@@ -54,6 +54,12 @@ const routes = [
     name: 'bp-simulator',
     component: () => import('../views/BpSimulatorPage.vue'),
     meta: { title: 'KPL - BP 模拟器', showSidebar: true }
+  },
+  {
+    path: '/lane-radar',
+    name: 'lane-radar',
+    component: () => import('../views/LaneRadarPage.vue'),
+    meta: { title: 'KPL - 对位雷达图', showSidebar: true }
   }
 ]
 

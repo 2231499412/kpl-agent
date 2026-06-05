@@ -1,13 +1,15 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
+const apiTarget = process.env.VITE_API_TARGET || 'http://localhost:9090'
+
 export default defineConfig({
   plugins: [vue()],
   server: {
     port: 15173,
     proxy: {
       '/api': {
-        target: 'http://localhost:9090',
+        target: apiTarget,
         changeOrigin: true,
         timeout: 120000,
         configure: (proxy) => {
@@ -22,7 +24,7 @@ export default defineConfig({
         }
       },
       '/actuator': {
-        target: 'http://localhost:9090',
+        target: apiTarget,
         changeOrigin: true
       },
       '/skin-api': {

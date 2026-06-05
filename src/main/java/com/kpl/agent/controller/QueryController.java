@@ -1,6 +1,7 @@
 package com.kpl.agent.controller;
 
 import com.kpl.agent.service.LeagueQueryService;
+import com.kpl.agent.service.LaneRadarService;
 import com.kpl.agent.tool.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +22,7 @@ public class QueryController {
     private final MatchAnalysisTool matchAnalysisTool;
     private final EquipStatsTool equipStatsTool;
     private final LeagueQueryService leagueQueryService;
+    private final LaneRadarService laneRadarService;
 
     /** 选手查询：GET /api/query/player?name=听悦 */
     @GetMapping("/player")
@@ -120,6 +122,16 @@ public class QueryController {
     @GetMapping("/battle/players")
     public ApiResponse<Map<String, Object>> queryBattlePlayers(@RequestParam String battleId) {
         return ApiResponse.ok(matchAnalysisTool.queryBattlePlayers(battleId));
+    }
+
+    /** 对位雷达图：GET /api/query/radar/lane?leagueId=xxx&matchId=xxx&battleId=xxx&role=打野 */
+    @GetMapping("/radar/lane")
+    public ApiResponse<Map<String, Object>> queryLaneRadar(
+            @RequestParam(required = false) String leagueId,
+            @RequestParam String matchId,
+            @RequestParam String battleId,
+            @RequestParam(defaultValue = "对抗路") String role) {
+        return ApiResponse.ok(laneRadarService.buildRadar(leagueId, matchId, battleId, role));
     }
 
     /** 选手英雄数据：GET /api/query/player/heroes?name=一诺 */

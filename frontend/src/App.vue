@@ -10,7 +10,7 @@
   </router-view>
 
   <!-- 全局背景音乐 -->
-  <div class="bgm-control" :class="{ playing: isPlaying }" @click="toggleBgm" :title="isPlaying ? '暂停音乐' : '播放音乐'">
+  <div class="bgm-control" :class="{ playing: isPlaying, 'bgm-top': route.path === '/lane-radar' }" @click="toggleBgm" :title="isPlaying ? '暂停音乐' : '播放音乐'">
     <span class="bgm-bars"><i /><i /><i /><i /></span>
   </div>
   <audio ref="bgmAudio" src="/bgm.mp3" loop preload="auto"></audio>
@@ -106,6 +106,22 @@ function onPageEnter(el) {
 .bgm-control:hover {
   background: rgba(26, 26, 26, 0.9);
   transform: scale(1.1);
+}
+.bgm-control.bgm-top {
+  top: 26px;
+  bottom: auto;
+  right: calc((100% - 1640px) / 2 + 18px);
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.2);
+}
+.bgm-control.bgm-top:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: none;
+}
+.bgm-control.bgm-top .bgm-bars i,
+.bgm-control.bgm-top.playing .bgm-bars i {
+  background: #e8e8e8;
 }
 
 .bgm-bars {
