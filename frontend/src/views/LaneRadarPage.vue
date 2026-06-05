@@ -501,12 +501,17 @@ onUnmounted(() => {
 }
 
 .matchup-page {
-  --purple: #6550c8;
-  --accent-deep: #4f3fb0;
-  --accent-soft: rgba(101, 80, 200, .16);
-  --winner: #6550c8;
-  --loser: rgba(21, 26, 33, .62);
-  --ink: #151a21;
+  --mono-bg: #f8f5ec;
+  --mono-panel: rgba(255, 255, 255, 0.92);
+  --mono-line: rgba(0, 0, 0, 0.18);
+  --mono-ink: #1a1a1a;
+  --mono-soft: rgba(26, 26, 26, 0.65);
+  --mono-dim: rgba(26, 26, 26, 0.4);
+  --purple: #1a1a1a;
+  --accent-deep: #1a1a1a;
+  --winner: #1a1a1a;
+  --loser: rgba(26, 26, 26, 0.45);
+  --ink: #1a1a1a;
   box-sizing: border-box;
   width: calc(100vw - 67.5px);
   height: 100dvh;
@@ -515,9 +520,8 @@ onUnmounted(() => {
   overflow: hidden;
   color: var(--ink);
   background:
-    radial-gradient(circle at 18% 8%, rgba(101, 80, 200, .18), transparent 28%),
-    radial-gradient(circle at 82% 16%, rgba(50, 212, 202, .16), transparent 28%),
-    linear-gradient(120deg, #dce8f4 0%, #f7f9fc 48%, #ddd3ef 100%);
+    linear-gradient(180deg, rgba(250, 248, 240, 0.98), rgba(245, 242, 232, 0.99)),
+    #f8f5ec;
   font-family: "Microsoft YaHei UI", "PingFang SC", sans-serif;
 }
 
@@ -541,10 +545,8 @@ onUnmounted(() => {
 .select-strip label,
 .role-tabs,
 .state-card {
-  border: 1px solid rgba(255, 255, 255, .74);
-  background: rgba(248, 251, 255, .72);
-  backdrop-filter: blur(16px);
-  box-shadow: inset 0 0 28px rgba(255, 255, 255, .3);
+  border: 1px solid var(--mono-line);
+  background: var(--mono-panel);
 }
 
 .select-left {
@@ -589,14 +591,14 @@ onUnmounted(() => {
 }
 
 .select-right span {
-  color: rgba(21, 26, 33, .46);
+  color: var(--mono-dim);
   font-size: 9px;
   font-weight: 950;
   letter-spacing: 2px;
 }
 
 .select-right strong {
-  color: var(--accent-deep);
+  color: var(--mono-ink);
   font-size: 16px;
   font-weight: 950;
   line-height: 1;
@@ -604,7 +606,7 @@ onUnmounted(() => {
 
 .select-right em {
   overflow: hidden;
-  color: rgba(21, 26, 33, .6);
+  color: var(--mono-soft);
   font-size: 10px;
   font-style: normal;
   font-weight: 850;
@@ -622,7 +624,7 @@ onUnmounted(() => {
 }
 
 .select-strip label span {
-  color: rgba(21, 26, 33, .48);
+  color: var(--mono-dim);
   font-size: 9px;
   font-weight: 950;
   letter-spacing: 2px;
@@ -632,33 +634,33 @@ onUnmounted(() => {
   min-height: 27px;
   min-width: 0 !important;
   border-radius: 0 !important;
-  background: rgba(255, 255, 255, .78) !important;
-  box-shadow: 0 0 0 1px rgba(101, 80, 200, .2) inset, 0 6px 18px rgba(44, 51, 84, .06) !important;
+  background: rgba(255, 255, 255, 0.7) !important;
+  box-shadow: 0 0 0 1px var(--mono-line) inset !important;
 }
 
 :global(.el-select__dropdown),
 :global(.el-popper.is-light),
 :global(.el-select-dropdown) {
   background: #fff !important;
-  border: 1px solid rgba(101, 80, 200, .18) !important;
-  box-shadow: 0 8px 24px rgba(44, 51, 84, .12) !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
 }
 
 :global(.el-select-dropdown__item) {
-  color: #1a1a2e !important;
+  color: #1a1a1a !important;
   font-weight: 600 !important;
 }
 
 :global(.el-select-dropdown__item.hover),
 :global(.el-select-dropdown__item:hover) {
-  background: rgba(101, 80, 200, .08) !important;
-  color: #1a1a2e !important;
+  background: rgba(0, 0, 0, 0.04) !important;
+  color: #1a1a1a !important;
 }
 
 :global(.el-select-dropdown__item.is-selected) {
-  color: #fff !important;
+  color: #f8f5ec !important;
   font-weight: 900 !important;
-  background: linear-gradient(180deg, #6550c8, #4f3fb0) !important;
+  background: #1a1a1a !important;
 }
 
 :global(.el-select__placeholder),
@@ -686,26 +688,23 @@ onUnmounted(() => {
   align-items: stretch;
 }
 .role-tabs button {
-  border: 1px solid rgba(101, 80, 200, .2);
+  border: 1px solid var(--mono-line);
   border-radius: 10px;
-  color: rgba(79, 63, 176, .72);
-  background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(235, 230, 255, .6));
+  color: var(--mono-soft);
+  background: rgba(255, 255, 255, 0.6);
   font-size: 12px;
   font-weight: 900;
   cursor: pointer;
-  box-shadow: 0 6px 14px rgba(101, 80, 200, .08);
-  transition: transform .16s ease, box-shadow .16s ease, background .16s ease, color .16s ease;
+  transition: background .16s ease, color .16s ease;
 }
 .role-tabs button:hover {
-  transform: translateY(-1px);
-  color: var(--accent-deep);
-  box-shadow: 0 10px 20px rgba(101, 80, 200, .14);
+  color: var(--mono-ink);
+  background: rgba(255, 255, 255, 0.9);
 }
 .role-tabs button.active {
-  color: #fff;
-  background: linear-gradient(180deg, #6550c8, #4f3fb0);
-  border-color: rgba(79, 63, 176, .72);
-  box-shadow: 0 10px 22px rgba(79, 63, 176, .28);
+  color: #f8f5ec;
+  background: #1a1a1a;
+  border-color: #1a1a1a;
 }
 
 .state-card {
@@ -716,13 +715,13 @@ onUnmounted(() => {
   place-items: center;
   gap: 12px;
   margin: 0 auto;
-  color: rgba(21, 26, 33, .58);
+  color: var(--mono-soft);
 }
 .state-card.error strong { color: var(--ink); font-size: 20px; }
 .spinner {
   width: 34px;
   height: 34px;
-  border: 3px solid rgba(106, 80, 189, .18);
+  border: 3px solid rgba(0, 0, 0, .1);
   border-top-color: var(--purple);
   border-radius: 50%;
   animation: spin .8s linear infinite;
@@ -745,8 +744,8 @@ onUnmounted(() => {
   min-height: 0;
   height: 100%;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, .78);
-  box-shadow: 0 18px 48px rgba(53, 61, 92, .14);
+  border: 1px solid var(--mono-line);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .06);
 }
 
 .hero-panel {
@@ -894,17 +893,15 @@ onUnmounted(() => {
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   padding: 18px 26px 16px;
   background:
-    radial-gradient(circle at 72% 42%, rgba(106, 80, 189, .1), transparent 24%),
-    radial-gradient(circle at 28% 72%, rgba(53, 225, 211, .09), transparent 22%),
-    linear-gradient(120deg, rgba(255,255,255,.94), rgba(244, 248, 252, .92));
+    linear-gradient(180deg, rgba(250, 248, 240, 0.98), rgba(245, 242, 232, 0.99)),
+    #f8f5ec;
 }
 .radar-poster::before {
   content: "";
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(35deg, transparent 48%, rgba(209, 219, 231, .32) 49%, transparent 52%),
-    repeating-linear-gradient(90deg, transparent 0 119px, rgba(31, 42, 55, .045) 120px);
+    repeating-linear-gradient(90deg, transparent 0 119px, rgba(0, 0, 0, .02) 120px);
   pointer-events: none;
 }
 
@@ -921,17 +918,17 @@ onUnmounted(() => {
 }
 
 .result-word {
-  color: rgba(21, 26, 33, .24);
+  color: var(--mono-dim);
   font-size: clamp(28px, 3.4vw, 48px);
   font-weight: 950;
   letter-spacing: -3px;
   line-height: 1;
 }
-.result-word.win { color: rgba(106, 80, 189, .88); text-align: right; }
+.result-word.win { color: var(--mono-ink); text-align: right; }
 .team-name {
   min-width: 0;
   overflow: hidden;
-  color: #11161f;
+  color: var(--mono-ink);
   font-size: 17px;
   font-weight: 950;
   text-overflow: ellipsis;
@@ -955,12 +952,12 @@ onUnmounted(() => {
   justify-content: center;
   gap: 16px;
   margin-top: 8px;
-  color: rgba(21, 26, 33, .62);
+  color: var(--mono-soft);
   font-size: 14px;
   font-weight: 900;
 }
 .poster-subtitle b {
-  color: #11161f;
+  color: var(--mono-ink);
   font-size: 22px;
 }
 
@@ -980,26 +977,26 @@ onUnmounted(() => {
 }
 
 .outer-grid {
-  fill: rgba(227, 233, 240, .36);
-  stroke: rgba(21, 26, 33, .48);
+  fill: rgba(0, 0, 0, .03);
+  stroke: rgba(0, 0, 0, .18);
   stroke-width: 2;
 }
 .inner-grid {
   fill: none;
-  stroke: rgba(21, 26, 33, .28);
+  stroke: rgba(0, 0, 0, .1);
   stroke-width: 1.4;
 }
 .axis-line {
-  stroke: rgba(21, 26, 33, .2);
+  stroke: rgba(0, 0, 0, .08);
   stroke-width: 1.2;
 }
 .blue-poly,
 .winner-poly {
-  fill: rgba(94, 81, 201, .28);
+  fill: rgba(26, 26, 26, .15);
 }
 .red-poly,
 .loser-poly {
-  fill: rgba(21, 26, 33, .2);
+  fill: rgba(26, 26, 26, .08);
 }
 .blue-line,
 .red-line,
@@ -1020,7 +1017,7 @@ onUnmounted(() => {
   stroke-width: 2;
 }
 .blue-point { fill: var(--purple); }
-.red-point { fill: rgba(21, 26, 33, .62); }
+.red-point { fill: var(--mono-soft); }
 
 .metric-callout {
   position: absolute;
@@ -1044,15 +1041,15 @@ onUnmounted(() => {
 }
 .metric-values .red-num,
 .metric-values .winner-num,
-.metric-callout .winner-num { color: var(--winner); font-size: 18px; }
+.metric-callout .winner-num { color: #1a1a1a; font-size: 18px; font-weight: 950; }
 .metric-values .loser-num,
-.metric-callout .loser-num { color: var(--loser); font-size: 18px; }
+.metric-callout .loser-num { color: rgba(26, 26, 26, 0.45); font-size: 18px; }
 .metric-callout span {
   display: inline-block;
   margin-top: 2px;
   padding: 3px 14px 4px;
   color: #fff;
-  background: #11161f;
+  background: var(--mono-ink);
   border-radius: 2px;
   font-size: 14px;
   font-weight: 950;
@@ -1077,13 +1074,13 @@ onUnmounted(() => {
 }
 .footer-player strong {
   display: block;
-  color: #11161f;
+  color: var(--mono-ink);
   font-size: 28px;
   font-weight: 950;
 }
 .footer-player span {
   display: block;
-  color: rgba(21, 26, 33, .58);
+  color: var(--mono-soft);
   font-size: 13px;
   font-weight: 900;
 }
@@ -1093,7 +1090,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: rgba(21, 26, 33, .52);
+  color: var(--mono-soft);
   font-size: 12px;
   font-weight: 900;
 }
@@ -1102,8 +1099,8 @@ onUnmounted(() => {
   height: 11px;
   display: inline-block;
 }
-.blue-mark { background: var(--purple); }
-.red-mark { background: rgba(21, 26, 33, .52); }
+.blue-mark { background: var(--mono-ink); }
+.red-mark { background: rgba(26, 26, 26, .35); }
 
 .hero-panel :deep(.matchup-hero-bg) {
   position: absolute;
@@ -1273,9 +1270,9 @@ onUnmounted(() => {
   grid-template-columns: 52px minmax(120px, 1fr) 120px minmax(90px, auto) 120px minmax(120px, 1fr) 52px;
   align-items: center;
   gap: 12px;
-  color: #11161f;
+  color: var(--mono-ink);
   background:
-    linear-gradient(90deg, rgba(101, 80, 200, .14), transparent 27%, transparent 73%, rgba(101, 80, 200, .1)),
+    linear-gradient(90deg, rgba(0, 0, 0, .04), transparent 27%, transparent 73%, rgba(0, 0, 0, .03)),
     linear-gradient(120deg, rgba(255,255,255,.78), rgba(239, 247, 250, .62));
   border: 1px solid rgba(255, 255, 255, .78);
   border-radius: 18px;
@@ -1293,7 +1290,7 @@ onUnmounted(() => {
 }
 
 .scoreboard .team-name {
-  color: #11161f;
+  color: var(--mono-ink);
   font-size: clamp(18px, 1.9vw, 27px);
   text-shadow: 0 1px 0 rgba(255,255,255,.65);
 }
@@ -1311,7 +1308,7 @@ onUnmounted(() => {
   display: grid;
   justify-items: center;
   gap: 2px;
-  color: #11161f;
+  color: var(--mono-ink);
   line-height: 1;
   z-index: 2;
 }
@@ -1340,11 +1337,11 @@ onUnmounted(() => {
   display: inline-grid;
   place-items: center;
   justify-self: center;
-  border: 1px solid rgba(101, 80, 200, .34);
+  border: 1px solid var(--mono-line);
   border-radius: 999px;
-  color: var(--accent-deep);
-  background: linear-gradient(180deg, rgba(255,255,255,.82), rgba(101, 80, 200, .13));
-  box-shadow: 0 8px 18px rgba(101, 80, 200, .13), inset 0 1px 0 rgba(255,255,255,.62);
+  color: var(--mono-ink);
+  background: var(--mono-panel);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .06);
   font-size: 13px;
   font-weight: 950;
   letter-spacing: 1px;
@@ -1414,8 +1411,8 @@ onUnmounted(() => {
 
 .metric-callout .metric-label {
   display: inline-block;
-  color: #1a1a2e;
-  background: rgba(255, 255, 255, .85);
+  color: #1a1a1a;
+  background: rgba(255, 255, 255, 0.7);
   padding: 2px 6px;
   border-radius: 5px;
   font-size: 15px;
