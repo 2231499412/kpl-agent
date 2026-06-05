@@ -11,8 +11,8 @@
         </div>
       </section>
       <section class="hero-count">
-        <span>{{ filteredHeroes.length }}</span>
-        <b>HEROES</b>
+        <span>{{ showAllSkins ? totalSkins : filteredHeroes.length }}</span>
+        <b>{{ showAllSkins ? 'SKINS' : 'HEROES' }}</b>
       </section>
     </header>
 
@@ -31,6 +31,9 @@
           {{ role.label }}
         </button>
       </nav>
+      <button class="skin-toggle" :class="{ active: showAllSkins }" @click="showAllSkins = !showAllSkins">
+        {{ showAllSkins ? '全部皮肤' : '仅原皮' }}
+      </button>
     </section>
 
     <section v-if="loading" class="loading-panel">
@@ -39,25 +42,59 @@
     </section>
 
     <section v-else class="gallery-grid">
-      <button
-        v-for="hero in filteredHeroes"
-        :key="`${hero.heroId}-${hero.heroName}`"
-        class="poster-card"
-        @click="openHero(hero)"
-      >
-        <img
-          :src="getHeroPoster(hero, 1)"
-          :alt="hero.heroName"
-          :style="getPosterStyle(hero)"
-          @load="onPosterLoad($event)"
-          @error="onPosterError($event, hero)"
+      <template v-if="showAllSkins">
+        <template v-for="hero in filteredHeroes" :key="hero.heroId">
+          <button
+            v-for="skin in hero._skins"
+            :key="`${hero.heroId}-${skin}`"
+            class="poster-card"
+            @click="openHero(hero); selectedSkin = skin"
+          >
+            <img
+              :src="getHeroPoster(hero, skin)"
+              :alt="`${hero.heroName} 皮肤${skin}`"
+              :style="getPosterStyle(hero)"
+              @error="onPosterGridError($event, hero, skin - 1)"
+            >
+            <div class="poster-shade" />
+            <div class="poster-meta">
+              <span>{{ hero.heroName }} · {{ hero._role || '英雄' }}</span>
+              <strong>{{ hero._skinNames[skin - 1] || hero.heroName }}</strong>
+              <div class="poster-sub">
+                <b class="skin-num">{{ skin }}</b>
+                <b v-if="hero._skinQualities[skin - 1]" class="skin-quality">{{ hero._skinQualities[skin - 1] }}</b>
+                <em v-if="hero._skinDates[skin - 1]">{{ hero._skinDates[skin - 1] }}</em>
+                <em v-else-if="hero._releaseTime">{{ hero._releaseTime }}</em>
+              </div>
+            </div>
+          </button>
+        </template>
+      </template>
+      <template v-else>
+        <button
+          v-for="hero in filteredHeroes"
+          :key="`${hero.heroId}-${hero.heroName}`"
+          class="poster-card"
+          @click="openHero(hero)"
         >
-        <div class="poster-shade" />
-        <div class="poster-meta">
-          <span>{{ hero._role || '英雄' }}</span>
-          <strong>{{ hero.heroName }}</strong>
-        </div>
-      </button>
+          <img
+            :src="getHeroPoster(hero, 1)"
+            :alt="hero.heroName"
+            :style="getPosterStyle(hero)"
+            @load="onPosterLoad($event)"
+            @error="onPosterError($event, hero)"
+          >
+          <div class="poster-shade" />
+          <div class="poster-meta">
+            <span>{{ hero._role || '英雄' }}</span>
+            <strong>{{ hero._skinNames[0] || hero.heroName }}</strong>
+            <div class="poster-sub">
+              <em v-if="hero._skinDates[0]">{{ hero._skinDates[0] }}</em>
+              <em v-else-if="hero._releaseTime">{{ hero._releaseTime }}</em>
+            </div>
+          </div>
+        </button>
+      </template>
     </section>
 
     <el-dialog
@@ -106,7 +143,7 @@
                 <img
                   :src="getHeroPoster(selectedHero, skin)"
                   :alt="`${selectedHero.heroName} 皮肤 ${skin}`"
-                  @error="hideBrokenThumb"
+                  @error="hideBrokenThumb($event, selectedHero, skin - 1)"
                 >
                 <span>{{ skin }}</span>
               </button>
@@ -125,6 +162,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { HERO_CATALOG } from '../data/heroData'
+import { MANUAL_SKIN_DATA } from '../data/skinData'
 
 const roleOptions = [
   { label: '全部', value: 'all' },
@@ -145,8 +183,13 @@ const selectedSkin = ref(1)
 const artFallback = ref('')
 const artMissing = ref(false)
 
+const showAllSkins = ref(true)
 const skinSlots = Array.from({ length: 12 }, (_, i) => i + 1)
 const noArtHeroIds = new Set([188])
+const maxSkins = 12
+const heroSkinMap = ref(new Map())
+
+const totalSkins = computed(() => filteredHeroes.value.reduce((s, h) => s + (h._skins?.length || 1), 0))
 
 const filteredHeroes = computed(() => {
   const query = keyword.value.toLowerCase()
@@ -231,8 +274,28 @@ function onPosterLoad(event) {
   }
 }
 
-function hideBrokenThumb(event) {
-  event.target.closest('button')?.classList.add('thumb-missing')
+function hideBrokenThumb(event, hero, skinIdx) {
+  const img = event.target
+  // 尝试 zlkdatasys 海报图作为 fallback
+  const posterUrl = hero?._skinPosterUrls?.[skinIdx]
+  if (posterUrl && !img.dataset.fallback) {
+    img.dataset.fallback = 'zlk'
+    img.src = 'https:' + posterUrl
+    return
+  }
+  img.closest('button')?.classList.add('thumb-missing')
+}
+
+function onPosterGridError(event, hero, skinIdx) {
+  const img = event.target
+  // 尝试 zlkdatasys 海报图作为 fallback
+  const posterUrl = hero?._skinPosterUrls?.[skinIdx]
+  if (posterUrl && !img.dataset.fallback) {
+    img.dataset.fallback = 'zlk'
+    img.src = 'https:' + posterUrl
+    return
+  }
+  img.closest('.poster-card')?.classList.add('poster-missing')
 }
 
 function selectSkin(skin) {
@@ -284,9 +347,17 @@ function mergeHeroes(apiList) {
     })
     .map(hero => {
       const id = Number(hero.heroId)
+      const skinInfo = heroSkinMap.value.get(id)
+      const skinNames = skinInfo?.names || []
       const mapped = {
         ...hero,
         _role: hero._role || hero.role || hero.mainPosition || hero.position || roleMap.get(hero.heroId) || '',
+        _skins: hero._skins || Array.from({ length: Math.max(skinNames.length, 1) }, (_, i) => i + 1),
+        _skinNames: skinNames,
+        _skinDates: skinInfo?.skinDates || [],
+        _skinQualities: skinInfo?.skinQualities || [],
+        _skinPosterUrls: skinInfo?.skinPosterUrls || [],
+        _releaseTime: skinInfo?.time || '',
       }
       // 元流之子：合并名称和角色
       if (id === 581) {
@@ -295,16 +366,92 @@ function mergeHeroes(apiList) {
       }
       return mapped
     })
-    .sort((a, b) => roleOptions.findIndex(role => role.value === (a._role || 'all')) - roleOptions.findIndex(role => role.value === (b._role || 'all')) || a.heroId - b.heroId)
+    .sort((a, b) => {
+      const getMaxDate = (hero) => {
+        const dates = (hero._skinDates || []).filter(Boolean)
+        return dates.length ? dates.sort().pop() : hero._releaseTime || ''
+      }
+      const da = getMaxDate(a)
+      const db = getMaxDate(b)
+      if (da && db) return db.localeCompare(da)
+      if (da) return -1
+      if (db) return 1
+      return roleOptions.findIndex(role => role.value === (a._role || 'all')) - roleOptions.findIndex(role => role.value === (b._role || 'all')) || a.heroId - b.heroId
+    })
 }
 
 async function loadHeroes() {
   loading.value = true
   let apiList = []
   try {
-    const response = await fetch('/api/query/hero/top?sort=pick&limit=200')
-    const body = await response.json()
+    const [heroRes, skinRes, detailRes] = await Promise.all([
+      fetch('/api/query/hero/top?sort=pick&limit=200'),
+      fetch('/skin-api/web201605/js/herolist.json'),
+      fetch('/skin-api/zlkdatasys/data_zlk_xpflby.json'),
+    ])
+    const body = await heroRes.json()
     apiList = Array.isArray(body?.data?.data) ? body.data.data : Array.isArray(body?.data) ? body.data : []
+
+    // herolist: 英雄皮肤名列表 + 英雄上线时间
+    const skinData = await skinRes.json()
+    const heroNameToId = new Map()
+    const map = new Map()
+    for (const item of skinData) {
+      const id = Number(item.ename)
+      const name = item.cname || ''
+      const names = (item.skin_name || '').split('|').filter(Boolean)
+      map.set(id, { names, time: item.time || '', skinDates: [], skinQualities: [], skinPosterUrls: [] })
+      if (name) heroNameToId.set(name, id)
+    }
+
+    // 皮肤详情: 解析每款皮肤的上线日期
+    try {
+      const detailData = await detailRes.json()
+      const skins = detailData.pcblzlby_c6 || []
+      for (const s of skins) {
+        const fullName = s.pcblzlbybt_d3 || ''
+        const dateRaw = s.lbyrq_e5 || s.sxsj_24 || ''
+        if (!fullName || !dateRaw) continue
+        // 格式: "皮肤名-英雄名"，取最后一个 "-"
+        const lastDash = fullName.lastIndexOf('-')
+        if (lastDash < 0) continue
+        const skinPart = fullName.substring(0, lastDash)
+        const heroPart = fullName.substring(lastDash + 1)
+        // 找到英雄
+        const heroId = heroNameToId.get(heroPart)
+        if (!heroId) continue
+        const heroInfo = map.get(heroId)
+        if (!heroInfo) continue
+        // 在皮肤名列表中找到对应索引
+        const skinIdx = heroInfo.names.indexOf(skinPart)
+        if (skinIdx >= 0) {
+          heroInfo.skinDates[skinIdx] = dateRaw.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3')
+        }
+      }
+    } catch { /* 皮肤详情接口失败不影响主流程 */ }
+
+    // 手动数据: 补充 API 缺失的皮肤日期和品质信息
+    for (const [key, info] of Object.entries(MANUAL_SKIN_DATA)) {
+      const [heroName, skinName] = key.split('|')
+      const heroId = heroNameToId.get(heroName)
+      if (!heroId) continue
+      const heroInfo = map.get(heroId)
+      if (!heroInfo) continue
+      const skinIdx = heroInfo.names.indexOf(skinName)
+      if (skinIdx >= 0) {
+        // 仅当 API 没有日期时才用手动数据补充
+        if (!heroInfo.skinDates[skinIdx] && info.date) {
+          heroInfo.skinDates[skinIdx] = info.date
+        }
+        // 存储品质信息
+        if (!heroInfo.skinQualities) heroInfo.skinQualities = []
+        if (info.quality) heroInfo.skinQualities[skinIdx] = info.quality
+        // 存储 zlkdatasys 海报图 URL
+        if (info.posterUrl) heroInfo.skinPosterUrls[skinIdx] = info.posterUrl
+      }
+    }
+
+    heroSkinMap.value = map
   } catch {
     apiList = []
   } finally {
@@ -441,9 +588,10 @@ onMounted(loadHeroes)
 
 .gallery-tools {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: 280px minmax(0, 1fr) auto;
   gap: 8px;
   margin-top: 8px;
+  align-items: stretch;
 }
 
 .search-box,
@@ -504,6 +652,21 @@ onMounted(loadHeroes)
   color: #fff;
   background: var(--blue);
 }
+
+.skin-toggle {
+  flex-shrink: 0;
+  padding: 0 14px;
+  height: 48px;
+  border: 1px solid rgba(103, 82, 215, .28);
+  color: rgba(22, 32, 44, .62);
+  background: rgba(255, 255, 255, .48);
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all .15s;
+}
+.skin-toggle:hover { border-color: var(--blue); color: var(--ink); }
+.skin-toggle.active { color: #fff; background: var(--blue); border-color: var(--blue); }
 
 .gallery-grid {
   display: grid;
@@ -598,6 +761,36 @@ onMounted(loadHeroes)
   margin-top: 3px;
   font-size: 17px;
   line-height: 1.2;
+}
+.poster-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+.poster-sub .skin-num {
+  min-width: 22px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, .22);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  text-align: center;
+}
+.poster-sub .skin-quality {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(103, 82, 215, .45);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+}
+.poster-sub em {
+  font-style: normal;
+  opacity: .55;
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .loading-panel {

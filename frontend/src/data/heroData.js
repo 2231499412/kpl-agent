@@ -29,6 +29,7 @@ export const HERO_CATALOG = [
   { heroId: 178, heroName: '杨戬', role: '对抗路' },
   { heroId: 135, heroName: '项羽', role: '对抗路' },
   { heroId: 166, heroName: '亚瑟', role: '对抗路' },
+  { heroId: 172, heroName: '蚩奼', role: '对抗路' },
 
   // ── 打野 ──
   { heroId: 107, heroName: '赵云', role: '打野' },
@@ -60,6 +61,7 @@ export const HERO_CATALOG = [
   { heroId: 544, heroName: '赵怀真', role: '打野' },
   { heroId: 533, heroName: '阿古朵', role: '打野' },
   { heroId: 125, heroName: '元歌', role: '打野' },
+  { heroId: 558, heroName: '影', role: '打野' },
 
   // ── 中路 ──
   { heroId: 190, heroName: '诸葛亮', role: '中路' },
@@ -107,6 +109,8 @@ export const HERO_CATALOG = [
   { heroId: 545, heroName: '莱西奥', role: '发育路' },
   { heroId: 524, heroName: '蒙犽', role: '发育路' },
   { heroId: 519, heroName: '敖隐', role: '发育路' },
+  { heroId: 177, heroName: '苍', role: '发育路' },
+  { heroId: 151, heroName: '孙权', role: '发育路' },
 
   // ── 游走 ──
   { heroId: 171, heroName: '张飞', role: '游走' },
@@ -129,4 +133,10 @@ export const HERO_CATALOG = [
   { heroId: 534, heroName: '桑启', role: '游走' },
   { heroId: 577, heroName: '少司缘', role: '游走' },
   { heroId: 159, heroName: '朵莉亚', role: '游走' },
+  { heroId: 188, heroName: '大禹', role: '游走' },
+  { heroId: 581, heroName: '元流之子(坦克)', role: '对抗路' },
+  { heroId: 582, heroName: '元流之子(法师)', role: '中路' },
+  { heroId: 583, heroName: '元流之子(刺客)', role: '打野' },
+  { heroId: 584, heroName: '元流之子(射手)', role: '发育路' },
+  { heroId: 585, heroName: '元流之子(辅助)', role: '游走' },
 ]

@@ -24,6 +24,11 @@ export default defineConfig({
       '/actuator': {
         target: 'http://localhost:9090',
         changeOrigin: true
+      },
+      '/skin-api': {
+        target: 'https://pvp.qq.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/skin-api/, ''),
       }
     }
   }
