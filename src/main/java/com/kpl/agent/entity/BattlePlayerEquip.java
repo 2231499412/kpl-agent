@@ -22,6 +22,9 @@ public class BattlePlayerEquip {
     private String equipDescGain;
     private String equipDescFunction;
 
+    /** 装备购买顺序(0=未知) */
+    private Integer equipOrder;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 }

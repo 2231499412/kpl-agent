@@ -1,6 +1,7 @@
 package com.kpl.agent.controller;
 
 import com.kpl.agent.service.DataSyncService;
+import com.kpl.agent.service.EquipInfoSyncService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +16,7 @@ import java.util.Map;
 public class SyncController {
 
     private final DataSyncService dataSyncService;
+    private final EquipInfoSyncService equipInfoSyncService;
 
     /**
      * 同步最新赛季（不包含对局详情，速度快）
@@ -89,6 +91,36 @@ public class SyncController {
     public ApiResponse<Map<String, Object>> syncLeagues() {
         int count = dataSyncService.syncLeagues();
         return ApiResponse.ok(Map.of("synced", count));
+    }
+
+    /**
+     * 同步装备基础信息（价格、属性等，从 pvp.qq.com 爬取）
+     * POST /api/sync/equip-info
+     */
+    @PostMapping("/equip-info")
+    public ApiResponse<Map<String, Object>> syncEquipInfo() {
+        int count = equipInfoSyncService.syncEquipInfo();
+        return ApiResponse.ok(Map.of("synced", count));
+    }
+
+    /**
+     * 同步铭文基础信息（从 pvp.qq.com 爬取）
+     * POST /api/sync/inscription-info
+     */
+    @PostMapping("/inscription-info")
+    public ApiResponse<Map<String, Object>> syncInscriptionInfo() {
+        int count = equipInfoSyncService.syncInscriptionInfo();
+        return ApiResponse.ok(Map.of("synced", count));
+    }
+
+    /**
+     * 重置指定赛季的分路数据并重新同步（修正英雄映射导致的分路错误）
+     * POST /api/sync/reset-positions?leagueId=20200005
+     */
+    @PostMapping("/reset-positions")
+    public ApiResponse<Map<String, String>> resetPositions(@RequestParam String leagueId) {
+        String result = dataSyncService.resetPositionsAndResync(leagueId);
+        return ApiResponse.ok(Map.of("result", result));
     }
 
     /**

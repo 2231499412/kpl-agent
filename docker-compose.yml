@@ -9,7 +9,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      JAVA_OPTS: "-Xms128m -Xmx200m"
+      JAVA_OPTS: "-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
       SERVER_PORT: 9090
       MYSQL_URL: jdbc:mysql://host.docker.internal:3306/${MYSQL_DATABASE:-kpl_agent}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
       MYSQL_USERNAME: ${MYSQL_USERNAME:-root}

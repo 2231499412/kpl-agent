@@ -24,7 +24,7 @@ public class AgentController {
 
     private final KplAgentService agentService;
     private final ObjectMapper objectMapper;
-    private final ExecutorService sseExecutor = Executors.newCachedThreadPool();
+    private final ExecutorService sseExecutor = Executors.newFixedThreadPool(4);
 
     /**
      * Agent 对话入口（同步）

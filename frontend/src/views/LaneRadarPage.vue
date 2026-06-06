@@ -1,5 +1,5 @@
 <template>
-  <main class="matchup-page">
+  <main class="matchup-page" :class="`theme-${theme}`" @wheel.prevent="onWheel">
     <section class="select-strip">
       <div class="select-left">
         <label>
@@ -19,21 +19,29 @@
         </label>
         <label class="battle-select">
           <span>小局</span>
-          <el-select v-model="selectedBattleId" placeholder="选择小局" :disabled="!battles.length" @change="loadRadar">
+          <el-select v-model="selectedBattleId" placeholder="选择小局" :disabled="!battles.length" @change="onBattleChange">
             <el-option v-for="item in battles" :key="item.battle?.battleId" :label="battleLabel(item)" :value="item.battle?.battleId" />
           </el-select>
         </label>
-        <nav class="role-tabs" aria-label="分路选择">
-          <button v-for="role in roleOptions" :key="role.value" :class="{ active: selectedRole === role.value }" @click="selectedRole = role.value; loadRadar()">
+        <nav ref="roleNavRef" class="role-tabs" aria-label="分路选择">
+          <span class="role-pill" :style="pillStyle"></span>
+          <button v-for="role in roleOptions" :key="role.value" :ref="el => roleBtnRefs[role.value] = el" :class="{ active: selectedRole === role.value }" @click="selectRole(role.value, $event)">
             {{ role.label }}
           </button>
         </nav>
       </div>
 
       <aside class="select-right">
-        <span>当前基准</span>
-        <strong>{{ radarData?.basis?.sampleCount || '-' }} 样本</strong>
-        <em>{{ radarData?.basis?.label || currentLeagueName }}</em>
+        <div class="select-text">
+          <span>当前基准</span>
+          <strong>{{ radarData?.basis?.sampleCount || '-' }} 样本</strong>
+        </div>
+        <button class="theme-toggle" :title="theme === 'light' ? '切换暗色' : '切换亮色'" @click="theme = theme === 'light' ? 'dark' : 'light'">
+          <span class="toggle-track" :class="{ on: theme === 'dark' }">
+            <span class="toggle-thumb" />
+          </span>
+          <span class="toggle-label">{{ theme === 'light' ? 'LIGHT' : 'DARK' }}</span>
+        </button>
       </aside>
     </section>
 
@@ -59,7 +67,6 @@
           <div class="score-center">
             <strong>{{ currentGameTitle }}</strong>
             <span>{{ currentScoreLabel }}</span>
-            <em v-if="radarData.battle?.gameDuration" class="game-duration">{{ gameDurationText(radarData.battle.gameDuration) }}</em>
           </div>
           <div class="win-badge" :class="{ blue: winnerCamp === 1, red: winnerCamp === 2 }">胜</div>
           <div class="team-name right">{{ currentMatch?.camp2TeamName || radarData.red.teamName }}</div>
@@ -67,6 +74,7 @@
         </header>
 
         <div class="poster-subtitle">
+          <em v-if="radarData.battle?.gameDuration" class="game-duration">{{ gameDurationText(radarData.battle.gameDuration) }}</em>
           <b>{{ selectedRole }}对位</b>
         </div>
 
@@ -107,6 +115,8 @@
 
         <footer class="poster-footer">
           <div class="footer-player left">
+            <span v-if="radarData.blue.isMvp" class="mvp-tag">MVP</span>
+            <span v-else-if="radarData.blue.isLoseMvp" class="mvp-tag lose">败方MVP</span>
             <strong>{{ shortPlayer(radarData.blue.playerName) }}</strong>
             <span>{{ radarData.blue.heroName }} · {{ kdaText(radarData.blue) }}</span>
           </div>
@@ -115,6 +125,8 @@
             <span class="red-mark" />败方表现分
           </div>
           <div class="footer-player right">
+            <span v-if="radarData.red.isMvp" class="mvp-tag">MVP</span>
+            <span v-else-if="radarData.red.isLoseMvp" class="mvp-tag lose">败方MVP</span>
             <strong>{{ shortPlayer(radarData.red.playerName) }}</strong>
             <span>{{ radarData.red.heroName }} · {{ kdaText(radarData.red) }}</span>
           </div>
@@ -126,11 +138,16 @@
       </aside>
     </section>
 
+    <Transition name="fade-hint">
+      <div v-if="wheelHintVisible && radarData" class="wheel-hint">鼠标滚轮切换分路</div>
+    </Transition>
+
   </main>
 </template>
 
 <script setup>
 import { computed, defineComponent, h, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { getTheme, setTheme } from '../utils/theme'
 
 const roleOptions = [
   { label: '对抗', value: '对抗路' },
@@ -147,11 +164,51 @@ const selectedMatchId = ref('')
 const selectedBattleId = ref('')
 const selectedRole = ref('对抗路')
 const radarData = ref(null)
+const theme = ref(getTheme())
+watch(theme, (v) => setTheme(v))
 const loading = ref(false)
 const errorText = ref('')
 const hoverMetric = ref(null)
 const arenaRef = ref(null)
+const roleNavRef = ref(null)
+const roleBtnRefs = {}
+const pillStyle = ref({})
 const labelPositions = ref([])
+const wheelHintVisible = ref(true)
+let wheelHintShown = false
+
+let wheelTimer = null
+function onWheel(e) {
+  if (!radarData.value || loading.value) return
+  e.preventDefault()
+  if (wheelTimer) return
+  const idx = roleOptions.findIndex(r => r.value === selectedRole.value)
+  const next = e.deltaY > 0 ? Math.min(idx + 1, roleOptions.length - 1) : Math.max(idx - 1, 0)
+  if (next === idx) return
+  selectedRole.value = roleOptions[next].value
+  loadRadar()
+  nextTick(() => updatePill())
+  wheelTimer = setTimeout(() => { wheelTimer = null }, 600)
+}
+
+function selectRole(value) {
+  selectedRole.value = value
+  loadRadar()
+  nextTick(() => updatePill())
+}
+
+function updatePill() {
+  const nav = roleNavRef.value
+  const btn = roleBtnRefs[selectedRole.value]
+  if (!nav || !btn) return
+  const navRect = nav.getBoundingClientRect()
+  const btnRect = btn.getBoundingClientRect()
+  pillStyle.value = {
+    left: (btnRect.left - navRect.left) + 'px',
+    width: btnRect.width + 'px',
+  }
+}
+
 const showTuner = ref(false)
 const baseOffsetVal = ref(46)
 
@@ -298,6 +355,17 @@ const SideVisual = defineComponent({
             onError: event => { event.target.style.display = 'none' },
           })
         : null,
+      props.side.symbolIds ? h('div', { class: 'symbol-strip' },
+        [...new Set(String(props.side.symbolIds).split(/[+,]/).filter(Boolean))].map(id =>
+          h('img', {
+            key: id,
+            src: `https://game.gtimg.cn/images/yxzj/img201606/mingwen/${id.trim()}.png`,
+            alt: id.trim(),
+            class: 'symbol-icon',
+            onError: event => { event.target.style.display = 'none' },
+          })
+        )
+      ) : null,
       h('div', { class: 'portrait-block' }, [
         h('div', { class: 'player-portrait-wrap' }, [
           props.side.playerIcon
@@ -319,19 +387,6 @@ const SideVisual = defineComponent({
         h('strong', shortPlayer(props.side.playerName)),
         h('span', `${props.side.heroName || '-'} · ${props.side.positionDesc || ''}`),
       ]),
-      props.side.isMvp ? h('div', { class: 'mvp-badge' }, 'MVP') : null,
-      props.side.isLoseMvp ? h('div', { class: 'mvp-badge lose-mvp' }, '败方MVP') : null,
-      props.side.symbolIds ? h('div', { class: 'symbol-strip' },
-        String(props.side.symbolIds).split(',').filter(Boolean).map(id =>
-          h('img', {
-            key: id,
-            src: `https://game.gtimg.cn/images/yxzj/img201606/symbol/${id.trim()}.jpg`,
-            alt: id.trim(),
-            class: 'symbol-icon',
-            onError: event => { event.target.style.display = 'none' },
-          })
-        )
-      ) : null,
     ]
   }
 })
@@ -355,6 +410,7 @@ async function onLeagueChange() {
   selectedMatchId.value = ''
   selectedBattleId.value = ''
   radarData.value = null
+  wheelHintShown = false
   await loadMatches()
 }
 
@@ -373,7 +429,13 @@ async function loadMatches() {
 async function onMatchChange() {
   selectedBattleId.value = ''
   radarData.value = null
+  wheelHintShown = false
   await loadBattles()
+}
+
+function onBattleChange() {
+  wheelHintShown = false
+  loadRadar()
 }
 
 async function loadBattles() {
@@ -503,16 +565,28 @@ function formatAnimatedRaw(metric, animatedValue) {
   return value.toFixed(value >= 10 ? 1 : 2)
 }
 
+
 function tooltipText(metric) {
-  return `${metric.name}\n胜方：${formatRaw(metric.winner)}，${metric.winner.score}分\n败方：${formatRaw(metric.loser)}，${metric.loser.score}分\n${metric.winner.benchmarkLabel}，${metric.winner.sampleCount}样本`
+  return `${metric.name}\n胜方：${formatRaw(metric.winner)}，${metric.winner.score}分\n败方：${formatRaw(metric.loser)}，${metric.loser.score}分\n${metric.winner.sampleCount}样本`
 }
 
-onMounted(() => {
-  init()
+watch(radarData, (v) => {
+  if (v && !wheelHintShown) {
+    wheelHintShown = true
+    wheelHintVisible.value = true
+    setTimeout(() => { wheelHintVisible.value = false }, 3000)
+  }
+})
+
+onMounted(async () => {
+  await init()
+  nextTick(updatePill)
   window.addEventListener('resize', computeLabelPositions)
+  window.addEventListener('resize', updatePill)
 })
 onUnmounted(() => {
   window.removeEventListener('resize', computeLabelPositions)
+  window.removeEventListener('resize', updatePill)
 })
 </script>
 
@@ -550,6 +624,56 @@ onUnmounted(() => {
 .matchup-page,
 .matchup-page * { box-sizing: border-box; }
 
+/* ── dark theme ── */
+.matchup-page.theme-dark {
+  --mono-bg: #0a0a0a;
+  --mono-panel: rgba(18, 18, 18, 0.92);
+  --mono-line: rgba(255, 255, 255, 0.12);
+  --mono-ink: #e8e8e8;
+  --mono-soft: rgba(232, 232, 232, 0.65);
+  --mono-dim: rgba(232, 232, 232, 0.38);
+  --purple: #e8e8e8;
+  --accent-deep: #e8e8e8;
+  --winner: #e8e8e8;
+  --loser: rgba(232, 232, 232, 0.45);
+  --ink: #e8e8e8;
+  color: var(--ink);
+  background: linear-gradient(180deg, #0a0a0a, #141414);
+}
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: 1px solid var(--mono-line);
+  background: var(--mono-panel);
+  cursor: pointer;
+  height: 100%;
+}
+
+.toggle-track {
+  width: 28px;
+  height: 14px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .15);
+  position: relative;
+  transition: background .2s;
+}
+.toggle-track.on { background: rgba(255, 255, 255, .25); }
+
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .2s;
+}
+.toggle-track.on .toggle-thumb { transform: translateX(14px); }
+
 .select-strip {
   position: relative;
   z-index: 5;
@@ -565,7 +689,6 @@ onUnmounted(() => {
 .select-left,
 .select-right,
 .select-strip label,
-.role-tabs,
 .state-card {
   border: 1px solid var(--mono-line);
   background: var(--mono-panel);
@@ -588,28 +711,60 @@ onUnmounted(() => {
   min-width: 0;
 }
 
-.select-center .match-select,
-.select-center .battle-select {
+.select-center .match-select {
   flex: 4 1 0;
   min-width: 0;
 }
 
-.select-center .role-tabs {
+.select-center .battle-select {
   flex: 3 1 0;
   min-width: 0;
 }
 
-.select-center :deep(.el-select) {
-  width: 100%;
+.select-center .role-tabs {
+  flex: 4 1 0;
+  min-width: 0;
+}
+
+.select-strip label :deep(.el-select) {
+  flex: 1;
+  min-width: 0;
 }
 
 .select-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 72px 7px 10px;
+  overflow: hidden;
+  height: 100%;
+}
+
+.select-right .select-text {
   display: grid;
   align-content: center;
   gap: 1px;
-  padding: 7px 10px;
-  overflow: hidden;
-  height: 100%;
+  min-width: 0;
+  flex: 1;
+}
+
+.select-right .theme-toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  border: 0;
+  padding: 0;
+  flex-shrink: 0;
+  margin-top: 18px;
+  margin-left: -6px;
+}
+
+.toggle-label {
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: 2px;
+  color: var(--mono-dim);
 }
 
 .select-right span {
@@ -637,8 +792,9 @@ onUnmounted(() => {
 }
 
 .select-strip label {
-  display: grid;
-  gap: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
   height: 100%;
   padding: 4px 8px;
@@ -647,56 +803,23 @@ onUnmounted(() => {
 
 .select-strip label span {
   color: var(--mono-dim);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 950;
-  letter-spacing: 2px;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 :deep(.el-select__wrapper) {
   min-height: 27px;
   min-width: 0 !important;
-  border-radius: 0 !important;
-  background: rgba(255, 255, 255, 0.7) !important;
-  box-shadow: 0 0 0 1px var(--mono-line) inset !important;
+  background: var(--mono-panel) !important;
+  border: 1px solid var(--mono-line) !important;
+  box-shadow: none !important;
+  color: var(--mono-ink) !important;
 }
-
-:global(.el-select__dropdown),
-:global(.el-popper.is-light),
-:global(.el-popper.is-dark),
-:global(.el-select-dropdown),
-:global(.el-tooltip__popper) {
-  background: #fff !important;
-  border: 1px solid rgba(0, 0, 0, 0.12) !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
-  color: #1a1a1a !important;
-}
-
-:global(.el-select-dropdown__item) {
-  color: #1a1a1a !important;
-  font-weight: 600 !important;
-  background: transparent !important;
-}
-
-:global(.el-select-dropdown__item.hover),
-:global(.el-select-dropdown__item:hover) {
-  background: rgba(0, 0, 0, 0.04) !important;
-  color: #1a1a1a !important;
-}
-
-:global(.el-select-dropdown__item.is-selected) {
-  color: #1a1a1a !important;
-  font-weight: 900 !important;
-  background: rgba(0, 0, 0, 0.06) !important;
-}
-
-:global(.el-select-dropdown__empty) {
-  color: rgba(26, 26, 26, 0.4) !important;
-  background: #fff !important;
-}
-
-:global(.el-select__placeholder),
-:global(.el-select__selected-item) {
-  color: #1a1a2e !important;
+:deep(.el-select__wrapper.is-focused) {
+  border-color: var(--mono-ink) !important;
 }
 
 :deep(.el-select__selected-item),
@@ -711,6 +834,7 @@ onUnmounted(() => {
 }
 
 .role-tabs {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 5px;
@@ -718,24 +842,33 @@ onUnmounted(() => {
   height: 100%;
   align-items: stretch;
 }
+.role-pill {
+  position: absolute;
+  top: 4px;
+  height: calc(100% - 8px);
+  background: #1a1a1a;
+  border-radius: 10px;
+  transition: left .5s cubic-bezier(.34,1.56,.64,1), width .5s cubic-bezier(.34,1.56,.64,1);
+  z-index: 0;
+  pointer-events: none;
+}
 .role-tabs button {
+  position: relative;
+  z-index: 1;
   border: 1px solid var(--mono-line);
   border-radius: 10px;
   color: var(--mono-soft);
-  background: rgba(255, 255, 255, 0.6);
+  background: transparent;
   font-size: 12px;
   font-weight: 900;
   cursor: pointer;
-  transition: background .16s ease, color .16s ease;
+  transition: color .2s ease;
 }
 .role-tabs button:hover {
   color: var(--mono-ink);
-  background: rgba(255, 255, 255, 0.9);
 }
 .role-tabs button.active {
   color: #f8f5ec;
-  background: #1a1a1a;
-  border-color: #1a1a1a;
 }
 
 .state-card {
@@ -769,6 +902,27 @@ onUnmounted(() => {
   margin: 0 auto;
   overflow: hidden;
 }
+
+.wheel-hint {
+  position: fixed;
+  bottom: 64px;
+  left: 52%;
+  transform: translateX(-50%);
+  z-index: 20;
+  padding: 6px 18px;
+  background: rgba(26, 26, 26, 0.85);
+  color: #e8e8e8;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  border-radius: 20px;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+}
+.fade-hint-enter-active { transition: opacity 0.3s ease; }
+.fade-hint-leave-active { transition: opacity 0.8s ease; }
+.fade-hint-enter-from,
+.fade-hint-leave-to { opacity: 0; }
 
 .hero-panel,
 .radar-poster {
@@ -918,41 +1072,17 @@ onUnmounted(() => {
   font-weight: 900;
 }
 
-.mvp-badge {
+.hero-panel :deep(.symbol-strip) {
   position: absolute;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
   z-index: 5;
-  padding: 3px 12px;
-  background: linear-gradient(135deg, #f7d36b, #b9861b);
-  color: #5f4706;
-  font-size: 12px;
-  font-weight: 950;
-  letter-spacing: 2px;
-  border-radius: 999px;
-  box-shadow: 0 4px 12px rgba(185, 134, 27, .3);
-}
-.mvp-badge.lose-mvp {
-  background: linear-gradient(135deg, #c0c0c0, #888);
-  color: #333;
-  font-size: 10px;
-  letter-spacing: 1px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, .15);
-}
-
-.symbol-strip {
-  position: absolute;
-  bottom: 52px;
-  left: 12px;
-  right: 12px;
-  z-index: 4;
+  bottom: 56px;
   display: flex;
-  gap: 3px;
-  justify-content: center;
+  gap: 2px;
   flex-wrap: wrap;
 }
-.symbol-icon {
+.hero-panel.blue :deep(.symbol-strip) { right: 14px; }
+.hero-panel.red :deep(.symbol-strip) { left: 14px; }
+.hero-panel :deep(.symbol-icon) {
   width: 22px;
   height: 22px;
   border-radius: 4px;
@@ -1022,9 +1152,10 @@ onUnmounted(() => {
 .score-line .red-score { color: var(--purple); }
 .poster-subtitle {
   display: flex;
-  justify-content: center;
-  gap: 16px;
-  margin-top: 8px;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: 16px;
   color: var(--mono-soft);
   font-size: 14px;
   font-weight: 900;
@@ -1145,8 +1276,11 @@ onUnmounted(() => {
   gap: 16px;
   margin-top: -8px;
 }
+.footer-player {
+  display: flex;
+  flex-direction: column;
+}
 .footer-player strong {
-  display: block;
   color: var(--mono-ink);
   font-size: 28px;
   font-weight: 950;
@@ -1157,7 +1291,10 @@ onUnmounted(() => {
   font-size: 13px;
   font-weight: 900;
 }
-.footer-player.right { text-align: right; }
+.footer-player.right {
+  text-align: right;
+  align-items: flex-end;
+}
 
 .legend {
   display: flex;
@@ -1174,6 +1311,33 @@ onUnmounted(() => {
 }
 .blue-mark { background: var(--mono-ink); }
 .red-mark { background: rgba(26, 26, 26, .35); }
+
+.mvp-tag {
+  background: linear-gradient(135deg, #f7d36b, #e6a817, #f7d36b);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-size: 14px;
+  font-weight: 950;
+  letter-spacing: 1px;
+  animation: mvp-shimmer 3s ease-in-out infinite;
+}
+.footer-player .mvp-tag { margin-bottom: 2px; }
+.mvp-tag.lose {
+  background: linear-gradient(135deg, #c0c0c0, #a0a0a0, #c0c0c0);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-size: 12px;
+  animation: none;
+}
+@keyframes mvp-shimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
 
 .hero-panel :deep(.matchup-hero-bg) {
   position: absolute;
@@ -1471,11 +1635,6 @@ onUnmounted(() => {
   gap: 8px;
 }
 
-.score-center span,
-.hero-panel :deep(.gold-line strong),
-.hero-panel :deep(.kda-side) {
-  animation: number-roll .62s cubic-bezier(.2, .8, .2, 1) both;
-}
 
 .metric-values,
 .metric-callout > b {
@@ -1537,8 +1696,9 @@ onUnmounted(() => {
   position: absolute;
   z-index: 5;
   bottom: 18px;
+  width: 28px;
+  height: 28px;
 }
-
 .hero-panel.blue :deep(.summoner-corner) { right: 14px; }
 .hero-panel.red :deep(.summoner-corner) { left: 14px; }
 
@@ -1605,12 +1765,6 @@ onUnmounted(() => {
 @keyframes value-pop {
   0% { opacity: 0; transform: translateY(4px) scale(.92); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-@keyframes number-roll {
-  0% { opacity: 0; transform: translateY(110%) scale(.96); filter: blur(4px); }
-  55% { opacity: 1; transform: translateY(-12%) scale(1.02); filter: blur(0); }
-  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
 }
 
 @keyframes spin {
@@ -1781,4 +1935,173 @@ onUnmounted(() => {
   }
 }
 
+/* ── dark theme overrides ── */
+.theme-dark .scoreboard {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, .03), transparent 27%, transparent 73%, rgba(255, 255, 255, .02)),
+    linear-gradient(120deg, rgba(30, 30, 30, .78), rgba(20, 20, 20, .62));
+  border-color: rgba(255, 255, 255, .08);
+  box-shadow: inset 0 0 28px rgba(255, 255, 255, .04), 0 12px 28px rgba(0, 0, 0, .3);
+}
+
+.theme-dark .scoreboard .team-logo {
+  background: rgba(255, 255, 255, .12);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, .3);
+}
+
+.theme-dark .win-badge {
+  border-color: rgba(255, 255, 255, .12);
+  background: rgba(30, 30, 30, .92);
+}
+
+.theme-dark .metric-callout span {
+  background: rgba(255, 255, 255, .12);
+  color: var(--mono-ink);
+}
+
+.theme-dark .metric-callout .metric-label {
+  background: rgba(255, 255, 255, .08);
+}
+
+.theme-dark .poster-footer {
+  border-color: rgba(255, 255, 255, .08);
+}
+
+.theme-dark .legend {
+  color: var(--mono-soft);
+}
+
+.theme-dark .role-tabs button {
+  border-color: rgba(255, 255, 255, .12);
+  color: var(--mono-soft);
+}
+
+.theme-dark .role-tabs button:hover {
+  color: var(--mono-ink);
+}
+
+.theme-dark .role-tabs button.active {
+  color: #0a0a0a;
+}
+
+.theme-dark .role-pill {
+  background: var(--mono-ink);
+}
+
+.theme-dark .hero-panel {
+  background: #0a0a0a;
+}
+
+.theme-dark .radar-poster {
+  background: linear-gradient(180deg, #0a0a0a, #141414);
+}
+
+.theme-dark .radar-poster::before {
+  background: repeating-linear-gradient(90deg, transparent 0 119px, rgba(255, 255, 255, .03) 120px);
+}
+
+.theme-dark .outer-grid {
+  fill: rgba(255, 255, 255, .04);
+  stroke: rgba(255, 255, 255, .15);
+}
+
+.theme-dark .inner-grid {
+  stroke: rgba(255, 255, 255, .08);
+}
+
+.theme-dark .axis-line {
+  stroke: rgba(255, 255, 255, .06);
+}
+
+.theme-dark .metric-values {
+  color: #e8e8e8;
+}
+.theme-dark .metric-values .winner-num,
+.theme-dark .metric-callout .winner-num { color: #e8e8e8; }
+.theme-dark .metric-values .loser-num,
+.theme-dark .metric-callout .loser-num { color: rgba(232, 232, 232, 0.45); }
+
+.theme-dark .score-line { color: #e8e8e8; }
+
+.theme-dark .winner-poly { fill: rgba(232, 232, 232, .15); }
+.theme-dark .loser-poly { fill: rgba(232, 232, 232, .08); }
+.theme-dark .winner-line { stroke: #e8e8e8; }
+.theme-dark .loser-line { stroke: rgba(232, 232, 232, .45); }
+
+.theme-dark :deep(.el-select__wrapper) {
+  background: rgba(255, 255, 255, .06) !important;
+  border-color: rgba(255, 255, 255, .12) !important;
+  box-shadow: none !important;
+}
+.theme-dark :deep(.el-select__wrapper.is-focused) {
+  border-color: var(--mono-ink) !important;
+}
+
+.theme-dark :deep(.el-select__selected-item),
+.theme-dark :deep(.el-select__placeholder),
+.theme-dark :deep(.el-select__input) {
+  color: rgba(232, 232, 232, .88) !important;
+}
+
+.theme-dark :deep(.el-select__placeholder.is-transparent) {
+  color: rgba(232, 232, 232, .48) !important;
+}
+
+.theme-dark .spinner {
+  border-color: rgba(255, 255, 255, .1);
+  border-top-color: var(--mono-ink);
+}
+
+</style>
+
+<style>
+/* 下拉面板全局样式（Teleport 到 body，scoped 覆盖不到） */
+.el-select__popper {
+  border: 1px solid rgba(0, 0, 0, 0.3) !important;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.08) !important;
+  background: #fff !important;
+}
+.el-select-dropdown__list { padding: 4px 0 !important; }
+.el-select-dropdown__item {
+  padding: 8px 16px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #1a1a1a !important;
+  transition: background 0.1s, padding-left 0.15s;
+}
+.el-select-dropdown__item.is-hovering {
+  background: rgba(0, 0, 0, 0.04) !important;
+  padding-left: 20px !important;
+}
+.el-select-dropdown__item.is-selected {
+  font-weight: 800 !important;
+  color: #1a1a1a !important;
+  position: relative;
+}
+.el-select-dropdown__item.is-selected::after {
+  content: '';
+  position: absolute;
+  left: 6px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 14px;
+  background: #1a1a1a;
+}
+
+/* 暗色主题下拉 */
+.theme-dark .el-select__popper {
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  background: #1a1a1a !important;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3) !important;
+}
+.theme-dark .el-select-dropdown__item {
+  color: #e8e8e8 !important;
+}
+.theme-dark .el-select-dropdown__item.is-hovering {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+.theme-dark .el-select-dropdown__item.is-selected {
+  color: #e8e8e8 !important;
+}
+.theme-dark .el-select-dropdown__item.is-selected::after {
+  background: #e8e8e8;
+}
 </style>

@@ -10,10 +10,15 @@
   </router-view>
 
   <!-- 全局背景音乐 -->
-  <div class="bgm-control" :class="{ playing: isPlaying, 'bgm-top': route.path === '/lane-radar' }" @click="toggleBgm" :title="isPlaying ? '暂停音乐' : '播放音乐'">
+  <div class="bgm-control" :class="{ playing: isPlaying, dark: isDark, 'bgm-top': route.path === '/lane-radar', 'bgm-agent': route.path === '/agent' }" @click="toggleBgm" :title="isPlaying ? '暂停音乐' : '播放音乐'">
     <span class="bgm-bars"><i /><i /><i /><i /></span>
   </div>
   <audio ref="bgmAudio" src="/bgm.mp3" loop preload="auto"></audio>
+
+  <!-- 回到顶部 -->
+  <div v-if="route.path !== '/lane-radar'" class="back-to-top" :class="{ dark: isDark, 'back-top-agent': route.path === '/agent' }" @click="scrollToTop" title="回到顶部">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
+  </div>
 </template>
 
 <script setup>
@@ -26,6 +31,18 @@ const route = useRoute()
 
 const bgmAudio = ref(null)
 const isPlaying = ref(false)
+const showBackToTop = ref(false)
+const isDark = ref(false)
+
+function checkScroll() {
+  const sy = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0
+  showBackToTop.value = sy > 300
+}
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+  document.documentElement.scrollTo({ top: 0, behavior: 'smooth' })
+}
 
 function toggleBgm() {
   if (!bgmAudio.value) return
@@ -37,11 +54,20 @@ function toggleBgm() {
   }
 }
 
+function detectTheme() {
+  const main = document.querySelector('.theme-dark')
+  isDark.value = !!main
+}
+
 onMounted(() => {
-  // 尝试自动播放，大部分浏览器会拦截
   if (bgmAudio.value) {
     bgmAudio.value.play().then(() => { isPlaying.value = true }).catch(() => {})
   }
+  document.addEventListener('scroll', checkScroll, { passive: true })
+  setInterval(checkScroll, 500)
+  detectTheme()
+  const observer = new MutationObserver(detectTheme)
+  observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] })
 })
 
 function onPageEnter(el) {
@@ -96,32 +122,34 @@ function onPageEnter(el) {
   height: 40px;
   display: grid;
   place-items: center;
-  background: rgba(26, 26, 26, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 50%;
   cursor: pointer;
-  transition: background 0.2s, transform 0.2s;
-  backdrop-filter: blur(8px);
+  transition: background 0.2s;
+}
+.bgm-control.dark {
+  background: #e8e8e8;
+  border-color: rgba(0, 0, 0, 0.12);
+}
+.bgm-control.dark .bgm-bars i {
+  background: #1a1a1a;
 }
 .bgm-control:hover {
-  background: rgba(26, 26, 26, 0.9);
-  transform: scale(1.1);
+  background: rgba(255, 255, 255, 0.06);
 }
+.bgm-control.dark:hover {
+  background: rgba(232, 232, 232, 0.85);
+}
+
 .bgm-control.bgm-top {
   top: 26px;
   bottom: auto;
   right: calc((100% - 1640px) / 2 + 18px);
-  background: #1a1a1a;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.2);
 }
-.bgm-control.bgm-top:hover {
-  background: rgba(255, 255, 255, 0.06);
-  transform: none;
-}
-.bgm-control.bgm-top .bgm-bars i,
-.bgm-control.bgm-top.playing .bgm-bars i {
-  background: #e8e8e8;
+
+.bgm-control.bgm-agent {
+  bottom: 80px;
 }
 
 .bgm-bars {
@@ -133,9 +161,8 @@ function onPageEnter(el) {
 .bgm-bars i {
   display: block;
   width: 3px;
-  background: rgba(255, 255, 255, 0.5);
+  background: #e8e8e8;
   border-radius: 1px;
-  transition: background 0.2s;
 }
 .bgm-bars i:nth-child(1) { height: 6px; }
 .bgm-bars i:nth-child(2) { height: 12px; }
@@ -143,7 +170,6 @@ function onPageEnter(el) {
 .bgm-bars i:nth-child(4) { height: 14px; }
 
 .bgm-control.playing .bgm-bars i {
-  background: #39d8c2;
   animation: bgm-bounce 0.8s ease-in-out infinite alternate;
 }
 .bgm-control.playing .bgm-bars i:nth-child(1) { animation-delay: 0s; }
@@ -163,5 +189,53 @@ function onPageEnter(el) {
     width: 34px;
     height: 34px;
   }
+  .back-to-top {
+    right: 56px !important;
+    bottom: calc(78px + env(safe-area-inset-bottom)) !important;
+    width: 34px !important;
+    height: 34px !important;
+  }
 }
+
+/* 回到顶部 */
+.back-to-top {
+  position: fixed;
+  bottom: 24px;
+  right: 72px;
+  z-index: 9999;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  color: #e8e8e8;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+.back-to-top.dark {
+  background: #e8e8e8;
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #1a1a1a;
+}
+.back-to-top:hover {
+  background: rgba(26, 26, 26, 0.8);
+  transform: translateY(-2px);
+}
+.back-to-top.dark:hover {
+  background: rgba(232, 232, 232, 0.85);
+}
+.back-to-top:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-2px);
+}
+.back-to-top.back-top-agent {
+  bottom: 80px;
+}
+
+.back-top-fade-enter-active { transition: opacity 0.25s ease, transform 0.25s ease; }
+.back-top-fade-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.back-top-fade-enter-from,
+.back-top-fade-leave-to { opacity: 0; transform: translateY(8px); }
 </style>

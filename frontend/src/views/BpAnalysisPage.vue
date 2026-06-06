@@ -168,7 +168,6 @@ const sortOptions = [
   { label: 'Pick 率', value: 'pick' },
   { label: 'Ban 率', value: 'ban' },
   { label: '胜率', value: 'win' },
-  { label: '出场', value: 'count' },
 ]
 
 function pct(v) {
@@ -192,7 +191,7 @@ const sortedList = computed(() => {
     if (key === 'pick') return (b.pickRate || 0) - (a.pickRate || 0)
     if (key === 'ban') return (b.banRate || 0) - (a.banRate || 0)
     if (key === 'win') return (b.winRate || 0) - (a.winRate || 0)
-    return (b.battleCount || 0) - (a.battleCount || 0)
+    return 0
   })
 })
 

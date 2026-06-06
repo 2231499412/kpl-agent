@@ -15,6 +15,9 @@ import java.time.LocalDateTime;
 import java.time.Year;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 数据同步服务：从 KPL 官方 API 拉取数据并存入 MySQL
@@ -258,8 +261,20 @@ public class DataSyncService {
             bp.setBeHurtByHeroTotal(p.path("be_hurt_by_hero_total").asLong(0));
             bp.setHurtToHeroTotalRate(p.path("hurt_to_hero_total_rate").asDouble(0));
             bp.setBeHurtByHeroTotalRate(p.path("be_hurt_by_hero_total_rate").asDouble(0));
-            bp.setPosition(p.path("position").asInt(0));
-            bp.setPositionDesc(p.path("position_desc").asText(""));
+            int pos = p.path("position").asInt(0);
+            String posDesc = p.path("position_desc").asText("");
+            int heroId = bp.getHeroId();
+            // 仅当 API 未返回 position 时，才用英雄映射兜底
+            if (pos == 0) {
+                Integer heroPos = HERO_POSITION.get(heroId);
+                if (heroPos != null) {
+                    pos = heroPos;
+                } else if (!posDesc.isEmpty()) {
+                    pos = inferPosition(posDesc);
+                }
+            }
+            bp.setPosition(pos);
+            bp.setPositionDesc(posDesc);
             bp.setIsLoseMvp(p.path("is_lose_mvp").asInt(0));
             bp.setSymbolIds(p.path("symbol_ids").asText(""));
             battlePlayerMapper.insert(bp);
@@ -267,7 +282,8 @@ public class DataSyncService {
             // 解析装备数据
             JsonNode equipList = p.path("BriefEquipList");
             if (equipList.isArray()) {
-                for (JsonNode e : equipList) {
+                for (int i = 0; i < equipList.size(); i++) {
+                    JsonNode e = equipList.get(i);
                     BattlePlayerEquip equip = new BattlePlayerEquip();
                     equip.setBattleId(battleId);
                     equip.setLeagueId(leagueId);
@@ -278,13 +294,171 @@ public class DataSyncService {
                     equip.setEquipIcon(e.path("equip_icon").asText(""));
                     equip.setEquipDescGain(e.path("equip_desc_gain").asText(""));
                     equip.setEquipDescFunction(e.path("equip_desc_function").asText(""));
+                    equip.setEquipOrder(i + 1);
                     battlePlayerEquipMapper.insert(equip);
                 }
             }
             count++;
         }
+        // 阵营内 position 去重修正：当同一阵营有多个选手被标记为同一 position 时，用英雄映射修正
+        fixDuplicatePositions(battleId);
+
         log.info("同步对局详情完成: battleId={}, 选手数 {}", battleId, count);
         return count;
+    }
+
+    /** 英雄→分路映射（heroId → position），用于修正 API 错误数据 */
+    private static final Map<Integer, Integer> HERO_POSITION = Map.ofEntries(
+            Map.entry(140,6),Map.entry(126,6),Map.entry(123,6),Map.entry(128,6),Map.entry(154,6),Map.entry(503,6),Map.entry(518,6),Map.entry(527,6),Map.entry(120,6),Map.entry(511,6),Map.entry(536,6),Map.entry(537,6),Map.entry(507,6),Map.entry(121,6),Map.entry(149,6),Map.entry(180,6),Map.entry(510,6),Map.entry(514,6),Map.entry(564,6),Map.entry(563,6),Map.entry(139,6),Map.entry(144,6),Map.entry(134,6),Map.entry(117,6),Map.entry(178,6),Map.entry(135,6),Map.entry(166,6),Map.entry(172,6),Map.entry(581,6),
+            Map.entry(107,5),Map.entry(150,5),Map.entry(146,5),Map.entry(531,5),Map.entry(528,5),Map.entry(538,5),Map.entry(153,5),Map.entry(131,5),Map.entry(116,5),Map.entry(502,5),Map.entry(195,5),Map.entry(163,5),Map.entry(162,5),Map.entry(522,5),Map.entry(529,5),Map.entry(170,5),Map.entry(183,5),Map.entry(130,5),Map.entry(193,5),Map.entry(198,5),Map.entry(137,5),Map.entry(542,5),Map.entry(517,5),Map.entry(506,5),Map.entry(167,5),Map.entry(129,5),Map.entry(544,5),Map.entry(533,5),Map.entry(125,5),Map.entry(558,5),Map.entry(583,5),
+            Map.entry(190,2),Map.entry(182,2),Map.entry(141,2),Map.entry(523,2),Map.entry(152,2),Map.entry(156,2),Map.entry(110,2),Map.entry(106,2),Map.entry(127,2),Map.entry(142,2),Map.entry(109,2),Map.entry(115,2),Map.entry(176,2),Map.entry(179,2),Map.entry(312,2),Map.entry(513,2),Map.entry(521,2),Map.entry(540,2),Map.entry(148,2),Map.entry(124,2),Map.entry(157,2),Map.entry(119,2),Map.entry(136,2),Map.entry(197,2),Map.entry(504,2),Map.entry(515,2),Map.entry(108,2),Map.entry(582,2),
+            Map.entry(199,7),Map.entry(132,7),Map.entry(508,7),Map.entry(169,7),Map.entry(112,7),Map.entry(192,7),Map.entry(111,7),Map.entry(173,7),Map.entry(133,7),Map.entry(174,7),Map.entry(196,7),Map.entry(155,7),Map.entry(548,7),Map.entry(545,7),Map.entry(524,7),Map.entry(519,7),Map.entry(177,7),Map.entry(151,7),Map.entry(584,7),
+            Map.entry(171,4),Map.entry(168,4),Map.entry(189,4),Map.entry(186,4),Map.entry(505,4),Map.entry(184,4),Map.entry(191,4),Map.entry(114,4),Map.entry(113,4),Map.entry(105,4),Map.entry(194,4),Map.entry(509,4),Map.entry(525,4),Map.entry(118,4),Map.entry(501,4),Map.entry(187,4),Map.entry(175,4),Map.entry(534,4),Map.entry(577,4),Map.entry(159,4),Map.entry(188,4),Map.entry(585,4)
+    );
+
+    /**
+     * 阵营内 position 去重修正：
+     * 策略1：当同一阵营有多个选手被标记为同一 position 时，用 HERO_POSITION 映射修正。
+     * 策略2：当某个 position 缺失时，从重复 position 中找 HERO_POSITION 指向缺失 position 的选手，强制修正。
+     */
+    private void fixDuplicatePositions(String battleId) {
+        List<BattlePlayer> players = battlePlayerMapper.selectList(
+                new LambdaQueryWrapper<BattlePlayer>().eq(BattlePlayer::getBattleId, battleId));
+        if (players == null || players.size() < 5) return;
+
+        Set<Integer> allPositions = Set.of(2, 4, 5, 6, 7);
+
+        Map<Integer, List<BattlePlayer>> byCamp = players.stream()
+                .filter(p -> p.getCamp() != null)
+                .collect(Collectors.groupingBy(BattlePlayer::getCamp));
+
+        for (Map.Entry<Integer, List<BattlePlayer>> entry : byCamp.entrySet()) {
+            List<BattlePlayer> campPlayers = entry.getValue();
+
+            for (int round = 0; round < 5; round++) {
+                Set<Integer> occupied = campPlayers.stream()
+                        .map(BattlePlayer::getPosition)
+                        .filter(p -> p != null && p > 0)
+                        .collect(Collectors.toSet());
+                Set<Integer> missing = new java.util.HashSet<>(allPositions);
+                missing.removeAll(occupied);
+
+                Map<Integer, Long> posCount = campPlayers.stream()
+                        .filter(p -> p.getPosition() != null && p.getPosition() > 0)
+                        .collect(Collectors.groupingBy(BattlePlayer::getPosition, Collectors.counting()));
+
+                boolean fixed = false;
+
+                // 策略1：修正重复 position（HERO_POSITION 不同于当前位置）
+                for (Map.Entry<Integer, Long> pc : posCount.entrySet()) {
+                    if (pc.getValue() <= 1) continue;
+                    int dupPos = pc.getKey();
+                    List<BattlePlayer> dupPlayers = campPlayers.stream()
+                            .filter(p -> Integer.valueOf(dupPos).equals(p.getPosition()))
+                            .toList();
+
+                    for (BattlePlayer bp : dupPlayers) {
+                        Integer heroPos = HERO_POSITION.get(bp.getHeroId());
+                        if (heroPos != null && heroPos != dupPos && !occupied.contains(heroPos)) {
+                            bp.setPosition(heroPos);
+                            battlePlayerMapper.updateById(bp);
+                            log.info("修正分路(去重): battleId={} {} heroId={} {} -> {}",
+                                    battleId, bp.getPlayerName(), bp.getHeroId(), dupPos, heroPos);
+                            fixed = true;
+                            break;
+                        }
+                    }
+                    if (fixed) break;
+                }
+
+                // 策略2：缺失 position 从重复 position 中补位
+                if (!fixed && !missing.isEmpty()) {
+                    for (int missPos : missing) {
+                        for (Map.Entry<Integer, Long> pc : posCount.entrySet()) {
+                            if (pc.getValue() <= 1) continue;
+                            int dupPos = pc.getKey();
+                            List<BattlePlayer> dupPlayers = campPlayers.stream()
+                                    .filter(p -> Integer.valueOf(dupPos).equals(p.getPosition()))
+                                    .toList();
+                            for (BattlePlayer bp : dupPlayers) {
+                                Integer heroPos = HERO_POSITION.get(bp.getHeroId());
+                                if (heroPos != null && heroPos == missPos) {
+                                    bp.setPosition(missPos);
+                                    battlePlayerMapper.updateById(bp);
+                                    log.info("修正分路(补位): battleId={} {} heroId={} {} -> {}",
+                                            battleId, bp.getPlayerName(), bp.getHeroId(), dupPos, missPos);
+                                    fixed = true;
+                                    break;
+                                }
+                            }
+                            if (fixed) break;
+                        }
+                        if (fixed) break;
+                    }
+                }
+
+                // 策略3：用 positionDesc 解决重复分路（API 返回 position 与 positionDesc 矛盾的情况）
+                if (!fixed && !missing.isEmpty()) {
+                    for (Map.Entry<Integer, Long> pc : posCount.entrySet()) {
+                        if (pc.getValue() <= 1) continue;
+                        int dupPos = pc.getKey();
+                        List<BattlePlayer> dupPlayers = campPlayers.stream()
+                                .filter(p -> Integer.valueOf(dupPos).equals(p.getPosition()))
+                                .toList();
+                        for (BattlePlayer bp : dupPlayers) {
+                            String desc = bp.getPositionDesc();
+                            if (desc != null && !desc.isEmpty()) {
+                                int descPos = inferPosition(desc);
+                                if (descPos > 0 && descPos != dupPos && missing.contains(descPos)) {
+                                    bp.setPosition(descPos);
+                                    battlePlayerMapper.updateById(bp);
+                                    log.info("修正分路(positionDesc): battleId={} {} heroId={} {} -> {} (desc={})",
+                                            battleId, bp.getPlayerName(), bp.getHeroId(), dupPos, descPos, desc);
+                                    fixed = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (fixed) break;
+                    }
+                }
+
+                // 策略4：强制补位——将重复分路的多余选手分配到缺失分路（最后手段）
+                if (!fixed && !missing.isEmpty()) {
+                    int missPos = missing.iterator().next();
+                    for (Map.Entry<Integer, Long> pc : posCount.entrySet()) {
+                        if (pc.getValue() <= 1) continue;
+                        int dupPos = pc.getKey();
+                        // 取第二个重复选手（保留第一个不动）
+                        List<BattlePlayer> dupPlayers = campPlayers.stream()
+                                .filter(p -> Integer.valueOf(dupPos).equals(p.getPosition()))
+                                .toList();
+                        if (dupPlayers.size() >= 2) {
+                            BattlePlayer bp = dupPlayers.get(1);
+                            bp.setPosition(missPos);
+                            battlePlayerMapper.updateById(bp);
+                            log.info("修正分路(强制补位): battleId={} {} heroId={} {} -> {}",
+                                    battleId, bp.getPlayerName(), bp.getHeroId(), dupPos, missPos);
+                            fixed = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!fixed) break;
+            }
+        }
+    }
+
+    /** 根据 positionDesc 推断分路编号（兜底，处理 API 返回 position=0 的情况） */
+    private int inferPosition(String desc) {
+        if (desc == null || desc.isEmpty()) return 0;
+        if (desc.contains("对抗")) return 5;
+        if (desc.contains("打野")) return 7;
+        if (desc.contains("中路") || desc.contains("中单")) return 2;
+        if (desc.contains("发育") || desc.contains("射手")) return 4;
+        if (desc.contains("游走") || desc.contains("辅助")) return 6;
+        return 0;
     }
 
     // ==================== 统计榜同步 ====================
@@ -529,6 +703,61 @@ public class DataSyncService {
     }
 
     /**
+     * 重置指定赛季所有 battle_player 的 position 为 0，然后深度重新同步。
+     * 用于修正之前英雄映射逻辑导致的分路数据错误。
+     */
+    public String resetPositionsAndResync(String leagueId) {
+        SyncJob job = startJob("RESET_POSITIONS", leagueId, true);
+        try {
+            // 1. 先同步赛事列表确保存在
+            doSyncLeagues();
+
+            // 2. 查找该赛季所有 battleId
+            List<Match> matches = matchMapper.selectList(
+                    new LambdaQueryWrapper<Match>().eq(Match::getLeagueId, leagueId));
+            if (matches.isEmpty()) {
+                String result = "未找到该赛季的比赛";
+                finishJob(job, "SUCCESS", result, null);
+                return result;
+            }
+
+            List<String> matchIds = matches.stream().map(Match::getMatchId).toList();
+            List<Battle> battles = battleMapper.selectList(
+                    new LambdaQueryWrapper<Battle>().in(Battle::getMatchId, matchIds));
+            List<String> battleIds = battles.stream().map(Battle::getBattleId).toList();
+
+            // 3. 重置所有 battle_player 的 position 为 0
+            int resetCount = 0;
+            for (String battleId : battleIds) {
+                BattlePlayer update = new BattlePlayer();
+                update.setPosition(0);
+                int affected = battlePlayerMapper.update(update,
+                        new LambdaQueryWrapper<BattlePlayer>()
+                                .eq(BattlePlayer::getBattleId, battleId)
+                                .ne(BattlePlayer::getPosition, 0));
+                resetCount += affected;
+            }
+            log.info("重置 position 完成: 共 {} 条记录", resetCount);
+
+            // 4. 深度重新同步所有对局详情
+            int detailCount = 0;
+            for (Battle b : battles) {
+                detailCount += syncBattleDetail(b.getBattleId(), leagueId);
+            }
+
+            // 5. 清除缓存
+            queryCacheService.evictByPattern("kpl:" + leagueId + ":*");
+
+            String result = String.format("重置分路数据并重新同步完成: 重置%d条, 重新同步%d个对局", resetCount, detailCount);
+            finishJob(job, "SUCCESS", result, null);
+            return result;
+        } catch (Exception e) {
+            finishJob(job, "FAILED", null, e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
      * 深度增量同步：只为已结束且缺少选手详情的比赛补齐 battle / battle_player 数据。
      * @param matchLimit 每次最多扫描的比赛数
      * @param leagueIdOverride 指定赛事ID，为空则同步最新赛季
@@ -574,14 +803,20 @@ public class DataSyncService {
                                 .eq(Battle::getMatchId, match.getMatchId())
                                 .orderByAsc(Battle::getBattleSeq));
                 for (Battle battle : battles) {
-                    // 检查是否有装备数据，没有则重新同步
-                    Long equipRows = battlePlayerEquipMapper.selectCount(
+                    // 检查是否有装备顺序数据和有效分路数据，没有则重新同步
+                    Long orderedEquipRows = battlePlayerEquipMapper.selectCount(
                             new LambdaQueryWrapper<BattlePlayerEquip>()
-                                    .eq(BattlePlayerEquip::getBattleId, battle.getBattleId()));
+                                    .eq(BattlePlayerEquip::getBattleId, battle.getBattleId())
+                                    .gt(BattlePlayerEquip::getEquipOrder, 0));
                     Long playerRows = battlePlayerMapper.selectCount(
                             new LambdaQueryWrapper<BattlePlayer>()
                                     .eq(BattlePlayer::getBattleId, battle.getBattleId()));
-                    if (playerRows != null && playerRows > 0 && equipRows != null && equipRows > 0) {
+                    Long zeroPosRows = battlePlayerMapper.selectCount(
+                            new LambdaQueryWrapper<BattlePlayer>()
+                                    .eq(BattlePlayer::getBattleId, battle.getBattleId())
+                                    .eq(BattlePlayer::getPosition, 0));
+                    boolean hasZeroPos = zeroPosRows != null && zeroPosRows > 0;
+                    if (playerRows != null && playerRows > 0 && orderedEquipRows != null && orderedEquipRows > 0 && !hasZeroPos) {
                         skipped++;
                         continue;
                     }
@@ -707,6 +942,7 @@ public class DataSyncService {
             case "LATEST_DEEP_INCREMENTAL" -> syncLatestDeepIncremental(parseLimitFromTarget(job.getTarget(), 10), null);
             case "ALL" -> syncAll();
             case "BY_YEAR" -> syncByYear(parseYearFromTarget(job.getTarget()));
+            case "RESET_POSITIONS" -> resetPositionsAndResync(job.getTarget());
             default -> throw new IllegalArgumentException("不支持重试的任务类型: " + job.getJobType());
         };
     }

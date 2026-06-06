@@ -5,6 +5,17 @@ const apiTarget = process.env.VITE_API_TARGET || 'http://localhost:9090'
 
 export default defineConfig({
   plugins: [vue()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-vue': ['vue', 'vue-router'],
+          'vendor-echarts': ['echarts'],
+          'vendor-md': ['markdown-it', 'highlight.js'],
+        }
+      }
+    }
+  },
   server: {
     port: 15173,
     proxy: {

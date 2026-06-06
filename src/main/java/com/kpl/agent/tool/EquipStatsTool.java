@@ -2,9 +2,11 @@ package com.kpl.agent.tool;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.kpl.agent.entity.BattlePlayerEquip;
+import com.kpl.agent.entity.EquipBaseInfo;
 import com.kpl.agent.entity.HeroStats;
 import com.kpl.agent.entity.Match;
 import com.kpl.agent.mapper.BattlePlayerEquipMapper;
+import com.kpl.agent.mapper.EquipBaseInfoMapper;
 import com.kpl.agent.mapper.HeroStatsMapper;
 import com.kpl.agent.mapper.MatchMapper;
 import com.kpl.agent.service.QueryCacheService;
@@ -25,6 +27,7 @@ import java.util.stream.Collectors;
 public class EquipStatsTool {
 
     private final BattlePlayerEquipMapper battlePlayerEquipMapper;
+    private final EquipBaseInfoMapper equipBaseInfoMapper;
     private final HeroStatsMapper heroStatsMapper;
     private final MatchMapper matchMapper;
     private final QueryCacheService queryCacheService;
@@ -140,7 +143,7 @@ public class EquipStatsTool {
             }
             qw.last("LIMIT 2000");
             List<BattlePlayerEquip> equips = battlePlayerEquipMapper.selectList(qw);
-            return buildEquipResult("hero_equip", "hero_" + heroId, equips, limit, leagueId);
+            return buildEquipResult("hero_equip", "hero_" + heroId, equips, limit, leagueId, heroId, null);
         });
     }
 
@@ -155,11 +158,15 @@ public class EquipStatsTool {
             }
             qw.last("LIMIT 2000");
             List<BattlePlayerEquip> equips = battlePlayerEquipMapper.selectList(qw);
-            return buildEquipResult("player_equip", playerName, equips, limit, leagueId);
+            return buildEquipResult("player_equip", playerName, equips, limit, leagueId, null, playerName);
         });
     }
 
     private Map<String, Object> buildEquipResult(String type, String keyword, List<BattlePlayerEquip> equips, int topN, String leagueId) {
+        return buildEquipResult(type, keyword, equips, topN, leagueId, null, null);
+    }
+
+    private Map<String, Object> buildEquipResult(String type, String keyword, List<BattlePlayerEquip> equips, int topN, String leagueId, Integer heroId, String playerName) {
         Map<Integer, EquipInfo> countMap = new LinkedHashMap<>();
         for (BattlePlayerEquip e : equips) {
             EquipInfo info = countMap.computeIfAbsent(e.getEquipId(), id -> new EquipInfo(id, e.getEquipName(), e.getEquipIcon()));
@@ -199,6 +206,75 @@ public class EquipStatsTool {
                 })
                 .collect(Collectors.toList());
 
+        // 批量查询分路分布和平均出装顺序
+        Set<Integer> topEquipIds = data.stream()
+                .map(r -> (Integer) r.get("equipId"))
+                .collect(Collectors.toSet());
+
+        if (!topEquipIds.isEmpty()) {
+            // 分路分布：按 equipId 分组（用 position 数字映射中文名，避免数据库编码问题）
+            Map<Integer, String> posNameMap = Map.of(2, "中路", 4, "发育路", 5, "对抗路", 6, "游走", 7, "打野");
+            Map<Integer, List<Map<String, Object>>> posMap = new HashMap<>();
+            try {
+                List<Map<String, Object>> posRows = battlePlayerEquipMapper.countByPositionBatch(topEquipIds, leagueId, heroId, playerName);
+                for (Map<String, Object> pr : posRows) {
+                    int eid = ((Number) pr.get("equipId")).intValue();
+                    // 合并同名分路（如 1 和 6 都是"对抗路"）
+                    String posName = posNameMap.getOrDefault(((Number) pr.get("positionNum")).intValue(), "其他");
+                    pr.put("positionDesc", posName);
+                    posMap.computeIfAbsent(eid, k -> new ArrayList<>()).add(pr);
+                }
+                // 合并同名分路的计数
+                for (Map.Entry<Integer, List<Map<String, Object>>> entry : posMap.entrySet()) {
+                    Map<String, Map<String, Object>> merged = new LinkedHashMap<>();
+                    for (Map<String, Object> pr : entry.getValue()) {
+                        String name = (String) pr.get("positionDesc");
+                        Map<String, Object> existing = merged.get(name);
+                        if (existing != null) {
+                            existing.put("cnt", ((Number) existing.get("cnt")).intValue() + ((Number) pr.get("cnt")).intValue());
+                        } else {
+                            merged.put(name, pr);
+                        }
+                    }
+                    entry.setValue(new ArrayList<>(merged.values()));
+                    entry.getValue().sort((a, b) -> Integer.compare(((Number) b.get("cnt")).intValue(), ((Number) a.get("cnt")).intValue()));
+                }
+            } catch (Exception ignored) {}
+
+            // 平均出装顺序
+            Map<Integer, Double> avgOrderMap = new HashMap<>();
+            try {
+                List<Map<String, Object>> avgRows = battlePlayerEquipMapper.avgOrderByEquipIds(topEquipIds, leagueId);
+                for (Map<String, Object> ar : avgRows) {
+                    int eid = ((Number) ar.get("equipId")).intValue();
+                    double avg = ((Number) ar.get("avgOrder")).doubleValue();
+                    avgOrderMap.put(eid, avg);
+                }
+            } catch (Exception ignored) {}
+
+            // 装备价格
+            Map<Integer, EquipBaseInfo> priceMap = new HashMap<>();
+            try {
+                List<EquipBaseInfo> infos = equipBaseInfoMapper.selectList(
+                        new LambdaQueryWrapper<EquipBaseInfo>().in(EquipBaseInfo::getItemId, topEquipIds));
+                for (EquipBaseInfo info : infos) {
+                    priceMap.put(info.getItemId(), info);
+                }
+            } catch (Exception ignored) {}
+
+            for (Map<String, Object> row : data) {
+                int eid = (Integer) row.get("equipId");
+                row.put("positions", posMap.getOrDefault(eid, List.of()));
+                Double avgOrder = avgOrderMap.get(eid);
+                row.put("avgOrder", avgOrder != null ? avgOrder : null);
+                EquipBaseInfo priceInfo = priceMap.get(eid);
+                if (priceInfo != null) {
+                    row.put("totalPrice", priceInfo.getTotalPrice());
+                    row.put("price", priceInfo.getPrice());
+                }
+            }
+        }
+
         Map<String, Object> result = new HashMap<>();
         result.put("type", type);
         result.put("keyword", keyword);
@@ -226,6 +302,21 @@ public class EquipStatsTool {
                 result.put("equipDescGain", sample.getEquipDescGain());
                 result.put("equipDescFunction", sample.getEquipDescFunction());
             }
+
+            // 价格信息 + 被动效果
+            try {
+                EquipBaseInfo priceInfo = equipBaseInfoMapper.selectOne(
+                        new LambdaQueryWrapper<EquipBaseInfo>()
+                                .eq(EquipBaseInfo::getItemId, equipId)
+                                .last("LIMIT 1"));
+                if (priceInfo != null) {
+                    result.put("totalPrice", priceInfo.getTotalPrice());
+                    result.put("price", priceInfo.getPrice());
+                    if (priceInfo.getDes2() != null && !priceInfo.getDes2().isEmpty()) {
+                        result.put("equipPassive", priceInfo.getDes2());
+                    }
+                }
+            } catch (Exception ignored) {}
 
             // 总览
             Map<String, Object> summary = battlePlayerEquipMapper.equipSummary(equipId, leagueId);

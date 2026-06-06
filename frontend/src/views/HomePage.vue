@@ -74,9 +74,9 @@
           </div>
 
           <div v-if="panel.key === 'agent'" class="agent-console">
-            <div class="console-line">读取近期赛程、阵容和英雄热度...</div>
-            <div class="console-line accent">生成 BP 风险、节奏点和复盘摘要</div>
-            <router-link class="primary-link compact" to="/agent">开始分析</router-link>
+            <div class="console-line">加载英雄数据、Ban/Pick 规则...</div>
+            <div class="console-line accent">模拟双方 BP 博弈，生成推荐阵容</div>
+            <router-link class="primary-link compact" to="/bp-simulator">开始模拟</router-link>
           </div>
         </div>
       </article>
@@ -102,7 +102,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Box, Calendar, ChatDotRound, DataAnalysis, Trophy } from '@element-plus/icons-vue'
+import { Box, Calendar, DataAnalysis, Operation, Trophy } from '@element-plus/icons-vue'
 import homeBg from '../assets/home-bg.webp'
 
 const activeIndex = ref(0)
@@ -130,7 +130,7 @@ const panels = [
     nav: '首页',
     kicker: 'TACTICAL DATA TERMINAL',
     title: 'KPL 数据中枢',
-    copy: '把赛程、阵容、英雄、装备和 AI 复盘压进同一块战术面板。滚动一次，切换一个功能。',
+    copy: '把赛程、阵容、英雄、装备和 BP 模拟压进同一块战术面板。滚动一次，切换一个功能。',
   },
   {
     key: 'overview',
@@ -155,10 +155,10 @@ const panels = [
   },
   {
     key: 'agent',
-    nav: 'AI',
-    kicker: 'REVIEW AGENT',
-    title: 'AI 复盘',
-    copy: '从比赛数据里抽取节奏节点、英雄价值和装备倾向，输出可读的复盘线索。',
+    nav: 'BP',
+    kicker: 'BP SIMULATOR',
+    title: 'BP 模拟',
+    copy: '自由选择蓝红双方 Ban/Pick，模拟完整对局阵容博弈。',
   },
 ]
 
@@ -166,7 +166,7 @@ const tools = [
   { title: '数据排名', desc: '战队 / 选手 / 英雄', route: '/rankings', icon: Trophy },
   { title: '赛程查询', desc: '赛程与对局详情', route: '/matches', icon: Calendar },
   { title: '装备分析', desc: '出场率与分路偏好', route: '/equipment', icon: Box },
-  { title: 'AI 复盘', desc: '智能生成比赛分析', route: '/agent', icon: ChatDotRound },
+  { title: 'BP 模拟', desc: '自由模拟 Ban/Pick 博弈', route: '/bp-simulator', icon: Operation },
   { title: 'BP 分析', desc: 'Ban/Pick 策略辅助', route: '/bp-analysis', icon: DataAnalysis },
 ]
 
@@ -316,7 +316,7 @@ onMounted(async () => {
 
       recentMatches.value = matches
         .sort((a, b) => (b.startTime || '').localeCompare(a.startTime || ''))
-        .slice(0, 6)
+        .slice(0, 5)
         .map((match, index) => {
           const c1 = match.camp1TeamName || '蓝方'
           const c2 = match.camp2TeamName || '红方'

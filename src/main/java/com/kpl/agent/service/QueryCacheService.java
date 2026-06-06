@@ -6,6 +6,8 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Supplier;
 
 /**
@@ -40,8 +42,17 @@ public class QueryCacheService {
 
     public void evictByPattern(String pattern) {
         try {
-            var keys = redisTemplate.keys(pattern);
-            if (keys != null && !keys.isEmpty()) {
+            Set<String> keys = new HashSet<>();
+            redisTemplate.execute((org.springframework.data.redis.core.RedisCallback<Void>) connection -> {
+                try (var cursor = connection.scan(
+                        org.springframework.data.redis.core.ScanOptions.scanOptions().match(pattern).count(100).build())) {
+                    while (cursor.hasNext()) {
+                        keys.add(new String(cursor.next()));
+                    }
+                }
+                return null;
+            });
+            if (!keys.isEmpty()) {
                 redisTemplate.delete(keys);
             }
         } catch (Exception e) {
