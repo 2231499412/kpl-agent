@@ -1,11 +1,14 @@
 <template>
-  <main class="app-shell has-sidebar equip-console" :class="`theme-${theme}`">
+  <main class="app-shell has-sidebar equip-tier-console" :class="`theme-${theme}`">
+    <div class="grid-overlay"></div>
+    <div class="noise-overlay"></div>
+
     <section class="command-strip">
       <div class="brand-block">
-        <div class="brand-mark">K</div>
+        <div class="brand-mark">E</div>
         <div>
           <p class="eyebrow">KPL DATA AGENT</p>
-          <h1>装备分析</h1>
+          <h1>装备梯度榜</h1>
         </div>
       </div>
       <div class="status-line">
@@ -19,85 +22,75 @@
       </div>
     </section>
 
-    <section class="query-bar">
-      <div class="mode-tabs">
-        <button v-for="m in modes" :key="m.key" :class="{ active: mode === m.key }" @click="switchMode(m.key)">{{ m.label }}</button>
+    <!-- 分路筛选 -->
+    <div class="role-tabs">
+      <button
+        v-for="r in roleOptions"
+        :key="r.value"
+        :class="['role-tab', { active: activeRole === r.value }]"
+        @click="activeRole = r.value"
+      >{{ r.label }}</button>
+    </div>
+
+    <!-- 图例 + 评分说明 -->
+    <div class="info-bar" v-if="!loading && filteredEquips.length">
+      <div class="legend-items">
+        <div class="legend-item">
+          <span class="legend-dot high-pick"></span>
+          <span>高出场率 (&gt;50%)</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot low-pick"></span>
+          <span>低出场 (&lt;5场)</span>
+        </div>
       </div>
-      <div class="breadcrumb" v-if="selectedHero || selectedPlayer">
-        <span class="crumb-back" @click="goBack">← 返回列表</span>
-        <span class="crumb-sep">/</span>
-        <span class="crumb-current">{{ selectedHero?.heroName || selectedPlayer?.playerName }}</span>
+      <div class="score-formula">
+        <span class="formula-label">评分</span>
+        <span class="formula-eq">= 该分路出场次数</span>
+        <span class="formula-note">梯度按百分位分档，反映装备在选定分路的出场优先级。切换分路后评分会重新计算。</span>
       </div>
-    </section>
+    </div>
 
-    <section class="equip-content">
-      <!-- 全局装备排行 / 英雄装备 / 选手装备 -->
-      <template v-if="mode === 'global' || (mode !== 'global' && (selectedHero || selectedPlayer))">
-        <div v-if="loading" class="loading-hint">
-          <div class="spinner"></div>
-          <span>加载装备数据...</span>
-        </div>
-        <template v-else-if="equipList.length">
-          <p class="result-title">{{ resultTitle }}</p>
-          <div class="equip-table">
-            <div class="equip-row header-row">
-              <span class="col col-rank">#</span>
-              <span class="col col-equip">装备</span>
-              <span class="col col-num">出场次数</span>
-              <span class="col col-num col-secondary" v-if="mode === 'global'">涉及英雄</span>
-              <span class="col col-bar">出场率</span>
+    <!-- 加载 -->
+    <div v-if="loading" class="loading-wrap">
+      <div class="loading-spinner"></div>
+      <span>加载中...</span>
+    </div>
+
+    <!-- 梯度内容 -->
+    <div v-else class="tier-content">
+      <template v-for="tier in visibleTiers" :key="tier.key">
+        <div class="tier-section" v-if="tier.equips.length">
+          <div class="tier-header">
+            <span :class="['tier-badge', 'tier-' + tier.key]">{{ tier.label }}</span>
+            <span class="tier-name">{{ tier.name }}</span>
+            <span class="tier-criteria">{{ tier.desc }}{{ tier.scoreRange ? ' · 评分 ' + tier.scoreRange : '' }}</span>
+            <span class="tier-count">{{ tier.equips.length }} 装备</span>
+          </div>
+          <div class="equip-grid">
+            <div
+              v-for="item in tier.equips"
+              :key="item.equipId"
+              class="equip-card"
+              :class="{ 'high-pick': item.pickRate > 0.5, 'low-pick': item.pickCount < 5 }"
+              @click="openDetail(item)"
+            >
+              <img v-if="item.equipIcon" :src="item.equipIcon" class="equip-icon" />
+              <div v-else class="equip-icon-placeholder">?</div>
+              <span class="equip-score">{{ item._score }}</span>
+              <span class="equip-name">{{ item.equipName }}</span>
+              <span class="equip-meta">{{ item._lanePickCount != null ? item._lanePickCount + '次' : item.pickCount + '次' }} / {{ item.heroCount }}英雄</span>
+              <span class="equip-price" v-if="item.totalPrice">{{ item.totalPrice }} 金</span>
             </div>
-            <div v-for="(item, idx) in equipList" :key="item.equipId" class="equip-row" @click="openDetail(item)">
-              <span class="col col-rank">{{ idx + 1 }}</span>
-              <span class="col col-equip">
-                <img v-if="item.equipIcon" :src="item.equipIcon" class="equip-icon" />
-                <span class="equip-name">{{ item.equipName }}</span>
-              </span>
-              <span class="col col-num col-primary">{{ item.pickCount }}</span>
-              <span class="col col-num col-secondary" v-if="mode === 'global'">{{ item.heroCount }}</span>
-              <span class="col col-bar">
-                <span class="rate-track"><span class="rate-fill" :style="{ width: ratePercent(item) + '%' }" /></span>
-                <span class="rate-text">{{ ratePercent(item) }}%</span>
-              </span>
-            </div>
           </div>
-        </template>
-        <div v-else class="empty-hint">
-          <span>暂无装备数据</span>
         </div>
+        <div class="tier-divider" v-if="tier.key !== 't4' && tier.equips.length"></div>
       </template>
 
-      <!-- 英雄列表（二级） -->
-      <template v-else-if="mode === 'hero' && !selectedHero">
-        <div v-if="heroLoading" class="loading-hint">
-          <div class="spinner"></div>
-          <span>加载英雄列表...</span>
-        </div>
-        <div v-else class="entity-grid">
-          <div v-for="h in heroList" :key="h.heroId" class="entity-card" @click="selectHero(h)">
-            <img :src="h.heroIcon || ('https://res.edata.qq.com/sgame/static/images/hero/' + h.heroId + '.jpg')" class="entity-img" />
-            <span class="entity-name">{{ h.heroName }}</span>
-            <span class="entity-meta">出场 {{ h.pickNum || h.battleCount }}</span>
-          </div>
-        </div>
-      </template>
-
-      <!-- 选手列表（二级） -->
-      <template v-else-if="mode === 'player' && !selectedPlayer">
-        <div v-if="heroLoading" class="loading-hint">
-          <div class="spinner"></div>
-          <span>加载选手列表...</span>
-        </div>
-        <div v-else class="entity-grid">
-          <div v-for="p in playerList" :key="p.playerName" class="entity-card" @click="selectPlayer(p)">
-            <img v-if="p.playerIcon" :src="p.playerIcon" class="entity-img" />
-            <div v-else class="entity-img entity-placeholder">{{ p.playerName?.[0] }}</div>
-            <span class="entity-name">{{ p.playerName }}</span>
-            <span class="entity-meta">{{ p.teamName }} · {{ p.positionDesc }}</span>
-          </div>
-        </div>
-      </template>
-    </section>
+      <div v-if="!filteredEquips.length && !loading" class="empty-state">
+        <span>暂无数据，请先选择赛事</span>
+      </div>
+    </div>
 
     <!-- 装备详情弹窗 -->
     <el-dialog v-model="detailVisible" :title="detailTitle" width="640" class="detail-dialog" destroy-on-close>
@@ -113,25 +106,32 @@
             <img v-if="detailData.equipIcon" :src="detailData.equipIcon" class="detail-icon" />
             <div>
               <h3>{{ detailData.equipName }}</h3>
+              <p v-if="detailData.totalPrice" class="detail-price">
+                总价: {{ detailData.totalPrice }} 金
+                <template v-if="detailData.price && detailData.price !== detailData.totalPrice">
+                  (组件: {{ detailData.price }} 金)
+                </template>
+              </p>
               <p v-if="detailData.equipDescGain" class="detail-desc" v-html="detailData.equipDescGain"></p>
               <p v-if="detailData.equipDescFunction" class="detail-desc" v-html="detailData.equipDescFunction"></p>
+              <p v-if="detailData.equipPassive" class="detail-passive" v-html="detailData.equipPassive"></p>
             </div>
           </div>
           <div class="detail-section" v-if="detailData.positions?.length">
             <h4>分路分布</h4>
             <div class="position-grid">
-              <div v-for="p in detailData.positions" :key="p.positionDesc" class="position-card">
-                <span class="pos-name">{{ p.positionDesc }}</span>
+              <div v-for="p in detailData.positions" :key="p.positionDesc || p.positionNum" class="position-card">
+                <span class="pos-name">{{ posName(p) }}</span>
                 <span class="pos-count">{{ p.cnt }} 次</span>
               </div>
             </div>
           </div>
           <div class="detail-section" v-if="detailData.heroes?.length">
             <h4>常用英雄</h4>
-            <div class="hero-grid">
-              <div v-for="h in detailData.heroes" :key="h.heroId" class="hero-card">
+            <div class="hero-grid-detail">
+              <div v-for="h in detailData.heroes" :key="h.heroId" class="hero-card-detail">
                 <img :src="'https://res.edata.qq.com/sgame/static/images/hero/' + h.heroId + '.jpg'" class="hero-img" />
-                <span class="hero-name">{{ h.heroName }}</span>
+                <span class="hero-name-detail">{{ h.heroName }}</span>
                 <span class="hero-count">{{ h.cnt }} 次</span>
               </div>
             </div>
@@ -151,65 +151,113 @@ watch(theme, (v) => setTheme(v))
 
 const leagues = ref([])
 const selectedLeagueId = ref('')
-const mode = ref('global')
 const equipList = ref([])
 const loading = ref(false)
-const heroLoading = ref(false)
-const heroList = ref([])
-const playerList = ref([])
-const selectedHero = ref(null)
-const selectedPlayer = ref(null)
+const activeRole = ref('all')
+
 const detailVisible = ref(false)
 const detailLoading = ref(false)
 const detailData = ref(null)
 
-const modes = [
-  { key: 'global', label: '全局排行' },
-  { key: 'hero', label: '英雄装备' },
-  { key: 'player', label: '选手装备' },
+const roleOptions = [
+  { label: '全部分路', value: 'all' },
+  { label: '对抗路', value: '5' },
+  { label: '打野', value: '7' },
+  { label: '中路', value: '2' },
+  { label: '发育路', value: '4' },
+  { label: '游走', value: '6' },
 ]
 
-const detailTitle = computed(() => detailData.value?.equipName || '装备详情')
+const POS_MAP = { 2: '中路', 4: '发育路', 5: '对抗路', 6: '游走', 7: '打野' }
 
-const resultTitle = computed(() => {
-  if (mode.value === 'global') return '装备出场排行'
-  if (selectedHero.value) return `${selectedHero.value.heroName} · 常用装备`
-  if (selectedPlayer.value) return `${selectedPlayer.value.playerName} · 常用装备`
-  return '装备出场排行'
-})
+function posName(p) {
+  const fixed = BUGGY_POS_FIX[p.positionNum] ?? p.positionNum
+  return POS_MAP[fixed] || p.positionDesc || '-'
+}
 
-function ratePercent(item) {
-  if (item.pickRate != null) return Math.round(item.pickRate * 100)
+// 修正历史数据中 inferPosition 映射错误: 对抗路↔游走, 打野↔发育路
+const BUGGY_POS_FIX = { 6: 5, 5: 7, 7: 4, 4: 6 }
+
+function getLanePickCount(item, posNum) {
+  const positions = item.positions
+  if (!positions) return 0
+  for (const p of positions) {
+    const fixed = BUGGY_POS_FIX[p.positionNum] ?? p.positionNum
+    if (fixed === posNum) return p.cnt || 0
+  }
   return 0
 }
 
-function switchMode(key) {
-  mode.value = key
-  selectedHero.value = null
-  selectedPlayer.value = null
-  equipList.value = []
-  if (key === 'global') {
-    loadEquipRanking()
-  } else if (key === 'hero') {
-    loadHeroList()
-  } else if (key === 'player') {
-    loadPlayerList()
+const tierDefs = [
+  { key: 't0',  label: 'T0',   name: '绝对核心',  desc: '出场率极高，几乎必出' },
+  { key: 't05', label: 'T0.5', name: '最高优先',  desc: '出场率很高，优先合成' },
+  { key: 't1',  label: 'T1',   name: '主力装备',  desc: '高出场率，主流选择' },
+  { key: 't2',  label: 'T2',   name: '常规装备',  desc: '稳定出场，常用搭配' },
+  { key: 't3',  label: 'T3',   name: '情景装备',  desc: '针对性出装 / 特定英雄' },
+  { key: 't4',  label: 'T4',   name: '冷门装备',  desc: '偶尔出现，特定阵容' },
+]
+
+const tierPercentiles = [0.10, 0.25, 0.50, 0.75, 0.90]
+
+function assignTiers(equips) {
+  if (!equips.length) return equips
+  const sorted = [...equips].sort((a, b) => b._score - a._score)
+  const n = sorted.length
+  const thresholds = tierPercentiles.map(p => Math.ceil(n * p))
+  return sorted.map((item, i) => {
+    let tier
+    if (i < thresholds[0]) tier = 't0'
+    else if (i < thresholds[1]) tier = 't05'
+    else if (i < thresholds[2]) tier = 't1'
+    else if (i < thresholds[3]) tier = 't2'
+    else if (i < thresholds[4]) tier = 't3'
+    else tier = 't4'
+    return { ...item, _tier: tier }
+  })
+}
+
+function isVisibleEquip(item) {
+  if (item.equipName && item.equipName.includes('之靴')) return true
+  return (item.totalPrice || 0) >= 1000
+}
+
+const filteredEquips = computed(() => {
+  if (activeRole.value === 'all') {
+    return assignTiers(equipList.value.filter(isVisibleEquip).map(item => ({
+      ...item,
+      _score: Math.round((item.pickRate || 0) * 100),
+    })))
   }
-}
+  const posNum = Number(activeRole.value)
+  const laneItems = equipList.value
+    .map(item => ({
+      ...item,
+      _lanePickCount: getLanePickCount(item, posNum),
+    }))
+    .filter(item => item._lanePickCount > 0 && isVisibleEquip(item))
+    .map(item => ({
+      ...item,
+      _score: item._lanePickCount,
+    }))
+  return assignTiers(laneItems)
+})
 
-function goBack() {
-  selectedHero.value = null
-  selectedPlayer.value = null
-  equipList.value = []
-  if (mode.value === 'hero') loadHeroList()
-  else if (mode.value === 'player') loadPlayerList()
-}
+const visibleTiers = computed(() => {
+  return tierDefs.map(t => ({
+    ...t,
+    equips: filteredEquips.value
+      .filter(item => item._tier === t.key)
+      .sort((a, b) => b._score - a._score),
+    scoreRange: (() => {
+      const tierEquips = filteredEquips.value.filter(item => item._tier === t.key)
+      if (!tierEquips.length) return ''
+      const scores = tierEquips.map(item => item._score)
+      return `${Math.min(...scores)}-${Math.max(...scores)}`
+    })(),
+  }))
+})
 
-function onLeagueChange() {
-  if (mode.value === 'global') loadEquipRanking()
-  else if (mode.value === 'hero') loadHeroList()
-  else if (mode.value === 'player') loadPlayerList()
-}
+const detailTitle = computed(() => detailData.value?.equipName || '装备详情')
 
 async function init() {
   try {
@@ -227,55 +275,15 @@ async function loadEquipRanking() {
   if (!selectedLeagueId.value) return
   loading.value = true
   try {
-    const res = await fetch(`/api/query/equip/top?leagueId=${selectedLeagueId.value}&limit=30`)
+    const res = await fetch(`/api/query/equip/top?leagueId=${selectedLeagueId.value}&limit=100`)
     const data = await res.json()
     equipList.value = data?.data?.data || []
   } catch { equipList.value = [] }
   loading.value = false
 }
 
-async function loadHeroList() {
-  if (!selectedLeagueId.value) return
-  heroLoading.value = true
-  try {
-    const res = await fetch(`/api/query/hero/top?leagueId=${selectedLeagueId.value}&limit=50`)
-    const data = await res.json()
-    heroList.value = data?.data?.data || []
-  } catch { heroList.value = [] }
-  heroLoading.value = false
-}
-
-async function selectHero(hero) {
-  selectedHero.value = hero
-  loading.value = true
-  try {
-    const res = await fetch(`/api/query/equip/hero?heroId=${hero.heroId}&leagueId=${selectedLeagueId.value}&limit=20`)
-    const data = await res.json()
-    equipList.value = data?.data?.data || []
-  } catch { equipList.value = [] }
-  loading.value = false
-}
-
-async function loadPlayerList() {
-  if (!selectedLeagueId.value) return
-  heroLoading.value = true
-  try {
-    const res = await fetch(`/api/query/player/top?leagueId=${selectedLeagueId.value}&limit=50`)
-    const data = await res.json()
-    playerList.value = data?.data?.data || []
-  } catch { playerList.value = [] }
-  heroLoading.value = false
-}
-
-async function selectPlayer(player) {
-  selectedPlayer.value = player
-  loading.value = true
-  try {
-    const res = await fetch(`/api/query/equip/player?name=${encodeURIComponent(player.playerName)}&leagueId=${selectedLeagueId.value}&limit=20`)
-    const data = await res.json()
-    equipList.value = data?.data?.data || []
-  } catch { equipList.value = [] }
-  loading.value = false
+function onLeagueChange() {
+  loadEquipRanking()
 }
 
 async function openDetail(item) {
@@ -294,352 +302,324 @@ onMounted(init)
 </script>
 
 <style scoped>
-.equip-console {
-  --mono-bg: #f8f5ec;
-  --mono-panel: rgba(255, 255, 255, 0.92);
-  --mono-line: rgba(0, 0, 0, 0.18);
-  --mono-line-strong: rgba(0, 0, 0, 0.32);
-  --mono-ink: #1a1a1a;
-  --mono-soft: rgba(26, 26, 26, 0.65);
-  --mono-dim: rgba(26, 26, 26, 0.4);
-  --card-bg: #fff;
-  --card-hover: rgba(0, 0, 0, 0.02);
-  --stat-bg: rgba(0, 0, 0, 0.03);
-  --input-bg: rgba(255, 255, 255, 0.7);
-  --corner-border: rgba(0, 0, 0, 0.18);
-  --dialog-bg: #fff;
-  --rate-fill: #1a1a1a;
-  max-width: none;
+.equip-tier-console {
+  --c-bg: #f8f5ec;
+  --c-panel: rgba(255, 255, 255, 0.92);
+  --c-line: rgba(0, 0, 0, 0.1);
+  --c-ink: #1a1a1a;
+  --c-soft: rgba(26, 26, 26, 0.6);
+  --c-dim: rgba(26, 26, 26, 0.35);
+  --c-card: rgba(0, 0, 0, 0.03);
+  --c-corner: rgba(0, 0, 0, 0.18);
+  --c-hover: rgba(0, 0, 0, 0.06);
+  --c-grid: rgba(0, 0, 0, 0.04);
+  --tier-t0: #c0392b;
+  --tier-t05: #e67e22;
+  --tier-t1: #f39c12;
+  --tier-t2: #2980b9;
+  --tier-t3: #7f8c8d;
+  --tier-t4: #bdc3c7;
+
+  position: relative;
   min-height: 100vh;
-  padding: 28px 32px 36px 87px;
-  color: var(--mono-ink);
+  padding: 28px 32px calc(78px + env(safe-area-inset-bottom)) 87px;
+  color: var(--c-ink);
   background: linear-gradient(180deg, rgba(250, 248, 240, 0.98), rgba(245, 242, 232, 0.99)), #f8f5ec;
+  overflow-x: hidden;
 }
-.equip-console.theme-dark {
-  --mono-bg: #0a0a0a;
-  --mono-panel: rgba(18, 18, 18, 0.92);
-  --mono-line: rgba(255, 255, 255, 0.18);
-  --mono-line-strong: rgba(255, 255, 255, 0.32);
-  --mono-ink: #e8e8e8;
-  --mono-soft: rgba(232, 232, 232, 0.65);
-  --mono-dim: rgba(232, 232, 232, 0.38);
-  --card-bg: rgba(255, 255, 255, 0.06);
-  --card-hover: rgba(255, 255, 255, 0.03);
-  --stat-bg: rgba(255, 255, 255, 0.04);
-  --input-bg: rgba(255, 255, 255, 0.06);
-  --corner-border: rgba(255, 255, 255, 0.18);
-  --dialog-bg: #1a1a1a;
-  --rate-fill: #e8e8e8;
+.equip-tier-console.theme-dark {
+  --c-bg: #0a0a0a;
+  --c-panel: rgba(18, 18, 18, 0.92);
+  --c-line: rgba(255, 255, 255, 0.1);
+  --c-ink: #e8e8e8;
+  --c-soft: rgba(232, 232, 232, 0.6);
+  --c-dim: rgba(232, 232, 232, 0.35);
+  --c-card: rgba(255, 255, 255, 0.05);
+  --c-corner: rgba(255, 255, 255, 0.18);
+  --c-hover: rgba(255, 255, 255, 0.08);
+  --c-grid: rgba(255, 255, 255, 0.03);
+  --tier-t0: #e74c3c;
+  --tier-t05: #f39c12;
+  --tier-t1: #f1c40f;
+  --tier-t2: #3498db;
+  --tier-t3: #95a5a6;
+  --tier-t4: #7f8c8d;
   background: linear-gradient(180deg, #0a0a0a, #141414);
 }
 
-/* command strip */
+/* 网格纹理 */
+.grid-overlay {
+  position: fixed; inset: 0; z-index: -3;
+  background:
+    linear-gradient(var(--c-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--c-grid) 1px, transparent 1px);
+  background-size: 80px 80px;
+  pointer-events: none;
+}
+.noise-overlay {
+  position: fixed; inset: 0; z-index: -2;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+/* 顶栏 */
 .command-strip {
   position: relative; display: flex; align-items: center; justify-content: space-between;
-  padding: 18px 22px; border: 1px solid var(--mono-line); background: var(--mono-panel);
+  padding: 18px 22px; border: 1px solid var(--c-line); background: var(--c-panel);
+  margin-bottom: 16px; flex-shrink: 0;
 }
 .command-strip::before {
   content: ""; position: absolute; left: -1px; top: -1px; width: 36px; height: 36px;
-  border-left: 2px solid var(--corner-border); border-top: 2px solid var(--corner-border); pointer-events: none;
+  border-left: 2px solid var(--c-corner); border-top: 2px solid var(--c-corner);
+  pointer-events: none;
 }
 .brand-block { display: flex; align-items: center; gap: 14px; }
 .brand-mark {
   width: 42px; height: 42px; display: grid; place-items: center;
-  border: 1px solid var(--mono-line-strong); color: var(--mono-ink); background: var(--stat-bg);
-  font-size: 20px; font-weight: 900;
+  border: 1px solid var(--c-line); color: var(--c-ink); background: var(--c-card);
+  font-size: 18px; font-weight: 900;
 }
-.eyebrow { margin: 0; color: var(--mono-dim); font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
-h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
+.eyebrow { margin: 0; color: var(--c-dim); font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
+h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 .status-line { display: flex; align-items: center; gap: 12px; }
 .league-select { width: 220px; }
-
-/* theme toggle */
 .theme-toggle {
   display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; background: none; cursor: pointer;
-  color: var(--mono-soft); font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+  color: var(--c-dim); font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
 }
-.theme-toggle:hover { color: var(--mono-ink); }
+.theme-toggle:hover { color: var(--c-ink); }
 .toggle-track {
   position: relative; width: 32px; height: 16px; border-radius: 8px;
-  background: var(--mono-line-strong); transition: background 0.2s;
+  background: var(--c-line); transition: background 0.2s;
 }
-.toggle-track.on { background: var(--mono-ink); }
+.toggle-track.on { background: var(--c-ink); }
 .toggle-thumb {
   position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%;
-  background: var(--mono-bg); transition: transform 0.2s;
+  background: var(--c-bg); transition: transform 0.2s;
 }
 .toggle-track.on .toggle-thumb { transform: translateX(16px); }
 
-/* query bar */
-.query-bar {
-  margin-top: 18px; display: flex; align-items: center; gap: 16px;
+/* 分路筛选 */
+.role-tabs {
+  display: flex; gap: 0; margin-bottom: 20px; border: 1px solid var(--c-line); background: var(--c-panel);
+  overflow-x: auto;
 }
-.mode-tabs { display: flex; border: 1px solid var(--mono-line); background: var(--stat-bg); }
-.mode-tabs button {
-  padding: 8px 18px; border: none; background: transparent;
-  color: var(--mono-soft); font-size: 13px; font-weight: 600; cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+.role-tab {
+  flex: 1; min-width: 0; padding: 10px 16px; border: none; background: transparent;
+  color: var(--c-soft); font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: all 0.15s; white-space: nowrap; border-right: 1px solid var(--c-line);
 }
-.mode-tabs button:hover { color: var(--mono-ink); }
-.mode-tabs button.active { background: var(--mono-ink); color: var(--mono-bg); }
-.breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-.crumb-back {
-  padding: 4px 12px;
-  border: 1px solid var(--mono-line);
-  background: var(--stat-bg);
-  color: var(--mono-soft);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.crumb-back:hover { background: var(--mono-ink); color: var(--mono-bg); }
-.crumb-sep { color: var(--mono-dim); }
-.crumb-current { font-weight: 700; color: var(--mono-ink); }
+.role-tab:last-child { border-right: none; }
+.role-tab:hover { color: var(--c-ink); background: var(--c-hover); }
+.role-tab.active { color: #f39c12; background: rgba(243, 156, 18, 0.1); }
 
-.search-hint { display: flex; gap: 8px; max-width: 360px; margin-top: 16px; }
-.run-btn {
-  padding: 0 18px; border: 1px solid var(--mono-line-strong);
-  background: var(--mono-ink); color: var(--mono-bg);
-  font-size: 13px; font-weight: 700; cursor: pointer;
-}
-.run-btn:hover { opacity: 0.85; }
-
-/* content */
-.equip-content { margin-top: 18px; }
-
-.loading-hint, .empty-hint {
+/* 加载 */
+.loading-wrap {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 12px; padding: 80px 0; color: var(--mono-dim); font-size: 14px;
+  gap: 12px; padding: 80px 0; color: var(--c-dim);
 }
-.spinner {
-  width: 24px; height: 24px; border: 2px solid var(--mono-line);
-  border-top-color: var(--mono-ink); border-radius: 50%;
-  animation: spin 0.7s linear infinite;
+.loading-spinner {
+  width: 28px; height: 28px; border: 3px solid var(--c-line);
+  border-top-color: var(--c-ink); border-radius: 50%; animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.result-title {
-  margin: 0 0 12px; font-size: 14px; font-weight: 700; color: var(--mono-ink);
-  padding-bottom: 8px; border-bottom: 1px solid var(--mono-line);
+.empty-state {
+  display: flex; align-items: center; justify-content: center;
+  padding: 80px 0; color: var(--c-dim); font-size: 14px;
 }
 
-/* equip table — single container, all columns aligned */
-.equip-table {
-  --equip-table-columns: 48px minmax(240px, 1fr) 112px 112px 240px;
-  border: 1px solid var(--mono-line-strong);
-  background: var(--card-bg);
+/* 梯度区块 */
+.tier-content { display: flex; flex-direction: column; gap: 0; }
+.tier-section { padding: 0 0 8px; }
+.tier-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 0 12px; border-bottom: 1px solid var(--c-line);
+  margin-bottom: 14px;
 }
-.equip-row {
+.tier-badge {
+  min-width: 36px; height: 26px; display: inline-grid; place-items: center;
+  font-size: 13px; font-weight: 900; color: #fff; border-radius: 3px; padding: 0 6px;
+}
+.tier-badge.tier-t0 { background: var(--tier-t0); }
+.tier-badge.tier-t05 { background: var(--tier-t05); }
+.tier-badge.tier-t1 { background: var(--tier-t1); color: #1a1a1a; }
+.tier-badge.tier-t2 { background: var(--tier-t2); }
+.tier-badge.tier-t3 { background: var(--tier-t3); }
+.tier-badge.tier-t4 { background: var(--tier-t4); }
+.tier-name { font-size: 14px; font-weight: 700; color: var(--c-ink); }
+.tier-criteria { font-size: 12px; color: var(--c-dim); margin-left: 4px; }
+.tier-count { font-size: 12px; color: var(--c-dim); margin-left: auto; }
+
+.tier-divider {
+  height: 0; border-top: 1px dashed var(--c-line);
+  margin: 6px 0;
+}
+
+/* 装备卡片网格 */
+.equip-grid {
   display: grid;
-  grid-template-columns: var(--equip-table-columns);
-  align-items: center;
-  padding: 0 14px;
-  height: 44px;
-  border-bottom: 1px solid var(--mono-line);
-  cursor: pointer;
-  transition: background 0.15s;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
 }
-.equip-row:last-child { border-bottom: none; }
-.equip-row:hover { background: var(--card-hover); }
-.header-row {
-  height: 36px;
-  font-size: 11px; font-weight: 700; color: var(--mono-dim);
-  letter-spacing: 1px; text-transform: uppercase;
-  background: var(--stat-bg);
-  cursor: default;
-  border-bottom: 1px solid var(--mono-line-strong);
+.equip-card {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 12px 8px 10px; background: var(--c-card); border: 1px solid var(--c-line);
+  transition: all 0.15s; position: relative; cursor: pointer;
 }
-.header-row:hover { background: var(--stat-bg); }
-.col { min-width: 0; box-sizing: border-box; }
-.col-rank { text-align: center; }
-.col-equip { display: flex; align-items: center; gap: 10px; min-width: 0; padding-right: 16px; }
-.col-num { text-align: right; padding: 0 12px; font-variant-numeric: tabular-nums; }
-.header-row .col-secondary { transform: translateX(-2ch); }
-.equip-row:not(.header-row) .col-primary { transform: translateX(-3ch); }
-.equip-row:not(.header-row) .col-secondary { transform: translateX(-5.5ch); }
-.col-bar { width: 220px; display: flex; align-items: center; gap: 12px; padding-left: 12px; }
-.header-row .col-num { text-align: center; }
-.header-row .col-bar { justify-content: center; padding-left: 0; transform: translateX(-8ch); }
+.equip-card:hover {
+  background: var(--c-hover); border-color: var(--c-ink);
+  transform: translateY(-2px);
+}
+.equip-card.high-pick { border-color: #e74c3c; border-width: 2px; box-shadow: 0 0 8px rgba(231, 76, 60, 0.25); }
+.equip-card.low-pick { border-color: #3498db; border-width: 2px; border-style: dashed; box-shadow: 0 0 8px rgba(52, 152, 219, 0.2); }
 
 .equip-icon {
-  width: 26px; height: 26px; border: 1px solid var(--mono-line);
-  border-radius: 4px; object-fit: cover; flex-shrink: 0;
+  width: 48px; height: 48px; border-radius: 4px; object-fit: cover;
+  border: 1px solid var(--c-line);
 }
-.equip-name { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rate-track {
-  display: block; width: 100px; height: 6px;
-  background: var(--stat-bg); border: 1px solid var(--mono-line); flex-shrink: 0;
+.equip-icon-placeholder {
+  width: 48px; height: 48px; border-radius: 4px; display: grid; place-items: center;
+  background: var(--c-card); border: 1px solid var(--c-line); font-size: 20px; color: var(--c-dim);
 }
-.rate-fill { display: block; height: 100%; background: var(--rate-fill); }
-.rate-text { font-size: 12px; font-weight: 700; color: var(--mono-soft); font-variant-numeric: tabular-nums; flex-shrink: 0; min-width: 36px; }
+.equip-score {
+  font-size: 18px; font-weight: 900; color: var(--c-ink);
+  line-height: 1;
+}
+.equip-name {
+  font-size: 11px; color: var(--c-soft); font-weight: 600;
+  text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 100%;
+}
+.equip-meta {
+  font-size: 10px; color: var(--c-dim); text-align: center;
+}
+.equip-price {
+  font-size: 10px; font-weight: 700; color: #f39c12; text-align: center;
+}
 
-/* entity grid (hero list) */
-.entity-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px;
-  margin-top: 16px;
+/* 图例 + 评分说明 */
+.info-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 16px;
+  padding: 12px 16px; margin-bottom: 16px;
+  border: 1px solid var(--c-line); background: var(--c-panel);
 }
-.entity-card {
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  padding: 14px 8px; border: 1px solid var(--mono-line); background: var(--card-bg);
-  cursor: pointer; transition: border-color 0.15s, background 0.15s;
+.legend-items { display: flex; gap: 16px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--c-soft); }
+.legend-dot {
+  width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
 }
-.entity-card:hover { border-color: var(--mono-ink); background: var(--card-hover); }
-.entity-img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
-.entity-placeholder {
-  display: grid; place-items: center;
-  background: var(--stat-bg); border: 1px solid var(--mono-line);
-  font-size: 16px; font-weight: 900; color: var(--mono-dim);
+.legend-dot.high-pick { background: #e74c3c; }
+.legend-dot.low-pick { background: #3498db; }
+.score-formula {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 12px; color: var(--c-soft); margin-left: auto;
 }
-.entity-name { font-size: 12px; font-weight: 700; color: var(--mono-ink); text-align: center; }
-.entity-meta { font-size: 10px; color: var(--mono-dim); }
+.formula-label { font-weight: 800; color: var(--c-ink); }
+.formula-eq { color: var(--c-ink); font-weight: 600; white-space: nowrap; }
+.formula-note {
+  font-size: 11px; color: var(--c-dim); line-height: 1.5;
+  flex-basis: 100%;
+}
 
-/* detail dialog */
+/* 详情弹窗 */
 .detail-body { display: flex; flex-direction: column; gap: 20px; }
 .detail-info {
   display: flex; align-items: flex-start; gap: 14px;
-  padding-bottom: 16px; border-bottom: 1px solid var(--mono-line);
+  padding-bottom: 16px; border-bottom: 1px solid var(--c-line);
 }
 .detail-icon {
-  width: 48px; height: 48px; border: 1px solid var(--mono-line);
+  width: 48px; height: 48px; border: 1px solid var(--c-line);
   border-radius: 6px; object-fit: cover;
 }
-.detail-info h3 { margin: 0; font-size: 18px; font-weight: 900; color: var(--mono-ink); }
-.detail-desc { margin: 4px 0 0; font-size: 12px; color: var(--mono-dim); line-height: 1.6; }
-.detail-section h4 { margin: 0 0 10px; font-size: 13px; font-weight: 800; color: var(--mono-ink); }
+.detail-info h3 { margin: 0; font-size: 18px; font-weight: 900; color: var(--c-ink); }
+.detail-price { margin: 4px 0 0; font-size: 13px; font-weight: 700; color: #f39c12; }
+.detail-desc { margin: 4px 0 0; font-size: 12px; color: var(--c-dim); line-height: 1.6; }
+.detail-passive { margin: 6px 0 0; font-size: 12px; color: #27ae60; line-height: 1.6; font-weight: 600; }
+.detail-section h4 { margin: 0 0 10px; font-size: 13px; font-weight: 800; color: var(--c-ink); }
 .position-grid { display: flex; flex-wrap: wrap; gap: 8px; }
 .position-card {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
-  padding: 10px 16px; border: 1px solid var(--mono-line); background: var(--stat-bg); min-width: 72px;
+  padding: 10px 16px; border: 1px solid var(--c-line); background: var(--c-card); min-width: 72px;
 }
-.pos-name { font-size: 12px; font-weight: 700; color: var(--mono-ink); }
-.pos-count { font-size: 11px; color: var(--mono-dim); }
-.hero-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-.hero-card {
+.pos-name { font-size: 12px; font-weight: 700; color: var(--c-ink); }
+.pos-count { font-size: 11px; color: var(--c-dim); }
+.hero-grid-detail { display: flex; flex-wrap: wrap; gap: 8px; }
+.hero-card-detail {
   display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; border: 1px solid var(--mono-line); background: var(--stat-bg);
+  padding: 8px 12px; border: 1px solid var(--c-line); background: var(--c-card);
 }
 .hero-img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
-.hero-name { font-size: 13px; font-weight: 600; color: var(--mono-ink); }
-.hero-count { font-size: 11px; color: var(--mono-dim); }
+.hero-name-detail { font-size: 13px; font-weight: 600; color: var(--c-ink); }
+.hero-count { font-size: 11px; color: var(--c-dim); }
 
 .skeleton-wrap { padding: 8px 0; }
 .skeleton-row {
   height: 16px; border-radius: 6px;
-  background: linear-gradient(90deg, var(--stat-bg) 25%, var(--card-hover) 50%, var(--stat-bg) 75%);
+  background: linear-gradient(90deg, var(--c-card) 25%, var(--c-hover) 50%, var(--c-card) 75%);
   background-size: 200% 100%; animation: shimmer 1.5s ease-in-out infinite;
 }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
 /* Element Plus overrides */
 :deep(.el-dialog) {
-  border: 1px solid var(--mono-line-strong) !important;
-  border-radius: 0 !important; background: var(--dialog-bg) !important;
+  border: 1px solid var(--c-line) !important;
+  border-radius: 0 !important; background: var(--c-panel) !important;
 }
-:deep(.el-dialog__title) { color: var(--mono-ink) !important; font-weight: 900 !important; }
-:deep(.el-dialog__header) { border-bottom: 1px solid var(--mono-line); padding-bottom: 12px; margin: 0; }
+:deep(.el-dialog__title) { color: var(--c-ink) !important; font-weight: 900 !important; }
+:deep(.el-dialog__header) { border-bottom: 1px solid var(--c-line); padding-bottom: 12px; margin: 0; }
 :deep(.el-dialog__body) { max-height: 60vh; overflow-y: auto; padding: 16px 20px; }
 :deep(.el-select__wrapper) {
-  border-radius: 0 !important; background: var(--input-bg) !important;
-  box-shadow: 0 0 0 1px var(--mono-line) inset !important; min-height: 36px;
+  border-radius: 0 !important; background: var(--c-card) !important;
+  box-shadow: 0 0 0 1px var(--c-line) inset !important; min-height: 36px;
 }
 :deep(.el-select__placeholder), :deep(.el-select__selected-item .el-select__tags-text) {
-  color: var(--mono-ink) !important; font-weight: 600;
+  color: var(--c-ink) !important; font-weight: 600;
 }
-:deep(.el-select__caret) { color: var(--mono-soft) !important; }
-:deep(.el-input__wrapper) {
-  border-radius: 0 !important; background: var(--input-bg) !important;
-  box-shadow: 0 0 0 1px var(--mono-line) inset !important;
-}
+:deep(.el-select__caret) { color: var(--c-soft) !important; }
 
+/* 移动端 */
 @media (max-width: 767px) {
-  .equip-console {
-    min-height: 100dvh;
-    padding: 12px 12px calc(78px + env(safe-area-inset-bottom));
+  .equip-tier-console {
+    padding: 12px 12px calc(82px + env(safe-area-inset-bottom));
   }
+
   .command-strip {
-    min-height: 56px;
-    padding: 10px 12px;
-    gap: 8px;
+    min-height: 56px; padding: 10px 12px;
   }
   .brand-mark { width: 34px; height: 34px; font-size: 16px; }
   h1 { font-size: 17px; }
   .league-select { width: 132px; }
   .theme-toggle small { display: none; }
-  .query-bar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-    padding: 12px 0;
-  }
-  .mode-tabs {
-    display: grid;
+
+  .role-tabs { gap: 0; }
+  .role-tab { padding: 8px 10px; font-size: 12px; }
+
+  .tier-header { padding: 10px 0 8px; margin-bottom: 10px; }
+  .tier-badge { min-width: 32px; height: 22px; font-size: 12px; }
+  .tier-name { font-size: 13px; }
+  .tier-criteria { font-size: 11px; display: none; }
+  .tier-count { font-size: 11px; }
+
+  .equip-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
   }
-  .mode-tabs button {
-    min-height: 38px;
-    padding: 6px 4px;
-    font-size: 12px;
-  }
-  .search-hint {
-    max-width: none;
-    width: 100%;
-    margin-top: 0;
-  }
-  .equip-table {
-    --equip-table-columns: 34px minmax(92px, 1fr) 68px 46px;
-    overflow-x: hidden;
-  }
-  .equip-row {
-    min-width: 0;
-    padding: 0 6px;
-  }
-  .col-secondary {
-    display: none;
-  }
-  .header-row .col-secondary,
-  .equip-row:not(.header-row) .col-primary,
-  .equip-row:not(.header-row) .col-secondary,
-  .header-row .col-bar {
-    transform: none;
-  }
-  .col-num {
-    padding: 0 4px;
-    text-align: center;
-  }
-  .col-bar {
-    width: auto;
-    justify-content: flex-end;
-    gap: 0;
-    padding-left: 0;
-  }
-  .rate-track {
-    display: none;
-  }
-  .rate-text {
-    display: inline-block;
-    min-width: 34px;
-    text-align: right;
-    font-size: 11px;
-  }
-  .equip-icon {
-    width: 24px;
-    height: 24px;
-  }
-  .equip-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .entity-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .entity-card {
-    min-height: 92px;
-  }
-  .detail-info {
-    gap: 10px;
-  }
+
+  .equip-card { padding: 8px 4px 6px; }
+  .equip-icon { width: 40px; height: 40px; }
+  .equip-score { font-size: 15px; }
+  .equip-name { font-size: 10px; }
+  .equip-meta { font-size: 9px; }
+  .equip-price { font-size: 9px; }
+
+  .info-bar { flex-direction: column; align-items: flex-start; gap: 10px; padding: 10px 12px; }
+  .legend-items { gap: 12px; }
+  .legend-item { font-size: 11px; }
+  .score-formula { margin-left: 0; }
+  .formula-note { font-size: 10px; }
+
+  .detail-info { gap: 10px; }
   .position-card {
     flex: 1 1 calc(50% - 4px);
     min-width: 0;
