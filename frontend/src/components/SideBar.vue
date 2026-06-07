@@ -48,12 +48,12 @@ const navItems = [
   { id: 'rankings', label: '数据排行', icon: 'Trophy', route: '/rankings' },
   { id: 'matches', label: '赛程', icon: 'Calendar', route: '/matches' },
   { id: 'equipment', label: '装备分析', icon: 'Box', route: '/equipment' },
-  { id: 'agent', label: 'AI复盘', icon: 'ChatDotRound', route: '/agent' },
   { id: 'bp-analysis', label: 'BP分析', icon: 'DataAnalysis', route: '/bp-analysis' },
   { id: 'tier-list', label: '梯度榜', icon: 'Histogram', route: '/tier-list' },
-  { id: 'bp-simulator', label: 'BP模拟器', icon: 'Operation', route: '/bp-simulator' },
   { id: 'hero-gallery', label: '原画画廊', icon: 'Picture', route: '/hero-gallery' },
   { id: 'lane-radar', label: '对位雷达', icon: 'Aim', route: '/lane-radar' },
+  { id: 'bp-simulator', label: 'BP模拟器', icon: 'Operation', route: '/bp-simulator' },
+  { id: 'agent', label: 'AI复盘', icon: 'ChatDotRound', route: '/agent' },
 ]
 
 const activeNav = computed(() => {
