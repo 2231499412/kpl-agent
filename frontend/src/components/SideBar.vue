@@ -47,8 +47,8 @@ onUnmounted(() => window.removeEventListener('theme-changed', onThemeChanged))
 const navItems = [
   { id: 'rankings', label: '数据排行', icon: 'Trophy', route: '/rankings' },
   { id: 'matches', label: '赛程', icon: 'Calendar', route: '/matches' },
-  { id: 'equipment', label: '装备分析', icon: 'Box', route: '/equipment' },
   { id: 'bp-analysis', label: 'BP分析', icon: 'DataAnalysis', route: '/bp-analysis' },
+  { id: 'equipment', label: '装备分析', icon: 'Box', route: '/equipment' },
   { id: 'tier-list', label: '梯度榜', icon: 'Histogram', route: '/tier-list' },
   { id: 'hero-gallery', label: '原画画廊', icon: 'Picture', route: '/hero-gallery' },
   { id: 'lane-radar', label: '对位雷达', icon: 'Aim', route: '/lane-radar' },
