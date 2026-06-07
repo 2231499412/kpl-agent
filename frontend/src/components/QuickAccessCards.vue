@@ -26,6 +26,8 @@ import {
   DataAnalysis
 } from '@element-plus/icons-vue'
 
+const isAiDevMode = import.meta.env.VITE_AI_DEV_MODE === 'true'
+
 const cards = [
   {
     title: '数据排行',
@@ -54,7 +56,7 @@ const cards = [
     icon: ChatDotRound,
     route: '/agent',
     gradient: 'linear-gradient(135deg, rgba(255,149,0,0.15), rgba(255,68,68,0.1))',
-    soon: true,
+    soon: isAiDevMode,
   },
   {
     title: 'BP 分析',

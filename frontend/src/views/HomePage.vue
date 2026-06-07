@@ -46,7 +46,7 @@
 
           <div v-if="panel.key === 'hero'" class="hero-actions">
             <router-link class="primary-link" to="/rankings">进入数据排名</router-link>
-            <router-link class="ghost-link disabled" to="/agent">AI 复盘 <span class="dev-tag">开发中</span></router-link>
+            <router-link :class="['ghost-link', { disabled: isAiDevMode }]" to="/agent">AI 复盘 <span v-if="isAiDevMode" class="dev-tag">开发中</span></router-link>
           </div>
 
           <div v-if="panel.key === 'overview'" class="metric-grid">
@@ -104,6 +104,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Box, Calendar, DataAnalysis, Operation, Trophy } from '@element-plus/icons-vue'
 import homeBg from '../assets/home-bg.webp'
+
+const isAiDevMode = import.meta.env.VITE_AI_DEV_MODE === 'true'
 
 const activeIndex = ref(0)
 const locked = ref(false)
