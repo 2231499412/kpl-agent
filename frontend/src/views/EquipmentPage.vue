@@ -114,7 +114,6 @@
               </p>
               <p v-if="detailData.equipDescGain" class="detail-desc" v-html="detailData.equipDescGain"></p>
               <p v-if="detailData.equipDescFunction" class="detail-desc" v-html="detailData.equipDescFunction"></p>
-              <p v-if="detailData.equipPassive" class="detail-passive" v-html="detailData.equipPassive"></p>
             </div>
           </div>
           <div class="detail-section" v-if="detailData.positions?.length">
