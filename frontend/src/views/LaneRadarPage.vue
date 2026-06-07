@@ -89,14 +89,14 @@
             @mouseenter="hoverMetric = metric.key"
           >
             <template v-if="isHorizontalMetric(index)">
-              <CountValue class="winner-num" :metric="metric.winner" />
+              <CountValue :class="[winnerCamp === 1 ? 'winner-num' : 'loser-num', { hot: isMetricHighlighted(metric.blue, 1) }]" :metric="metric.blue" />
               <span class="metric-label">{{ metric.name }}</span>
-              <CountValue class="loser-num" :metric="metric.loser" />
+              <CountValue :class="[winnerCamp === 2 ? 'winner-num' : 'loser-num', { hot: isMetricHighlighted(metric.red, 2) }]" :metric="metric.red" />
             </template>
             <template v-else>
-              <CountValue class="winner-num" :metric="metric.winner" />
+              <CountValue :class="['winner-num', { hot: isMetricHighlighted(metric.winner, winnerCamp) }]" :metric="metric.winner" />
               <span class="metric-label">{{ metric.name }}</span>
-              <CountValue class="loser-num" :metric="metric.loser" />
+              <CountValue :class="['loser-num', { hot: isMetricHighlighted(metric.loser, winnerCamp === 2 ? 1 : 2) }]" :metric="metric.loser" />
             </template>
           </div>
 
@@ -135,14 +135,14 @@
 
           <div v-if="radarData.highlights?.length" class="radar-highlights">
             <div class="highlight-column left">
-              <div v-for="item in sideHighlights(1)" :key="item.key" class="highlight-card" :class="`camp-${item.camp}`">
+              <div v-for="item in sideHighlights(1)" :key="highlightKey(item)" class="highlight-card" :class="`camp-${item.camp}`">
                 <span>{{ item.label }}</span>
                 <strong>{{ highlightValue(item) }}</strong>
                 <em>{{ shortPlayer(item.playerName) }} · {{ item.heroName || '-' }}</em>
               </div>
             </div>
             <div class="highlight-column right">
-              <div v-for="item in sideHighlights(2)" :key="item.key" class="highlight-card" :class="`camp-${item.camp}`">
+              <div v-for="item in sideHighlights(2)" :key="highlightKey(item)" class="highlight-card" :class="`camp-${item.camp}`">
                 <span>{{ item.label }}</span>
                 <strong>{{ highlightValue(item) }}</strong>
                 <em>{{ shortPlayer(item.playerName) }} · {{ item.heroName || '-' }}</em>
@@ -625,12 +625,39 @@ function sideFooterText(side) {
 function highlightValue(item) {
   const value = Number(item?.displayValue ?? item?.value ?? 0)
   const unit = item?.unit || ''
-  const text = unit === '%' ? value.toFixed(1) : value >= 100 ? Math.round(value).toLocaleString() : value.toFixed(1)
+  const text = unit === '%'
+    ? value.toFixed(1)
+    : unit === '次' || value >= 100
+      ? Math.round(value).toLocaleString()
+      : value.toFixed(1)
   return `${text}${unit}`
 }
 
 function sideHighlights(camp) {
   return (radarData.value?.highlights || []).filter(item => Number(item.camp) === Number(camp))
+}
+
+function highlightKey(item) {
+  return `${item?.key || 'highlight'}-${item?.camp || '-'}-${item?.playerName || '-'}-${item?.heroName || '-'}`
+}
+
+function isMetricHighlighted(metric, camp) {
+  if (!metric || !radarData.value?.highlights?.length) return false
+  const keys = highlightKeysForMetric(metric.key)
+  if (!keys.length) return false
+  return radarData.value.highlights.some(item => Number(item.camp) === Number(camp) && keys.includes(item.key))
+}
+
+function highlightKeysForMetric(metricKey) {
+  const map = {
+    damagePerMinute: ['damageTotal'],
+    goldPerMinute: ['goldTotal'],
+    killParticipation: ['kills'],
+    participationRate: ['participationRate'],
+    kda: ['kda'],
+    beHurtShare: ['beHurtTotal'],
+  }
+  return map[metricKey] || []
 }
 
 function formatInt(value) {
@@ -661,7 +688,7 @@ function formatAnimatedRaw(metric, animatedValue) {
 
 
 function tooltipText(metric) {
-  return `${metric.name}\n胜方：${formatRaw(metric.winner)}，${metric.winner.score}分\n败方：${formatRaw(metric.loser)}，${metric.loser.score}分\n${metric.winner.sampleCount}样本`
+  return `${metric.name}\n蓝方：${formatRaw(metric.blue)}，${metric.blue.score}分\n红方：${formatRaw(metric.red)}，${metric.red.score}分\n${metric.blue.sampleCount}样本`
 }
 
 watch(radarData, (v) => {
@@ -1474,11 +1501,15 @@ onUnmounted(() => {
   font-size: 27px;
   letter-spacing: 1px;
 }
-.metric-values .red-num,
 .metric-values .winner-num,
 .metric-callout .winner-num { color: #1a1a1a; font-size: 18px; font-weight: 950; }
 .metric-values .loser-num,
 .metric-callout .loser-num { color: rgba(26, 26, 26, 0.45); font-size: 18px; }
+.metric-values .hot,
+.metric-callout .hot {
+  color: #e44848 !important;
+  text-shadow: 0 8px 18px rgba(228, 72, 72, .18);
+}
 .metric-callout span {
   display: inline-block;
   margin-top: 2px;

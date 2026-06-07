@@ -39,10 +39,6 @@
           <span class="legend-dot high-pick"></span>
           <span>高出场率 (&gt;50%)</span>
         </div>
-        <div class="legend-item">
-          <span class="legend-dot low-pick"></span>
-          <span>低出场 (&lt;5场)</span>
-        </div>
       </div>
       <div class="score-formula">
         <span class="formula-label">评分</span>
@@ -80,7 +76,7 @@
               <span class="equip-score">{{ item._score }}</span>
               <span class="equip-name">{{ item.equipName }}</span>
               <span class="equip-meta">{{ item._lanePickCount != null ? item._lanePickCount + '次' : item.pickCount + '次' }} / {{ item.heroCount }}英雄</span>
-              <span class="equip-price" v-if="item.totalPrice">{{ item.totalPrice }} 金</span>
+              <span class="equip-price" v-if="item.totalPrice">{{ item.totalPrice }} 金币</span>
             </div>
           </div>
         </div>
@@ -107,9 +103,9 @@
             <div>
               <h3>{{ detailData.equipName }}</h3>
               <p v-if="detailData.totalPrice" class="detail-price">
-                总价: {{ detailData.totalPrice }} 金
+                总价: {{ detailData.totalPrice }} 金币
                 <template v-if="detailData.price && detailData.price !== detailData.totalPrice">
-                  (组件: {{ detailData.price }} 金)
+                  (组件: {{ detailData.price }} 金币)
                 </template>
               </p>
               <p v-if="detailData.equipDescGain" class="detail-desc" v-html="detailData.equipDescGain"></p>
@@ -472,7 +468,6 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
   transform: translateY(-2px);
 }
 .equip-card.high-pick { border-color: #e74c3c; border-width: 2px; box-shadow: 0 0 8px rgba(231, 76, 60, 0.25); }
-.equip-card.low-pick { border-color: #3498db; border-width: 2px; border-style: dashed; box-shadow: 0 0 8px rgba(52, 152, 219, 0.2); }
 
 .equip-icon {
   width: 48px; height: 48px; border-radius: 4px; object-fit: cover;
@@ -510,7 +505,6 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
   width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
 }
 .legend-dot.high-pick { background: #e74c3c; }
-.legend-dot.low-pick { background: #3498db; }
 .score-formula {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   font-size: 12px; color: var(--c-soft); margin-left: auto;

@@ -10,6 +10,8 @@ export default defineConfig({
       output: {
         manualChunks: {
           'vendor-vue': ['vue', 'vue-router'],
+          'vendor-element': ['element-plus'],
+          'vendor-icons': ['@element-plus/icons-vue'],
           'vendor-md': ['markdown-it'],
         }
       }

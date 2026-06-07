@@ -6,6 +6,7 @@ import com.kpl.agent.api.KplApiClient;
 import com.kpl.agent.entity.*;
 import com.kpl.agent.mapper.*;
 import com.kpl.agent.mapper.BattlePlayerEquipMapper;
+import com.kpl.agent.mapper.EquipBaseInfoMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -39,6 +41,7 @@ public class DataSyncService {
     private final SyncJobMapper syncJobMapper;
     private final SyncCursorMapper syncCursorMapper;
     private final QueryCacheService queryCacheService;
+    private final EquipBaseInfoMapper equipBaseInfoMapper;
 
     private static final DateTimeFormatter DT_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -1017,5 +1020,68 @@ public class DataSyncService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    // ==================== 装备名称编码修复 ====================
+
+    /**
+     * 用 equip_info 表的正确名称修复 battle_player_equip 表中的乱码装备名。
+     * equip_info 来自 pvp.qq.com（编码正确），battle_player_equip 来自 KPL API（部分名称有 UTF-16 代理对乱码）。
+     */
+    public int fixEquipNameEncoding() {
+        log.info("开始修复装备名称编码...");
+        List<EquipBaseInfo> allInfo = equipBaseInfoMapper.selectList(null);
+        Map<Integer, String> nameMap = allInfo.stream()
+                .filter(e -> e.getItemId() != null && e.getItemName() != null && !e.getItemName().isEmpty())
+                .collect(Collectors.toMap(EquipBaseInfo::getItemId, EquipBaseInfo::getItemName, (a, b) -> a));
+        log.info("equip_info 表加载 {} 条装备名称", nameMap.size());
+        // Debug: 打印几个装备的名称
+        for (Map.Entry<Integer, String> e : nameMap.entrySet()) {
+            if (e.getKey() == 1126 || e.getKey() == 1335 || e.getKey() == 1135) {
+                log.info("equip_info[{}]: '{}' (hasSurrogates={})", e.getKey(), e.getValue(),
+                        e.getValue().chars().anyMatch(c -> Character.isSurrogate((char) c)));
+            }
+        }
+
+        // 查出所有记录中不同的 equipId + equipName 组合
+        List<BattlePlayerEquip> allEquips = battlePlayerEquipMapper.selectList(
+                new LambdaQueryWrapper<BattlePlayerEquip>()
+                        .select(BattlePlayerEquip::getEquipId, BattlePlayerEquip::getEquipName));
+        Map<Integer, String> existingNames = new HashMap<>();
+        for (BattlePlayerEquip e : allEquips) {
+            existingNames.putIfAbsent(e.getEquipId(), e.getEquipName());
+        }
+        log.info("battle_player_equip 表有 {} 个不同装备", existingNames.size());
+        // Debug: 打印几个装备的名称
+        for (int id : new int[]{1126, 1335, 1135}) {
+            String n = existingNames.get(id);
+            if (n != null) {
+                log.info("battle_equip[{}]: '{}' (hasSurrogates={})", id, n,
+                        n.chars().anyMatch(c -> Character.isSurrogate((char) c)));
+            }
+        }
+
+        int fixed = 0;
+        for (Map.Entry<Integer, String> entry : existingNames.entrySet()) {
+            int equipId = entry.getKey();
+            String oldName = entry.getValue();
+            String correctName = nameMap.get(equipId);
+            if (correctName == null) continue;
+            if (correctName.equals(oldName)) continue;
+
+            // 名称不同，直接更新（不论是否有代理对字符）
+            BattlePlayerEquip updateEntity = new BattlePlayerEquip();
+            updateEntity.setEquipName(correctName);
+            int updated = battlePlayerEquipMapper.update(updateEntity,
+                    new LambdaQueryWrapper<BattlePlayerEquip>()
+                            .eq(BattlePlayerEquip::getEquipId, equipId));
+            log.info("修复装备 {}: '{}' -> '{}' (更新 {} 条)", equipId, oldName, correctName, updated);
+            fixed++;
+        }
+
+        log.info("装备名称编码修复完成: 修复 {} 个装备", fixed);
+        // 清除相关缓存
+        queryCacheService.evictByPattern("kpl:*:equip:*");
+        return fixed;
     }
 }

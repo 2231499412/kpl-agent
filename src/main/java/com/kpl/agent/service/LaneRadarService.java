@@ -20,7 +20,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -300,21 +299,29 @@ public class LaneRadarService {
             return List.of();
         }
         List<HighlightDefinition> definitions = List.of(
-                new HighlightDefinition("goldPerMinute", "分均经济最高", "", s -> safeInt(s.player().getGold()) / s.minutes()),
-                new HighlightDefinition("damagePerMinute", "分均伤害最高", "", s -> playerDamage(s) / s.minutes()),
+                new HighlightDefinition("goldTotal", "经济最高", "", s -> (double) safeInt(s.player().getGold())),
+                new HighlightDefinition("damageTotal", "伤害最高", "", s -> (double) playerDamage(s)),
+                new HighlightDefinition("beHurtTotal", "承伤最高", "", s -> (double) playerBeHurt(s)),
+                new HighlightDefinition("kills", "击杀数最高", "次", s -> (double) safeInt(s.player().getKillNum())),
                 new HighlightDefinition("participationRate", "参团率最高", "%", s -> ratio(killParticipation(s), s.teamTotals().kills())),
                 new HighlightDefinition("kda", "KDA最高", "", s -> killParticipation(s) / Math.max(safeInt(s.player().getDeathNum()), 1.0))
         );
         return definitions.stream()
-                .map(def -> samples.stream()
-                        .filter(s -> s != null && s.minutes() > 0)
-                        .map(s -> new HighlightCandidate(s, def.reader().apply(s)))
-                        .filter(c -> Double.isFinite(c.value()))
-                        .max(Comparator.comparingDouble(HighlightCandidate::value))
-                        .filter(c -> Objects.equals(c.sample().player().getPosition(), currentPosition))
-                        .map(c -> buildHighlight(def, c.sample(), c.value()))
-                        .orElse(null))
-                .filter(Objects::nonNull)
+                .flatMap(def -> {
+                    List<HighlightCandidate> candidates = samples.stream()
+                            .filter(s -> s != null && s.minutes() > 0)
+                            .map(s -> new HighlightCandidate(s, def.reader().apply(s)))
+                            .filter(c -> Double.isFinite(c.value()))
+                            .toList();
+                    if (candidates.isEmpty()) {
+                        return List.<Map<String, Object>>of().stream();
+                    }
+                    double max = candidates.stream().mapToDouble(HighlightCandidate::value).max().orElse(Double.NaN);
+                    return candidates.stream()
+                            .filter(c -> Math.abs(c.value() - max) < 1e-9)
+                            .filter(c -> Objects.equals(c.sample().player().getPosition(), currentPosition))
+                            .map(c -> buildHighlight(def, c.sample(), c.value()));
+                })
                 .toList();
     }
 

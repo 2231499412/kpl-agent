@@ -32,7 +32,9 @@ public class EquipInfoSyncService {
     public int syncEquipInfo() {
         log.info("开始同步装备基础信息: {}", ITEM_URL);
         try {
-            String json = restTemplate.getForObject(ITEM_URL, String.class);
+            // 手动读取字节并用 UTF-8 解码，彻底避免编码问题
+            byte[] bytes = java.net.URI.create(ITEM_URL).toURL().openStream().readAllBytes();
+            String json = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
             JsonNode root = objectMapper.readTree(json);
 
             // item.json 返回纯 JSON 数组
@@ -40,6 +42,9 @@ public class EquipInfoSyncService {
                 log.error("item.json 返回格式异常，不是数组");
                 return 0;
             }
+
+            // 先清空旧数据，再全量插入，避免 updateById 因编码问题跳过更新
+            equipBaseInfoMapper.delete(null);
 
             int synced = 0;
             for (JsonNode item : root) {
@@ -53,31 +58,15 @@ public class EquipInfoSyncService {
                 String des1 = item.path("des1").asText("");
                 String des2 = item.path("des2").asText("");
 
-                // upsert: 先查是否存在
-                EquipBaseInfo existing = equipBaseInfoMapper.selectOne(
-                        new LambdaQueryWrapper<EquipBaseInfo>()
-                                .eq(EquipBaseInfo::getItemId, itemId)
-                                .last("LIMIT 1"));
-
-                if (existing != null) {
-                    existing.setItemName(itemName);
-                    existing.setItemType(itemType);
-                    existing.setPrice(price);
-                    existing.setTotalPrice(totalPrice);
-                    existing.setDes1(des1);
-                    existing.setDes2(des2);
-                    equipBaseInfoMapper.updateById(existing);
-                } else {
-                    EquipBaseInfo info = new EquipBaseInfo();
-                    info.setItemId(itemId);
-                    info.setItemName(itemName);
-                    info.setItemType(itemType);
-                    info.setPrice(price);
-                    info.setTotalPrice(totalPrice);
-                    info.setDes1(des1);
-                    info.setDes2(des2);
-                    equipBaseInfoMapper.insert(info);
-                }
+                EquipBaseInfo info = new EquipBaseInfo();
+                info.setItemId(itemId);
+                info.setItemName(itemName);
+                info.setItemType(itemType);
+                info.setPrice(price);
+                info.setTotalPrice(totalPrice);
+                info.setDes1(des1);
+                info.setDes2(des2);
+                equipBaseInfoMapper.insert(info);
                 synced++;
             }
 
@@ -93,7 +82,8 @@ public class EquipInfoSyncService {
     public int syncInscriptionInfo() {
         log.info("开始同步铭文基础信息: {}", MING_URL);
         try {
-            String json = restTemplate.getForObject(MING_URL, String.class);
+            byte[] bytes = java.net.URI.create(MING_URL).toURL().openStream().readAllBytes();
+            String json = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
             JsonNode root = objectMapper.readTree(json);
 
             if (!root.isArray()) {

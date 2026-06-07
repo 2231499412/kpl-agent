@@ -8,7 +8,7 @@
           </div>
           <h3 class="card-title">{{ card.title }}</h3>
           <p class="card-desc">{{ card.desc }}</p>
-          <span v-if="card.soon" class="card-badge">即将推出</span>
+          <span v-if="card.soon" class="card-badge">开发中</span>
         </router-link>
       </GlassCard>
     </ScrollReveal>
@@ -54,6 +54,7 @@ const cards = [
     icon: ChatDotRound,
     route: '/agent',
     gradient: 'linear-gradient(135deg, rgba(255,149,0,0.15), rgba(255,68,68,0.1))',
+    soon: true,
   },
   {
     title: 'BP 分析',

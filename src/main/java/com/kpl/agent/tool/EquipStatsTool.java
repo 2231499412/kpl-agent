@@ -95,7 +95,6 @@ public class EquipStatsTool {
             if (leagueId != null && !leagueId.isBlank()) {
                 qw.eq(BattlePlayerEquip::getLeagueId, leagueId);
             }
-            qw.last("LIMIT 10000");
             List<BattlePlayerEquip> equips = battlePlayerEquipMapper.selectList(qw);
             return buildEquipResult("equip_global", "装备总榜", equips, limit, leagueId);
         });
@@ -196,7 +195,11 @@ public class EquipStatsTool {
                     int gameCount = equipGameMap.getOrDefault(e.equipId, Set.of()).size();
                     Map<String, Object> row = new LinkedHashMap<>();
                     row.put("equipId", e.equipId);
-                    row.put("equipName", e.equipName);
+                    String cleanedName = cleanSurrogates(e.equipName);
+                    if (!cleanedName.equals(e.equipName)) {
+                        log.info("cleanSurrogates applied: '{}' -> '{}'", e.equipName, cleanedName);
+                    }
+                    row.put("equipName", cleanedName);
                     row.put("equipIcon", e.equipIcon);
                     row.put("pickCount", e.count);
                     row.put("heroCount", e.heroIds.size());
@@ -297,10 +300,10 @@ public class EquipStatsTool {
                             .last("LIMIT 1"));
             if (sample != null) {
                 result.put("equipId", equipId);
-                result.put("equipName", sample.getEquipName());
+                result.put("equipName", cleanSurrogates(sample.getEquipName()));
                 result.put("equipIcon", sample.getEquipIcon());
-                result.put("equipDescGain", sample.getEquipDescGain());
-                result.put("equipDescFunction", sample.getEquipDescFunction());
+                result.put("equipDescGain", cleanSurrogates(sample.getEquipDescGain()));
+                result.put("equipDescFunction", cleanSurrogates(sample.getEquipDescFunction()));
             }
 
             // 价格信息 + 被动效果
@@ -312,8 +315,11 @@ public class EquipStatsTool {
                 if (priceInfo != null) {
                     result.put("totalPrice", priceInfo.getTotalPrice());
                     result.put("price", priceInfo.getPrice());
+                    if (priceInfo.getDes1() != null && !priceInfo.getDes1().isEmpty()) {
+                        result.put("equipDescGain", cleanSurrogates(priceInfo.getDes1()));
+                    }
                     if (priceInfo.getDes2() != null && !priceInfo.getDes2().isEmpty()) {
-                        result.put("equipPassive", priceInfo.getDes2());
+                        result.put("equipPassive", cleanSurrogates(priceInfo.getDes2()));
                     }
                 }
             } catch (Exception ignored) {}
@@ -347,5 +353,33 @@ public class EquipStatsTool {
             this.equipName = equipName;
             this.equipIcon = equipIcon;
         }
+    }
+
+    /** 清理字符串中的 UTF-16 代理对字符（低代理 U+DC00-U+DFFF） */
+    private static String cleanSurrogates(String s) {
+        if (s == null || s.isEmpty()) return s;
+        StringBuilder sb = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (Character.isLowSurrogate(c)) {
+                // 跳过孤立的低代理字符（前面没有高代理）
+                if (i > 0 && Character.isHighSurrogate(s.charAt(i - 1))) {
+                    sb.append(c);
+                }
+                // 否则丢弃这个孤立的低代理
+            } else if (Character.isHighSurrogate(c)) {
+                // 检查下一个字符是否是低代理
+                if (i + 1 < s.length() && Character.isLowSurrogate(s.charAt(i + 1))) {
+                    sb.append(c); // 保留，下一个循环会追加低代理
+                }
+                // 否则丢弃孤立的高代理
+            } else {
+                sb.append(c);
+            }
+        }
+        if (sb.length() != s.length()) {
+            log.debug("cleanSurrogates: '{}' (len={}) -> '{}' (len={})", s, s.length(), sb, sb.length());
+        }
+        return sb.toString();
     }
 }

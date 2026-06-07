@@ -2,10 +2,13 @@ package com.kpl.agent.controller;
 
 import com.kpl.agent.service.LeagueQueryService;
 import com.kpl.agent.service.LaneRadarService;
+import com.kpl.agent.service.QueryCacheService;
 import com.kpl.agent.tool.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.util.Map;
 
 /**
@@ -23,13 +26,18 @@ public class QueryController {
     private final EquipStatsTool equipStatsTool;
     private final LeagueQueryService leagueQueryService;
     private final LaneRadarService laneRadarService;
+    private final QueryCacheService queryCacheService;
+
+    @Value("${query.cache.ttl-seconds:600}")
+    private long queryCacheTtlSeconds;
 
     /** 选手查询：GET /api/query/player?name=听悦 */
     @GetMapping("/player")
     public ApiResponse<Map<String, Object>> queryPlayer(
             @RequestParam String name,
             @RequestParam(required = false) String leagueId) {
-        return ApiResponse.ok(playerStatsTool.queryByName(name, leagueQueryService.requireLeagueId(leagueId)));
+        String lid = leagueQueryService.requireLeagueId(leagueId);
+        return ApiResponse.ok(cached("player", () -> playerStatsTool.queryByName(name, lid), lid, name));
     }
 
     /** 英雄查询：GET /api/query/hero?name=公孙离 */
@@ -37,7 +45,8 @@ public class QueryController {
     public ApiResponse<Map<String, Object>> queryHero(
             @RequestParam String name,
             @RequestParam(required = false) String leagueId) {
-        return ApiResponse.ok(heroStatsTool.queryByName(name, leagueQueryService.requireLeagueId(leagueId)));
+        String lid = leagueQueryService.requireLeagueId(leagueId);
+        return ApiResponse.ok(cached("hero", () -> heroStatsTool.queryByName(name, lid), lid, name));
     }
 
     /** 英雄高胜率选手：GET /api/query/hero/players?name=公孙离 */
@@ -46,7 +55,8 @@ public class QueryController {
             @RequestParam String name,
             @RequestParam(required = false) String leagueId,
             @RequestParam(defaultValue = "8") int limit) {
-        return ApiResponse.ok(heroStatsTool.queryHeroPlayers(name, leagueQueryService.requireLeagueId(leagueId), limit));
+        String lid = leagueQueryService.requireLeagueId(leagueId);
+        return ApiResponse.ok(cached("heroPlayers", () -> heroStatsTool.queryHeroPlayers(name, lid, limit), lid, name, limit));
     }
 
     /** 选手排行：GET /api/query/player/top?sort=kda */
@@ -55,10 +65,10 @@ public class QueryController {
             @RequestParam(defaultValue = "kda") String sort,
             @RequestParam(required = false) String leagueId) {
         String resolvedLeagueId = leagueQueryService.requireLeagueId(leagueId);
-        Map<String, Object> data = switch (sort) {
+        Map<String, Object> data = cached("playerTop", () -> switch (sort) {
             case "win" -> playerStatsTool.queryTopWinRate(resolvedLeagueId, 5, 9999);
             default -> playerStatsTool.queryTopKda(resolvedLeagueId, 5, 9999);
-        };
+        }, resolvedLeagueId, sort);
         return ApiResponse.ok(data);
     }
 
@@ -68,11 +78,11 @@ public class QueryController {
             @RequestParam(defaultValue = "pick") String sort,
             @RequestParam(required = false) String leagueId) {
         String resolvedLeagueId = leagueQueryService.requireLeagueId(leagueId);
-        Map<String, Object> data = switch (sort) {
+        Map<String, Object> data = cached("heroTop", () -> switch (sort) {
             case "ban" -> heroStatsTool.queryTopBanRate(resolvedLeagueId, 9999);
             case "win" -> heroStatsTool.queryTopWinRate(resolvedLeagueId, 5, 9999);
             default -> heroStatsTool.queryTopPickRate(resolvedLeagueId, 9999);
-        };
+        }, resolvedLeagueId, sort);
         return ApiResponse.ok(data);
     }
 
@@ -81,27 +91,30 @@ public class QueryController {
     public ApiResponse<Map<String, Object>> queryTeam(
             @RequestParam String name,
             @RequestParam(required = false) String leagueId) {
-        return ApiResponse.ok(teamStatsTool.queryByName(name, leagueQueryService.requireLeagueId(leagueId)));
+        String lid = leagueQueryService.requireLeagueId(leagueId);
+        return ApiResponse.ok(cached("team", () -> teamStatsTool.queryByName(name, lid), lid, name));
     }
 
     /** 战队排名：GET /api/query/team/ranking */
     @GetMapping("/team/ranking")
     public ApiResponse<Map<String, Object>> queryTeamRanking(
             @RequestParam(required = false) String leagueId) {
-        return ApiResponse.ok(teamStatsTool.queryRanking(leagueQueryService.requireLeagueId(leagueId)));
+        String lid = leagueQueryService.requireLeagueId(leagueId);
+        return ApiResponse.ok(cached("teamRanking", () -> teamStatsTool.queryRanking(lid), lid));
     }
 
     /** 荣誉总榜：GET /api/query/team/honors */
     @GetMapping("/team/honors")
     public ApiResponse<Map<String, Object>> queryTeamHonors() {
-        return ApiResponse.ok(teamStatsTool.queryHonors());
+        return ApiResponse.ok(cached("teamHonors", () -> teamStatsTool.queryHonors()));
     }
 
     /** 赛程列表（按赛段排序，决赛在前）：GET /api/query/match/schedule */
     @GetMapping("/match/schedule")
     public ApiResponse<Map<String, Object>> queryMatchSchedule(
             @RequestParam(required = false) String leagueId) {
-        return ApiResponse.ok(matchAnalysisTool.queryBySchedule(leagueQueryService.requireLeagueId(leagueId)));
+        String lid = leagueQueryService.requireLeagueId(leagueId);
+        return ApiResponse.ok(cached("matchSchedule", () -> matchAnalysisTool.queryBySchedule(lid), lid));
     }
 
     /** 比赛复盘：GET /api/query/match/recent?team=AG */
@@ -109,19 +122,20 @@ public class QueryController {
     public ApiResponse<Map<String, Object>> queryRecentMatch(
             @RequestParam String team,
             @RequestParam(required = false) String leagueId) {
-        return ApiResponse.ok(matchAnalysisTool.queryRecentMatches(team, leagueQueryService.requireLeagueId(leagueId), 5));
+        String lid = leagueQueryService.requireLeagueId(leagueId);
+        return ApiResponse.ok(cached("recentMatch", () -> matchAnalysisTool.queryRecentMatches(team, lid, 5), lid, team));
     }
 
     /** 对局详情：GET /api/query/match/battle?matchId=2026011401 */
     @GetMapping("/match/battle")
     public ApiResponse<Map<String, Object>> queryBattleDetail(@RequestParam String matchId) {
-        return ApiResponse.ok(matchAnalysisTool.deepAnalysis(matchId));
+        return ApiResponse.ok(cached("battleDetail", () -> matchAnalysisTool.deepAnalysis(matchId), matchId));
     }
 
     /** 对局选手详情（含装备）：GET /api/query/battle/players?battleId=xxx */
     @GetMapping("/battle/players")
     public ApiResponse<Map<String, Object>> queryBattlePlayers(@RequestParam String battleId) {
-        return ApiResponse.ok(matchAnalysisTool.queryBattlePlayers(battleId));
+        return ApiResponse.ok(cached("battlePlayers", () -> matchAnalysisTool.queryBattlePlayers(battleId), battleId));
     }
 
     /** 对位雷达图：GET /api/query/radar/lane?leagueId=xxx&matchId=xxx&battleId=xxx&role=打野 */
@@ -131,7 +145,10 @@ public class QueryController {
             @RequestParam String matchId,
             @RequestParam String battleId,
             @RequestParam(defaultValue = "对抗路") String role) {
-        return ApiResponse.ok(laneRadarService.buildRadar(leagueId, matchId, battleId, role));
+        String lid = leagueQueryService.requireLeagueId(leagueId);
+        return ApiResponse.ok(cached("laneRadar",
+                () -> laneRadarService.buildRadar(lid, matchId, battleId, role),
+                lid, matchId, battleId, role));
     }
 
     /** 选手英雄数据：GET /api/query/player/heroes?name=一诺 */
@@ -140,7 +157,8 @@ public class QueryController {
             @RequestParam String name,
             @RequestParam(required = false) String leagueId,
             @RequestParam(defaultValue = "10") int limit) {
-        return ApiResponse.ok(matchAnalysisTool.queryPlayerHeroes(name, leagueQueryService.requireLeagueId(leagueId), limit));
+        String lid = leagueQueryService.requireLeagueId(leagueId);
+        return ApiResponse.ok(cached("playerHeroes", () -> matchAnalysisTool.queryPlayerHeroes(name, lid, limit), lid, name, limit));
     }
 
     /** 装备出场排行：GET /api/query/equip/top */
@@ -148,7 +166,8 @@ public class QueryController {
     public ApiResponse<Map<String, Object>> queryEquipTop(
             @RequestParam(required = false) String leagueId,
             @RequestParam(defaultValue = "10") int limit) {
-        return ApiResponse.ok(equipStatsTool.queryTopGlobal(leagueQueryService.requireLeagueId(leagueId), limit));
+        String lid = leagueQueryService.requireLeagueId(leagueId);
+        return ApiResponse.ok(cached("equipTop", () -> equipStatsTool.queryTopGlobal(lid, limit), lid, limit));
     }
 
     /** 按装备名搜索（支持外号）：GET /api/query/equip/search?name=黑切 */
@@ -157,7 +176,8 @@ public class QueryController {
             @RequestParam String name,
             @RequestParam(required = false) String leagueId,
             @RequestParam(defaultValue = "10") int limit) {
-        return ApiResponse.ok(equipStatsTool.queryByName(name, leagueQueryService.requireLeagueId(leagueId), limit));
+        String lid = leagueQueryService.requireLeagueId(leagueId);
+        return ApiResponse.ok(cached("equipSearch", () -> equipStatsTool.queryByName(name, lid, limit), lid, name, limit));
     }
 
     /** 装备详情（分路/英雄分布）：GET /api/query/equip/detail?equipId=1422 */
@@ -166,7 +186,8 @@ public class QueryController {
             @RequestParam int equipId,
             @RequestParam(required = false) String leagueId,
             @RequestParam(defaultValue = "10") int heroLimit) {
-        return ApiResponse.ok(equipStatsTool.queryDetail(equipId, leagueQueryService.requireLeagueId(leagueId), heroLimit));
+        String lid = leagueQueryService.requireLeagueId(leagueId);
+        return ApiResponse.ok(cached("equipDetail", () -> equipStatsTool.queryDetail(equipId, lid, heroLimit), lid, equipId, heroLimit));
     }
 
     /** 英雄常用装备：GET /api/query/equip/hero?heroId=111 */
@@ -178,10 +199,10 @@ public class QueryController {
             @RequestParam(defaultValue = "6") int limit) {
         String lid = leagueQueryService.requireLeagueId(leagueId);
         if (heroId != null) {
-            return ApiResponse.ok(equipStatsTool.queryByHeroId(heroId, lid, limit));
+            return ApiResponse.ok(cached("equipHeroId", () -> equipStatsTool.queryByHeroId(heroId, lid, limit), lid, heroId, limit));
         }
         if (heroName != null && !heroName.isBlank()) {
-            return ApiResponse.ok(equipStatsTool.queryByHero(heroName, lid, limit));
+            return ApiResponse.ok(cached("equipHeroName", () -> equipStatsTool.queryByHero(heroName, lid, limit), lid, heroName, limit));
         }
         return ApiResponse.ok(Map.of("error", "请提供 heroId 或 heroName"));
     }
@@ -192,6 +213,14 @@ public class QueryController {
             @RequestParam String name,
             @RequestParam(required = false) String leagueId,
             @RequestParam(defaultValue = "6") int limit) {
-        return ApiResponse.ok(equipStatsTool.queryByPlayer(name, leagueQueryService.requireLeagueId(leagueId), limit));
+        String lid = leagueQueryService.requireLeagueId(leagueId);
+        return ApiResponse.ok(cached("equipPlayer", () -> equipStatsTool.queryByPlayer(name, lid, limit), lid, name, limit));
+    }
+
+    private Map<String, Object> cached(String namespace, java.util.function.Supplier<Map<String, Object>> loader, Object... keyParts) {
+        String key = "kpl:query:" + namespace + ":" + java.util.Arrays.stream(keyParts)
+                .map(part -> String.valueOf(part).replaceAll("[\\s:]+", "_"))
+                .collect(java.util.stream.Collectors.joining(":"));
+        return queryCacheService.getOrLoad(key, Duration.ofSeconds(queryCacheTtlSeconds), loader);
     }
 }

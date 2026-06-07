@@ -46,7 +46,7 @@
 
           <div v-if="panel.key === 'hero'" class="hero-actions">
             <router-link class="primary-link" to="/rankings">进入数据排名</router-link>
-            <router-link class="ghost-link" to="/agent">AI 复盘</router-link>
+            <router-link class="ghost-link disabled" to="/agent">AI 复盘 <span class="dev-tag">开发中</span></router-link>
           </div>
 
           <div v-if="panel.key === 'overview'" class="metric-grid">
@@ -714,6 +714,21 @@ onBeforeUnmount(() => {
   color: var(--cyan);
   border: 1px solid rgba(136, 247, 238, 0.28);
   background: rgba(2, 10, 12, 0.48);
+}
+.ghost-link.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.dev-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  margin-left: 4px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.15);
+  vertical-align: middle;
 }
 
 .metric-grid,

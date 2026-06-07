@@ -114,6 +114,16 @@ public class SyncController {
     }
 
     /**
+     * 修复装备名称编码（用 equip_info 表的正确名称修复 battle_player_equip 的乱码）
+     * POST /api/sync/fix-equip-encoding
+     */
+    @PostMapping("/fix-equip-encoding")
+    public ApiResponse<Map<String, Object>> fixEquipEncoding() {
+        int count = dataSyncService.fixEquipNameEncoding();
+        return ApiResponse.ok(Map.of("fixed", count));
+    }
+
+    /**
      * 重置指定赛季的分路数据并重新同步（修正英雄映射导致的分路错误）
      * POST /api/sync/reset-positions?leagueId=20200005
      */
