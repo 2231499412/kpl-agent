@@ -113,7 +113,7 @@
                 </template>
               </p>
               <p v-if="detailData.equipDescGain" class="detail-desc" v-html="detailData.equipDescGain"></p>
-              <p v-if="detailData.equipDescFunction" class="detail-desc" v-html="detailData.equipDescFunction"></p>
+              <p v-if="detailData.equipDescFunction" class="detail-passive" v-html="detailData.equipDescFunction"></p>
             </div>
           </div>
           <div class="detail-section" v-if="detailData.positions?.length">
@@ -534,7 +534,7 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 }
 .detail-info h3 { margin: 0; font-size: 18px; font-weight: 900; color: var(--c-ink); }
 .detail-price { margin: 4px 0 0; font-size: 13px; font-weight: 700; color: #f39c12; }
-.detail-desc { margin: 4px 0 0; font-size: 12px; color: var(--c-dim); line-height: 1.6; }
+.detail-desc { margin: 4px 0 0; font-size: 12px; color: var(--c-ink); line-height: 1.6; opacity: 0.75; }
 .detail-passive { margin: 6px 0 0; font-size: 12px; color: #27ae60; line-height: 1.6; font-weight: 600; }
 .detail-section h4 { margin: 0 0 10px; font-size: 13px; font-weight: 800; color: var(--c-ink); }
 .position-grid { display: flex; flex-wrap: wrap; gap: 8px; }
