@@ -218,7 +218,8 @@ function assignTiers(equips) {
 
 function isVisibleEquip(item) {
   if (item.equipName && item.equipName.includes('之靴')) return true
-  return (item.totalPrice || 0) >= 1000
+  if (item.totalPrice == null) return true
+  return item.totalPrice >= 1000
 }
 
 const filteredEquips = computed(() => {
