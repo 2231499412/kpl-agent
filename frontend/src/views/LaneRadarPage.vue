@@ -111,24 +111,62 @@
             <polygon :points="radarPolygon(loserScores)" class="loser-line" />
             <polygon :points="radarPolygon(winnerScores)" class="winner-line" />
           </svg>
+
+          <div v-if="isMatchSummary" class="summary-hero-orbit">
+            <div class="orbit-side blue">
+              <span class="orbit-label">{{ shortPlayer(radarData.blue.playerName) }}</span>
+              <div class="orbit-icons">
+                <span v-for="game in radarData.blue.heroGames || []" :key="`blue-${game.battleId}`" class="orbit-hero" :class="{ win: game.result === '胜' }" :title="heroGameTitle(game)">
+                  <img :src="heroIcon(game)" :alt="game.heroName">
+                  <b>G{{ game.battleSeq }}</b>
+                </span>
+              </div>
+            </div>
+            <div class="orbit-side red">
+              <span class="orbit-label">{{ shortPlayer(radarData.red.playerName) }}</span>
+              <div class="orbit-icons">
+                <span v-for="game in radarData.red.heroGames || []" :key="`red-${game.battleId}`" class="orbit-hero" :class="{ win: game.result === '胜' }" :title="heroGameTitle(game)">
+                  <img :src="heroIcon(game)" :alt="game.heroName">
+                  <b>G{{ game.battleSeq }}</b>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="radarData.highlights?.length" class="radar-highlights">
+            <div class="highlight-column left">
+              <div v-for="item in sideHighlights(1)" :key="item.key" class="highlight-card" :class="`camp-${item.camp}`">
+                <span>{{ item.label }}</span>
+                <strong>{{ highlightValue(item) }}</strong>
+                <em>{{ shortPlayer(item.playerName) }} · {{ item.heroName || '-' }}</em>
+              </div>
+            </div>
+            <div class="highlight-column right">
+              <div v-for="item in sideHighlights(2)" :key="item.key" class="highlight-card" :class="`camp-${item.camp}`">
+                <span>{{ item.label }}</span>
+                <strong>{{ highlightValue(item) }}</strong>
+                <em>{{ shortPlayer(item.playerName) }} · {{ item.heroName || '-' }}</em>
+              </div>
+            </div>
+          </div>
         </section>
 
         <footer class="poster-footer">
           <div class="footer-player left">
-            <span v-if="radarData.blue.isMvp" class="mvp-tag">MVP</span>
-            <span v-else-if="radarData.blue.isLoseMvp" class="mvp-tag lose">败方MVP</span>
+            <span v-if="!isMatchSummary && radarData.blue.isMvp" class="mvp-tag">MVP</span>
+            <span v-else-if="!isMatchSummary && radarData.blue.isLoseMvp" class="mvp-tag lose">败方MVP</span>
             <strong>{{ shortPlayer(radarData.blue.playerName) }}</strong>
-            <span>{{ radarData.blue.heroName }} · {{ kdaText(radarData.blue) }}</span>
+            <span>{{ sideFooterText(radarData.blue) }}</span>
           </div>
           <div class="legend">
             <span class="blue-mark" />胜方表现分
             <span class="red-mark" />败方表现分
           </div>
           <div class="footer-player right">
-            <span v-if="radarData.red.isMvp" class="mvp-tag">MVP</span>
-            <span v-else-if="radarData.red.isLoseMvp" class="mvp-tag lose">败方MVP</span>
+            <span v-if="!isMatchSummary && radarData.red.isMvp" class="mvp-tag">MVP</span>
+            <span v-else-if="!isMatchSummary && radarData.red.isLoseMvp" class="mvp-tag lose">败方MVP</span>
             <strong>{{ shortPlayer(radarData.red.playerName) }}</strong>
-            <span>{{ radarData.red.heroName }} · {{ kdaText(radarData.red) }}</span>
+            <span>{{ sideFooterText(radarData.red) }}</span>
           </div>
         </footer>
       </article>
@@ -262,10 +300,20 @@ function copyOffsets() {
 const currentLeagueName = computed(() => leagues.value.find(l => l.leagueId === selectedLeagueId.value)?.leagueName || 'KPL')
 const currentMatch = computed(() => matches.value.find(m => m.matchId === selectedMatchId.value))
 const currentBattle = computed(() => battles.value.find(b => b.battle?.battleId === selectedBattleId.value)?.battle)
-const currentBattleTitle = computed(() => currentBattle.value ? `第${currentBattle.value.battleSeq || '-'}局` : '请选择小局')
+const isMatchSummary = computed(() => selectedBattleId.value === 'all' || radarData.value?.battle?.summary)
+const currentBattleTitle = computed(() => {
+  if (isMatchSummary.value) return '全场总结'
+  return currentBattle.value ? `第${currentBattle.value.battleSeq || '-'}局` : '请选择小局'
+})
 const currentGameTitle = computed(() => currentBattleTitle.value === '请选择小局' ? '第-局' : currentBattleTitle.value)
-const winnerCamp = computed(() => Number(currentBattle.value?.winCamp) || 0)
+const winnerCamp = computed(() => Number(radarData.value?.battle?.winCamp ?? currentBattle.value?.winCamp) || 0)
 const currentScoreText = computed(() => {
+  if (isMatchSummary.value) {
+    return {
+      blue: Number(currentMatch.value?.camp1Score) || 0,
+      red: Number(currentMatch.value?.camp2Score) || 0,
+    }
+  }
   const seq = Number(currentBattle.value?.battleSeq) || 0
   if (!seq) return { blue: 0, red: 0 }
   return battles.value
@@ -278,7 +326,7 @@ const currentScoreText = computed(() => {
     }, { blue: 0, red: 0 })
 })
 const currentScoreLabel = computed(() => `${currentScoreText.value.blue} : ${currentScoreText.value.red}`)
-const radarKey = computed(() => radarData.value ? `${selectedBattleId.value}-${selectedRole.value}-${radarData.value.blue?.playerName}-${radarData.value.red?.playerName}` : 'empty')
+const radarKey = computed(() => radarData.value ? `${selectedBattleId.value}-${selectedRole.value}-${radarData.value.type}-${radarData.value.blue?.playerName}-${radarData.value.red?.playerName}` : 'empty')
 const axes = computed(() => radarData.value?.indicators || [])
 const blueScores = computed(() => radarData.value?.blue?.metrics?.map(m => Number(m.score) || 0) || [])
 const redScores = computed(() => radarData.value?.red?.metrics?.map(m => Number(m.score) || 0) || [])
@@ -341,17 +389,21 @@ const SideVisual = defineComponent({
     result: { type: String, required: true },
   },
   setup(props) {
-    return () => [
-      h('img', { class: 'matchup-hero-bg', src: heroPoster(props.side), alt: props.side.heroName }),
+    return () => {
+      const heroGames = Array.isArray(props.side.heroGames) ? props.side.heroGames : []
+      const mainHero = latestHeroGame(props.side) || props.side
+      const summaryMode = heroGames.length > 1
+      return [
+      h('img', { class: 'matchup-hero-bg', src: heroPoster(mainHero), alt: mainHero.heroName || props.side.heroName }),
       h('div', { class: 'hero-vignette' }),
       props.side.teamIcon ? h('img', { class: 'corner-logo', src: props.side.teamIcon, alt: props.side.teamName }) : null,
       h('div', { class: ['result-chip', props.result === '胜' ? 'win' : 'lose'] }, props.result === '胜' ? '胜利' : '失败'),
-      props.side.summonerAbilityIcon
+      mainHero.summonerAbilityIcon
         ? h('img', {
             class: 'summoner-corner',
-            src: props.side.summonerAbilityIcon,
-            alt: props.side.summonerAbilityName || 'summoner',
-            title: props.side.summonerAbilityName,
+            src: mainHero.summonerAbilityIcon,
+            alt: mainHero.summonerAbilityName || 'summoner',
+            title: mainHero.summonerAbilityName,
             onError: event => { event.target.style.display = 'none' },
           })
         : null,
@@ -385,9 +437,10 @@ const SideVisual = defineComponent({
       ]),
       h('div', { class: 'nameplate' }, [
         h('strong', shortPlayer(props.side.playerName)),
-        h('span', `${props.side.heroName || '-'} · ${props.side.positionDesc || ''}`),
+        h('span', summaryMode ? `全场 ${heroGames.length} 局 · ${kdaText(props.side)}` : `${props.side.heroName || '-'} · ${props.side.positionDesc || ''}`),
       ]),
     ]
+    }
   }
 })
 
@@ -442,7 +495,22 @@ async function loadBattles() {
   if (!selectedMatchId.value) return
   battles.value = []
   const data = await request(`/api/query/match/battle?matchId=${selectedMatchId.value}`).catch(() => ({ battles: [] }))
-  battles.value = data?.battles || []
+  const battleItems = data?.battles || []
+  const match = currentMatch.value
+  battles.value = [
+    ...battleItems,
+    {
+      battle: {
+        battleId: 'all',
+        matchId: selectedMatchId.value,
+        title: '全场总结',
+        summary: true,
+        winCamp: Number(match?.winCamp) || ((Number(match?.camp1Score) || 0) > (Number(match?.camp2Score) || 0) ? 1 : 2),
+        gameDuration: battleItems.reduce((sum, item) => sum + (Number(item.battle?.gameDuration) || 0), 0),
+        battleCount: battleItems.length,
+      },
+    },
+  ]
   if (battles.value.length) {
     selectedBattleId.value = battles.value[0].battle?.battleId
     await loadRadar()
@@ -505,7 +573,7 @@ function radarPolygon(scores) {
 }
 
 function sideResult(side) {
-  const winCamp = currentBattle.value?.winCamp
+  const winCamp = radarData.value?.battle?.winCamp ?? currentBattle.value?.winCamp
   if (!winCamp || !side?.camp) return ''
   return winCamp === side.camp ? '胜' : '败'
 }
@@ -519,6 +587,7 @@ function matchLabel(match) {
 function battleLabel(item) {
   const battle = item.battle
   if (!battle) return '小局'
+  if (battle.summary) return `全场总结 · ${currentMatch.value?.camp1Score ?? '-'}:${currentMatch.value?.camp2Score ?? '-'}`
   const winner = battle.winCamp === 1 ? currentMatch.value?.camp1TeamName : battle.winCamp === 2 ? currentMatch.value?.camp2TeamName : ''
   return `第 ${battle.battleSeq || '-'} 局${winner ? ` · ${winner}胜` : ''}`
 }
@@ -531,12 +600,37 @@ function heroPoster(side) {
   return side?.heroId ? `https://game.gtimg.cn/images/yxzj/img201606/skin/hero-info/${side.heroId}/${side.heroId}-mobileskin-1.jpg` : heroIcon(side)
 }
 
+function latestHeroGame(side) {
+  const games = Array.isArray(side?.heroGames) ? side.heroGames : []
+  return games.length ? games[games.length - 1] : null
+}
+
+function heroGameTitle(game) {
+  return `第${game?.battleSeq || '-'}局 · ${game?.heroName || '-'} · ${kdaText(game)} · ${game?.result || '-'}`
+}
+
 function shortPlayer(name) {
   return String(name || '').split('.').pop() || '-'
 }
 
 function kdaText(side) {
   return `${side?.kills ?? 0}/${side?.deaths ?? 0}/${side?.assists ?? 0}`
+}
+
+function sideFooterText(side) {
+  const games = Array.isArray(side?.heroGames) ? side.heroGames : []
+  return games.length > 1 ? `全场 ${games.length} 局 · ${kdaText(side)}` : `${side?.heroName || '-'} · ${kdaText(side)}`
+}
+
+function highlightValue(item) {
+  const value = Number(item?.displayValue ?? item?.value ?? 0)
+  const unit = item?.unit || ''
+  const text = unit === '%' ? value.toFixed(1) : value >= 100 ? Math.round(value).toLocaleString() : value.toFixed(1)
+  return `${text}${unit}`
+}
+
+function sideHighlights(camp) {
+  return (radarData.value?.highlights || []).filter(item => Number(item.camp) === Number(camp))
 }
 
 function formatInt(value) {
@@ -1180,6 +1274,143 @@ onUnmounted(() => {
   overflow: visible;
 }
 
+.summary-hero-orbit {
+  position: absolute;
+  z-index: 3;
+  inset: 52px 0 126px;
+  display: grid;
+  grid-template-columns: 46px 1fr 46px;
+  align-items: center;
+  pointer-events: none;
+}
+
+.orbit-side {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+}
+
+.orbit-side.blue {
+  grid-column: 1;
+}
+
+.orbit-side.red {
+  grid-column: 3;
+}
+
+.orbit-label {
+  display: block;
+  color: var(--mono-soft);
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 1px;
+}
+
+.orbit-icons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.orbit-hero {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  padding: 2px;
+  border: 1px solid rgba(26, 26, 26, .12);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .42);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 18px rgba(28, 41, 68, .1);
+}
+
+.orbit-hero.win {
+  border-color: rgba(92, 78, 190, .42);
+  background: rgba(92, 78, 190, .12);
+}
+
+.orbit-hero img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.orbit-hero b {
+  position: absolute;
+  right: -5px;
+  bottom: -3px;
+  min-width: 15px;
+  height: 15px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.7);
+  border-radius: 999px;
+  color: #fff;
+  background: var(--mono-ink);
+  font-size: 7px;
+  font-weight: 950;
+}
+
+.radar-highlights {
+  position: absolute;
+  z-index: 2;
+  inset: 96px 56px 118px;
+  display: grid;
+  grid-template-columns: 132px 1fr 132px;
+  align-items: center;
+  pointer-events: none;
+}
+
+.highlight-column {
+  display: grid;
+  gap: 10px;
+}
+
+.highlight-column.left { grid-column: 1; }
+.highlight-column.right { grid-column: 3; }
+
+.highlight-card {
+  padding: 9px 10px;
+  border: 1px solid rgba(26, 26, 26, .08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .46);
+  box-shadow: 0 12px 26px rgba(28, 41, 68, .08);
+  backdrop-filter: blur(14px);
+}
+
+.highlight-card.camp-1 {
+  border-color: rgba(28, 164, 190, .22);
+}
+
+.highlight-card.camp-2 {
+  border-color: rgba(92, 78, 190, .22);
+}
+
+.highlight-card span,
+.highlight-card em {
+  display: block;
+  overflow: hidden;
+  color: var(--mono-soft);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.highlight-card strong {
+  display: block;
+  margin: 2px 0 1px;
+  color: var(--mono-ink);
+  font-family: Impact, Haettenschweiler, sans-serif;
+  font-size: 24px;
+  line-height: 1;
+}
+
 .outer-grid {
   fill: rgba(0, 0, 0, .03);
   stroke: rgba(0, 0, 0, .18);
@@ -1668,7 +1899,7 @@ onUnmounted(() => {
 .hero-panel :deep(.equip-block) {
   position: absolute;
   z-index: 4;
-  bottom: 84px;
+  bottom: 96px;
   display: grid;
   justify-items: center;
   gap: 5px;
@@ -1734,7 +1965,14 @@ onUnmounted(() => {
 }
 
 .hero-panel :deep(.nameplate) {
-  bottom: 14px;
+  bottom: 16px;
+}
+
+.hero-panel :deep(.nameplate strong),
+.hero-panel :deep(.nameplate span) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @keyframes poster-rise {

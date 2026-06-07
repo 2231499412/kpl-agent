@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,10 +59,13 @@ public class LaneRadarService {
         }
 
         Match match = selectMatch(matchId);
-        Battle battle = selectBattle(battleId);
         if (match == null) {
             return Map.of("error", "比赛不存在: " + matchId);
         }
+        if ("all".equalsIgnoreCase(String.valueOf(battleId)) || "summary".equalsIgnoreCase(String.valueOf(battleId))) {
+            return buildMatchRadar(leagueId, match, resolvedRole, position);
+        }
+        Battle battle = selectBattle(battleId);
         if (battle == null) {
             return Map.of("error", "小局不存在: " + battleId);
         }
@@ -104,7 +108,105 @@ public class LaneRadarService {
         result.put("indicators", indicators);
         result.put("blue", buildSide(blue, definitions, pool, resolvedLeagueId, equipMap));
         result.put("red", buildSide(red, definitions, pool, resolvedLeagueId, equipMap));
+        result.put("highlights", buildHighlights(samplesFromBattle(match, battle, currentPlayers), position));
         return result;
+    }
+
+    private Map<String, Object> buildMatchRadar(String leagueId, Match match, String resolvedRole, int position) {
+        String resolvedLeagueId = leagueId != null && !leagueId.isBlank() ? leagueId : match.getLeagueId();
+        League league = selectLeague(resolvedLeagueId);
+        List<Battle> matchBattles = battleMapper.selectList(new LambdaQueryWrapper<Battle>()
+                .eq(Battle::getMatchId, match.getMatchId())
+                .orderByAsc(Battle::getBattleSeq));
+        if (matchBattles.isEmpty()) {
+            return Map.of("error", "该比赛暂无小局数据");
+        }
+
+        List<String> battleIds = matchBattles.stream().map(Battle::getBattleId).filter(Objects::nonNull).toList();
+        List<BattlePlayer> players = battlePlayerMapper.selectList(new LambdaQueryWrapper<BattlePlayer>()
+                .in(BattlePlayer::getBattleId, battleIds));
+        Map<String, List<BattlePlayer>> playersByBattle = players.stream()
+                .collect(Collectors.groupingBy(BattlePlayer::getBattleId));
+
+        Map<Integer, AggregateSide> sides = new LinkedHashMap<>();
+        Map<Integer, TeamTotalsBuilder> totals = new LinkedHashMap<>();
+        double totalMinutes = 0;
+        for (Battle battle : matchBattles) {
+            List<BattlePlayer> battlePlayers = playersByBattle.getOrDefault(battle.getBattleId(), List.of());
+            if (battlePlayers.isEmpty()) continue;
+            double minutes = durationMinutes(battle.getGameDuration());
+            if (minutes <= 0) continue;
+            totalMinutes += minutes;
+
+            Map<Integer, TeamTotals> battleTotals = battlePlayers.stream()
+                    .filter(p -> p.getCamp() != null)
+                    .collect(Collectors.groupingBy(BattlePlayer::getCamp,
+                            Collectors.collectingAndThen(Collectors.toList(), this::teamTotals)));
+            battleTotals.forEach((camp, total) -> totals.computeIfAbsent(camp, k -> new TeamTotalsBuilder()).add(total));
+
+            for (BattlePlayer player : battlePlayers) {
+                if (!Objects.equals(player.getPosition(), position) || player.getCamp() == null) {
+                    continue;
+                }
+                sides.computeIfAbsent(player.getCamp(), k -> new AggregateSide()).add(player);
+            }
+        }
+
+        RadarSample blue = aggregateSample(match, matchBattles.get(0), sides.get(1), totals.get(1), totalMinutes);
+        RadarSample red = aggregateSample(match, matchBattles.get(0), sides.get(2), totals.get(2), totalMinutes);
+        if (blue == null || red == null) {
+            return Map.of("error", "该比赛缺少全场双方同分路数据");
+        }
+
+        Map<String, List<BattlePlayerEquip>> equipMap = battlePlayerEquipMapper.selectList(
+                        new LambdaQueryWrapper<BattlePlayerEquip>().in(BattlePlayerEquip::getBattleId, battleIds))
+                .stream()
+                .collect(Collectors.groupingBy(BattlePlayerEquip::getPlayerName));
+
+        SamplePool pool = selectSummarySamplePool(resolvedLeagueId, position);
+        List<MetricDefinition> definitions = metricDefinitions(resolvedRole);
+        List<Map<String, Object>> indicators = definitions.stream()
+                .map(def -> Map.<String, Object>of("key", def.key(), "name", def.name(), "max", 100))
+                .toList();
+
+        Map<String, Object> basis = new LinkedHashMap<>();
+        basis.put("type", pool.type());
+        basis.put("label", pool.label());
+        basis.put("leagueIds", pool.leagueIds());
+        basis.put("sampleCount", pool.samples().size());
+        basis.put("minRequired", MIN_SAMPLE_SIZE);
+        basis.put("summaryBattleCount", matchBattles.size());
+
+        Map<String, Object> battleSummary = new LinkedHashMap<>();
+        battleSummary.put("battleId", "all");
+        battleSummary.put("matchId", match.getMatchId());
+        battleSummary.put("title", "全场总结");
+        battleSummary.put("winCamp", matchWinnerCamp(match));
+        battleSummary.put("gameDuration", Math.round(totalMinutes * 60000));
+        battleSummary.put("summary", true);
+        battleSummary.put("battleCount", matchBattles.size());
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("type", "lane_radar_summary");
+        result.put("league", league);
+        result.put("match", match);
+        result.put("battle", battleSummary);
+        result.put("role", resolvedRole);
+        result.put("basis", basis);
+        result.put("indicators", indicators);
+        Map<String, Object> blueSide = buildSide(blue, definitions, pool, resolvedLeagueId, equipMap);
+        Map<String, Object> redSide = buildSide(red, definitions, pool, resolvedLeagueId, equipMap);
+        blueSide.put("heroGames", buildHeroGames(1, position, matchBattles, playersByBattle));
+        redSide.put("heroGames", buildHeroGames(2, position, matchBattles, playersByBattle));
+        result.put("blue", blueSide);
+        result.put("red", redSide);
+        result.put("highlights", buildHighlights(summarySamplesFromMatch(match, matchBattles, playersByBattle, null), position));
+        return result;
+    }
+
+    private RadarSample aggregateSample(Match match, Battle battle, AggregateSide side, TeamTotalsBuilder totals, double minutes) {
+        if (side == null || totals == null || minutes <= 0) return null;
+        return new RadarSample(match, battle, side.toPlayer(), totals.toTotals(), minutes);
     }
 
     private Map<String, Object> buildSide(RadarSample sample, List<MetricDefinition> definitions, SamplePool pool,
@@ -161,6 +263,79 @@ public class LaneRadarService {
                 .toList();
     }
 
+    private List<Map<String, Object>> buildHeroGames(int camp, int position, List<Battle> battles,
+                                                      Map<String, List<BattlePlayer>> playersByBattle) {
+        List<Map<String, Object>> games = new ArrayList<>();
+        for (Battle battle : battles) {
+            BattlePlayer player = playersByBattle.getOrDefault(battle.getBattleId(), List.of()).stream()
+                    .filter(p -> Objects.equals(p.getCamp(), camp) && Objects.equals(p.getPosition(), position))
+                    .findFirst()
+                    .orElse(null);
+            if (player == null) {
+                continue;
+            }
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("battleId", battle.getBattleId());
+            row.put("battleSeq", battle.getBattleSeq());
+            row.put("winCamp", battle.getWinCamp());
+            row.put("result", Objects.equals(battle.getWinCamp(), camp) ? "胜" : "败");
+            row.put("heroId", player.getHeroId());
+            row.put("heroName", player.getHeroName());
+            row.put("summonerAbilityId", player.getSummonerAbilityId());
+            row.put("summonerAbilityName", player.getSummonerAbilityName());
+            row.put("summonerAbilityIcon", summonerAbilityIcon(player.getSummonerAbilityId()));
+            row.put("kills", safeInt(player.getKillNum()));
+            row.put("deaths", safeInt(player.getDeathNum()));
+            row.put("assists", safeInt(player.getAssistNum()));
+            row.put("gold", safeInt(player.getGold()));
+            row.put("isMvp", safeInt(player.getIsMvp()));
+            row.put("isLoseMvp", safeInt(player.getIsLoseMvp()));
+            games.add(row);
+        }
+        return games;
+    }
+
+    private List<Map<String, Object>> buildHighlights(List<RadarSample> samples, int currentPosition) {
+        if (samples == null || samples.isEmpty()) {
+            return List.of();
+        }
+        List<HighlightDefinition> definitions = List.of(
+                new HighlightDefinition("goldPerMinute", "分均经济最高", "", s -> safeInt(s.player().getGold()) / s.minutes()),
+                new HighlightDefinition("damagePerMinute", "分均伤害最高", "", s -> playerDamage(s) / s.minutes()),
+                new HighlightDefinition("participationRate", "参团率最高", "%", s -> ratio(killParticipation(s), s.teamTotals().kills())),
+                new HighlightDefinition("kda", "KDA最高", "", s -> killParticipation(s) / Math.max(safeInt(s.player().getDeathNum()), 1.0))
+        );
+        return definitions.stream()
+                .map(def -> samples.stream()
+                        .filter(s -> s != null && s.minutes() > 0)
+                        .map(s -> new HighlightCandidate(s, def.reader().apply(s)))
+                        .filter(c -> Double.isFinite(c.value()))
+                        .max(Comparator.comparingDouble(HighlightCandidate::value))
+                        .filter(c -> Objects.equals(c.sample().player().getPosition(), currentPosition))
+                        .map(c -> buildHighlight(def, c.sample(), c.value()))
+                        .orElse(null))
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    private Map<String, Object> buildHighlight(HighlightDefinition def, RadarSample sample, double value) {
+        BattlePlayer player = sample.player();
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("key", def.key());
+        row.put("label", def.label());
+        row.put("playerName", player.getPlayerName());
+        row.put("teamName", player.getTeamName());
+        row.put("camp", player.getCamp());
+        row.put("position", player.getPosition());
+        row.put("positionDesc", player.getPositionDesc());
+        row.put("heroId", player.getHeroId());
+        row.put("heroName", player.getHeroName());
+        row.put("value", round(value, 2));
+        row.put("displayValue", "%".equals(def.unit()) ? round(value * 100, 1) : round(value, 1));
+        row.put("unit", def.unit());
+        return row;
+    }
+
     private Map<String, Object> buildMetric(MetricDefinition def, RadarSample sample, SamplePool pool) {
         double raw = def.reader().apply(sample);
         double displayRaw = def.displayReader().apply(sample);
@@ -193,6 +368,22 @@ public class LaneRadarService {
 
         List<RadarSample> historySamples = buildSamples(List.of(), position);
         return new SamplePool("history", "历史全量同分路单局百分位", List.of(), historySamples);
+    }
+
+    private SamplePool selectSummarySamplePool(String leagueId, int position) {
+        List<RadarSample> leagueSamples = buildMatchSummarySamples(List.of(leagueId), position);
+        if (leagueSamples.size() >= MIN_SAMPLE_SIZE) {
+            return new SamplePool("league_summary", "当前赛事同分路全场汇总百分位", List.of(leagueId), leagueSamples);
+        }
+
+        List<String> recentLeagueIds = recentLeagueIds(leagueId);
+        List<RadarSample> recentSamples = buildMatchSummarySamples(recentLeagueIds, position);
+        if (recentSamples.size() >= MIN_SAMPLE_SIZE) {
+            return new SamplePool("recent2_summary", "近两个赛事同分路全场汇总百分位", recentLeagueIds, recentSamples);
+        }
+
+        List<RadarSample> historySamples = buildMatchSummarySamples(List.of(), position);
+        return new SamplePool("history_summary", "历史全量同分路全场汇总百分位", List.of(), historySamples);
     }
 
     private List<String> recentLeagueIds(String leagueId) {
@@ -254,7 +445,105 @@ public class LaneRadarService {
         return samples;
     }
 
+    private List<RadarSample> buildMatchSummarySamples(List<String> leagueIds, int position) {
+        LambdaQueryWrapper<Match> matchQuery = new LambdaQueryWrapper<Match>().eq(Match::getStatus, 2);
+        if (leagueIds != null && !leagueIds.isEmpty()) {
+            matchQuery.in(Match::getLeagueId, leagueIds);
+        }
+        List<Match> matches = matchMapper.selectList(matchQuery);
+        if (matches.isEmpty()) {
+            return List.of();
+        }
+        Map<String, Match> matchMap = matches.stream()
+                .filter(m -> m.getMatchId() != null)
+                .collect(Collectors.toMap(Match::getMatchId, Function.identity(), (a, b) -> a));
+        List<String> matchIds = new ArrayList<>(matchMap.keySet());
+        List<Battle> battles = battleMapper.selectList(new LambdaQueryWrapper<Battle>()
+                .in(Battle::getMatchId, matchIds)
+                .orderByAsc(Battle::getBattleSeq));
+        if (battles.isEmpty()) {
+            return List.of();
+        }
+        List<String> battleIds = battles.stream().map(Battle::getBattleId).filter(Objects::nonNull).toList();
+        List<BattlePlayer> players = battlePlayerMapper.selectList(new LambdaQueryWrapper<BattlePlayer>()
+                .in(BattlePlayer::getBattleId, battleIds));
+        Map<String, List<Battle>> battlesByMatch = battles.stream()
+                .filter(b -> b.getMatchId() != null)
+                .collect(Collectors.groupingBy(Battle::getMatchId));
+        Map<String, List<BattlePlayer>> playersByBattle = players.stream()
+                .collect(Collectors.groupingBy(BattlePlayer::getBattleId));
+
+        List<RadarSample> samples = new ArrayList<>();
+        for (Map.Entry<String, List<Battle>> entry : battlesByMatch.entrySet()) {
+            Match match = matchMap.get(entry.getKey());
+            if (match == null) continue;
+            samples.addAll(summarySamplesFromMatch(match, entry.getValue(), playersByBattle, position));
+        }
+        return samples;
+    }
+
+    private List<RadarSample> summarySamplesFromMatch(Match match, List<Battle> battles,
+                                                       Map<String, List<BattlePlayer>> playersByBattle, int position) {
+        return summarySamplesFromMatch(match, battles, playersByBattle, Integer.valueOf(position));
+    }
+
+    private List<RadarSample> summarySamplesFromMatch(Match match, List<Battle> battles,
+                                                       Map<String, List<BattlePlayer>> playersByBattle, Integer position) {
+        if (battles == null || battles.isEmpty()) {
+            return List.of();
+        }
+        Map<String, AggregateSide> sides = new LinkedHashMap<>();
+        Map<Integer, TeamTotalsBuilder> totals = new LinkedHashMap<>();
+        double totalMinutes = 0;
+
+        for (Battle battle : battles) {
+            List<BattlePlayer> battlePlayers = playersByBattle.getOrDefault(battle.getBattleId(), List.of());
+            if (battlePlayers.isEmpty()) continue;
+            double minutes = durationMinutes(battle.getGameDuration());
+            if (minutes <= 0) continue;
+            totalMinutes += minutes;
+
+            Map<Integer, TeamTotals> battleTotals = battlePlayers.stream()
+                    .filter(p -> p.getCamp() != null)
+                    .collect(Collectors.groupingBy(BattlePlayer::getCamp,
+                            Collectors.collectingAndThen(Collectors.toList(), this::teamTotals)));
+            battleTotals.forEach((camp, total) -> totals.computeIfAbsent(camp, k -> new TeamTotalsBuilder()).add(total));
+
+            for (BattlePlayer player : battlePlayers) {
+                if ((position != null && !Objects.equals(player.getPosition(), position)) || player.getCamp() == null) {
+                    continue;
+                }
+                String key = player.getCamp() + "::" + (player.getPlayerName() == null ? "" : player.getPlayerName());
+                sides.computeIfAbsent(key, k -> new AggregateSide()).add(player);
+            }
+        }
+
+        if (totalMinutes <= 0) {
+            return List.of();
+        }
+        List<RadarSample> samples = new ArrayList<>();
+        Battle firstBattle = battles.get(0);
+        for (AggregateSide side : sides.values()) {
+            BattlePlayer player = side.toPlayer();
+            if (player == null) continue;
+            TeamTotalsBuilder teamTotals = totals.get(player.getCamp());
+            RadarSample sample = aggregateSample(match, firstBattle, side, teamTotals, totalMinutes);
+            if (sample != null) {
+                samples.add(sample);
+            }
+        }
+        return samples;
+    }
+
     private List<RadarSample> samplesFromBattle(Match match, Battle battle, List<BattlePlayer> players, int position) {
+        return samplesFromBattle(match, battle, players, Integer.valueOf(position));
+    }
+
+    private List<RadarSample> samplesFromBattle(Match match, Battle battle, List<BattlePlayer> players) {
+        return samplesFromBattle(match, battle, players, null);
+    }
+
+    private List<RadarSample> samplesFromBattle(Match match, Battle battle, List<BattlePlayer> players, Integer position) {
         if (players == null || players.isEmpty()) {
             return List.of();
         }
@@ -265,7 +554,7 @@ public class LaneRadarService {
         double minutes = durationMinutes(battle.getGameDuration());
         List<RadarSample> samples = new ArrayList<>();
         for (BattlePlayer player : players) {
-            if (!Objects.equals(player.getPosition(), position)) {
+            if (position != null && !Objects.equals(player.getPosition(), position)) {
                 continue;
             }
             TeamTotals teamTotals = totals.get(player.getCamp());
@@ -417,9 +706,95 @@ public class LaneRadarService {
         return Math.round(value * factor) / factor;
     }
 
+    private static int matchWinnerCamp(Match match) {
+        if (match == null) return 0;
+        if (match.getWinCamp() != null && match.getWinCamp() > 0) return match.getWinCamp();
+        int blueScore = safeInt(match.getCamp1Score());
+        int redScore = safeInt(match.getCamp2Score());
+        if (blueScore == redScore) return 0;
+        return blueScore > redScore ? 1 : 2;
+    }
+
+    private static class TeamTotalsBuilder {
+        private long damage;
+        private long beHurt;
+        private int kills;
+
+        void add(TeamTotals total) {
+            if (total == null) return;
+            damage += total.damage();
+            beHurt += total.beHurt();
+            kills += total.kills();
+        }
+
+        TeamTotals toTotals() {
+            return new TeamTotals(damage, beHurt, kills);
+        }
+    }
+
+    private static class AggregateSide {
+        private BattlePlayer representative;
+        private int kills;
+        private int deaths;
+        private int assists;
+        private int gold;
+        private long hurtTotal;
+        private long hurtToHero;
+        private long beHurtTotal;
+        private long hurtToHeroTotal;
+        private long beHurtByHeroTotal;
+
+        void add(BattlePlayer player) {
+            if (player == null) return;
+            if (representative == null || safeInt(player.getIsMvp()) > safeInt(representative.getIsMvp())) {
+                representative = player;
+            }
+            kills += safeInt(player.getKillNum());
+            deaths += safeInt(player.getDeathNum());
+            assists += safeInt(player.getAssistNum());
+            gold += safeInt(player.getGold());
+            hurtTotal += safeLong(player.getHurtTotal());
+            hurtToHero += safeLong(player.getHurtToHero());
+            beHurtTotal += safeLong(player.getBeHurtTotal());
+            hurtToHeroTotal += safeLong(player.getHurtToHeroTotal());
+            beHurtByHeroTotal += safeLong(player.getBeHurtByHeroTotal());
+        }
+
+        BattlePlayer toPlayer() {
+            if (representative == null) return null;
+            BattlePlayer player = new BattlePlayer();
+            player.setBattleId("all");
+            player.setTeamId(representative.getTeamId());
+            player.setTeamName(representative.getTeamName());
+            player.setPlayerName(representative.getPlayerName());
+            player.setHeroId(representative.getHeroId());
+            player.setHeroName(representative.getHeroName());
+            player.setCamp(representative.getCamp());
+            player.setPosition(representative.getPosition());
+            player.setPositionDesc(representative.getPositionDesc());
+            player.setSummonerAbilityId(representative.getSummonerAbilityId());
+            player.setSummonerAbilityName(representative.getSummonerAbilityName());
+            player.setSymbolIds(representative.getSymbolIds());
+            player.setIsMvp(representative.getIsMvp());
+            player.setIsLoseMvp(representative.getIsLoseMvp());
+            player.setKillNum(kills);
+            player.setDeathNum(deaths);
+            player.setAssistNum(assists);
+            player.setGold(gold);
+            player.setHurtTotal(hurtTotal);
+            player.setHurtToHero(hurtToHero);
+            player.setBeHurtTotal(beHurtTotal);
+            player.setHurtToHeroTotal(hurtToHeroTotal);
+            player.setBeHurtByHeroTotal(beHurtByHeroTotal);
+            return player;
+        }
+    }
+
     private record RadarSample(Match match, Battle battle, BattlePlayer player, TeamTotals teamTotals, double minutes) {}
     private record TeamTotals(long damage, long beHurt, int kills) {}
     private record SamplePool(String type, String label, List<String> leagueIds, List<RadarSample> samples) {}
+    private record HighlightDefinition(String key, String label, String unit, Function<RadarSample, Double> reader) {}
+    private record HighlightCandidate(RadarSample sample, double value) {}
     private record MetricDefinition(String key, String name, String unit, String displayUnit,
                                     Function<RadarSample, Double> reader,
                                     Function<RadarSample, Double> displayReader,
