@@ -1869,8 +1869,8 @@ onUnmounted(() => {
   color: #fff;
   text-shadow: 0 3px 12px rgba(0,0,0,.36);
 }
-.hero-panel :deep(.portrait-block) { bottom: 66px; }
-.hero-panel :deep(.equip-block) { bottom: 79px; }
+.hero-panel :deep(.portrait-block) { bottom: 85px; }
+.hero-panel :deep(.equip-block) { bottom: 98px; }
 
 .hero-panel.blue :deep(.portrait-block) { left: 14px; }
 .hero-panel.red :deep(.portrait-block) { right: 14px; }
