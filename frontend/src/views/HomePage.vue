@@ -82,6 +82,30 @@
       </article>
     </section>
 
+    <footer class="home-footer" :class="{ open: footerOpen }">
+      <div class="footer-inner">
+        <div class="footer-grid">
+          <div class="footer-block">
+            <h4 class="footer-label">开源项目</h4>
+            <a class="footer-link" href="https://github.com/2231499412/kpl-agent" target="_blank" rel="noopener">
+              github.com/2231499412/kpl-agent
+            </a>
+            <p class="footer-desc">KPL 赛事数据分析平台，数据来源于腾讯官方接口。欢迎 Star & PR。</p>
+          </div>
+          <div class="footer-block">
+            <h4 class="footer-label">技术栈</h4>
+            <div class="footer-tags">
+              <span>Vue 3</span><span>Element Plus</span><span>Spring Boot</span><span>MyBatis-Plus</span><span>MySQL</span>
+            </div>
+          </div>
+          <div class="footer-block">
+            <h4 class="footer-label">免责声明</h4>
+            <p class="footer-disclaimer">本项目仅供学习与研究使用，所有赛事数据版权归腾讯及 KPL 联赛所有。不得将数据用于任何商业用途。使用本项目即表示您同意本声明。</p>
+          </div>
+        </div>
+      </div>
+    </footer>
+
     <aside class="slide-meter" aria-label="章节进度">
       <button
         v-for="(panel, index) in panels"
@@ -109,6 +133,7 @@ const isAiDevMode = import.meta.env.VITE_AI_DEV_MODE === 'true'
 
 const activeIndex = ref(0)
 const locked = ref(false)
+const footerOpen = ref(false)
 const touchStartX = ref(0)
 const touchStartY = ref(0)
 const viewportWidth = ref(1120)
@@ -233,6 +258,18 @@ function goToPanel(index) {
 function stepPanel(direction) {
   if (locked.value) return
   const next = activeIndex.value + direction
+  if (direction === 1 && activeIndex.value === panels.length - 1) {
+    footerOpen.value = true
+    locked.value = true
+    window.setTimeout(() => { locked.value = false }, 600)
+    return
+  }
+  if (direction === -1 && footerOpen.value) {
+    footerOpen.value = false
+    locked.value = true
+    window.setTimeout(() => { locked.value = false }, 600)
+    return
+  }
   if (next < 0 || next >= panels.length) return
   locked.value = true
   goToPanel(next)
@@ -895,6 +932,82 @@ onBeforeUnmount(() => {
   transform: translateY(-50%);
 }
 
+/* 页脚 */
+.home-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  transform: translateY(100%);
+  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.home-footer.open {
+  transform: translateY(0);
+}
+.footer-inner {
+  background: var(--panel);
+  border-top: 1px solid var(--panel-line);
+  padding: 40px 60px 48px;
+  backdrop-filter: blur(12px);
+}
+.footer-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+.footer-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.footer-label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+.footer-link {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.footer-link:hover {
+  color: var(--cyan);
+}
+.footer-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--soft);
+  line-height: 1.6;
+}
+.footer-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.footer-tags span {
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  background: rgba(155, 245, 229, 0.08);
+  border: 1px solid var(--panel-line);
+  border-radius: 3px;
+}
+.footer-disclaimer {
+  margin: 0;
+  font-size: 12px;
+  color: var(--dim);
+  line-height: 1.8;
+}
+
 .slide-meter button {
   width: 36px;
   height: 3px;
@@ -1059,6 +1172,17 @@ onBeforeUnmount(() => {
   .slide-meter,
   .scroll-cue {
     display: none;
+  }
+
+  .footer-inner {
+    padding: 28px 20px 36px;
+  }
+  .footer-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .footer-link {
+    font-size: 15px;
   }
 }
 </style>
