@@ -209,10 +209,11 @@ const activeNav = computed(() => {
 @media (max-width: 767px) {
   .sidebar,
   .sidebar.expanded {
+    position: fixed;
     left: 8px;
     right: 8px;
     top: auto;
-    bottom: calc(8px + env(safe-area-inset-bottom));
+    bottom: 8px;
     width: auto;
     height: 58px;
     flex-direction: row;
@@ -221,6 +222,9 @@ const activeNav = computed(() => {
     background: rgba(26, 26, 26, 0.96);
     box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(18px);
+    transition: none;
+    transform: translateZ(0);
+    will-change: transform;
   }
 
   .sidebar-logo,

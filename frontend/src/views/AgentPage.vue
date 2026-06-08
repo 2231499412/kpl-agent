@@ -712,7 +712,7 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
 
 @media (max-width: 767px) {
   .agent-console {
-    height: 100dvh;
+    height: 100vh;
     padding: 12px 12px calc(76px + env(safe-area-inset-bottom));
   }
 

@@ -509,7 +509,7 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
   .bp-console {
     width: 100%;
     min-width: 0;
-    height: 100dvh;
+    height: 100vh;
     padding: 10px 8px calc(82px + env(safe-area-inset-bottom));
     overflow: hidden;
   }

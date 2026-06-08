@@ -664,7 +664,7 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
 
 @media (max-width: 767px) {
   .matches-console {
-    min-height: 100dvh;
+    min-height: 100vh;
     padding: 12px 12px calc(78px + env(safe-area-inset-bottom));
   }
   .command-strip { min-height: 56px; padding: 10px 12px; }

@@ -102,6 +102,22 @@ function onPageEnter(el) {
   inset: 0;
 }
 
+@media (max-width: 767px) {
+  .page-zoom-enter-active,
+  .page-zoom-leave-active {
+    transition: opacity 0.25s ease;
+  }
+  .page-zoom-enter-from,
+  .page-zoom-leave-to {
+    opacity: 0;
+    transform: none;
+  }
+  .page-zoom-leave-active {
+    position: absolute;
+    inset: 0;
+  }
+}
+
 .sidebar-enter-active {
   transition: opacity 0.3s ease 0.2s;
 }

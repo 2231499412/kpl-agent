@@ -1,5 +1,5 @@
 <template>
-  <main class="matchup-page" :class="`theme-${theme}`" @wheel.prevent="onWheel">
+  <main class="matchup-page" :class="`theme-${theme}`">
     <section class="select-strip">
       <div class="select-left">
         <label>
@@ -79,27 +79,6 @@
         </div>
 
         <section ref="arenaRef" class="radar-arena" @mouseleave="hoverMetric = null">
-          <div
-            v-for="(metric, index) in metricRows"
-            :key="metric.key"
-            class="metric-callout"
-            :class="[`pos-${index}`, { active: hoverMetric === metric.key, horizontal: isHorizontalMetric(index) }]"
-            :style="{ '--i': index, ...(labelPositions[index] || {}) }"
-            :title="tooltipText(metric)"
-            @mouseenter="hoverMetric = metric.key"
-          >
-            <template v-if="isHorizontalMetric(index)">
-              <CountValue :class="[winnerCamp === 1 ? 'winner-num' : 'loser-num', { hot: isMetricHighlighted(metric.blue, 1) }]" :metric="metric.blue" />
-              <span class="metric-label">{{ metric.name }}</span>
-              <CountValue :class="[winnerCamp === 2 ? 'winner-num' : 'loser-num', { hot: isMetricHighlighted(metric.red, 2) }]" :metric="metric.red" />
-            </template>
-            <template v-else>
-              <CountValue :class="['winner-num', { hot: isMetricHighlighted(metric.winner, winnerCamp) }]" :metric="metric.winner" />
-              <span class="metric-label">{{ metric.name }}</span>
-              <CountValue :class="['loser-num', { hot: isMetricHighlighted(metric.loser, winnerCamp === 2 ? 1 : 2) }]" :metric="metric.loser" />
-            </template>
-          </div>
-
           <svg class="radar-svg" viewBox="0 0 460 460" role="img" aria-label="红蓝双方对位雷达图">
             <polygon :points="gridPolygon(100)" class="outer-grid" />
             <polygon v-for="level in [80, 60, 40, 20]" :key="level" :points="gridPolygon(level)" class="inner-grid" />
@@ -110,6 +89,50 @@
             <polygon :points="radarPolygon(winnerScores)" class="winner-poly" />
             <polygon :points="radarPolygon(loserScores)" class="loser-line" />
             <polygon :points="radarPolygon(winnerScores)" class="winner-line" />
+            <g class="mobile-radar-labels">
+              <g v-for="(metric, index) in metricRows" :key="`mobile-label-${metric.key || index}`">
+                <template v-if="isHorizontalMetric(index)">
+                  <text
+                    :x="mobileLabelPoint(index, 'blue').x"
+                    :y="mobileLabelPoint(index, 'blue').y"
+                    :text-anchor="mobileLabelPoint(index, 'blue').anchor"
+                    :class="mobileMetricClass(metric.blue, 1)"
+                  >{{ formatRaw(metric.blue) }}</text>
+                  <text
+                    :x="mobileLabelPoint(index, 'label').x"
+                    :y="mobileLabelPoint(index, 'label').y"
+                    text-anchor="middle"
+                    class="mobile-label"
+                  >{{ metric.name }}</text>
+                  <text
+                    :x="mobileLabelPoint(index, 'red').x"
+                    :y="mobileLabelPoint(index, 'red').y"
+                    :text-anchor="mobileLabelPoint(index, 'red').anchor"
+                    :class="mobileMetricClass(metric.red, 2)"
+                  >{{ formatRaw(metric.red) }}</text>
+                </template>
+                <template v-else>
+                  <text
+                    :x="mobileLabelPoint(index, 'winner').x"
+                    :y="mobileLabelPoint(index, 'winner').y"
+                    text-anchor="middle"
+                    :class="mobileMetricClass(metric.winner, winnerCamp)"
+                  >{{ formatRaw(metric.winner) }}</text>
+                  <text
+                    :x="mobileLabelPoint(index, 'label').x"
+                    :y="mobileLabelPoint(index, 'label').y"
+                    text-anchor="middle"
+                    class="mobile-label"
+                  >{{ metric.name }}</text>
+                  <text
+                    :x="mobileLabelPoint(index, 'loser').x"
+                    :y="mobileLabelPoint(index, 'loser').y"
+                    text-anchor="middle"
+                    :class="mobileMetricClass(metric.loser, winnerCamp === 2 ? 1 : 2)"
+                  >{{ formatRaw(metric.loser) }}</text>
+                </template>
+              </g>
+            </g>
           </svg>
 
           <div v-if="isMatchSummary" class="summary-hero-orbit">
@@ -184,7 +207,7 @@
 </template>
 
 <script setup>
-import { computed, defineComponent, h, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineComponent, h, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { getTheme, setTheme } from '../utils/theme'
 
 const roleOptions = [
@@ -211,7 +234,6 @@ const arenaRef = ref(null)
 const roleNavRef = ref(null)
 const roleBtnRefs = {}
 const pillStyle = ref({})
-const labelPositions = ref([])
 const wheelHintVisible = ref(true)
 let wheelHintShown = false
 
@@ -247,54 +269,36 @@ function updatePill() {
   }
 }
 
-const showTuner = ref(false)
-const baseOffsetVal = ref(46)
-
 const center = 230
 const radius = 162
 
-const labelOffsets = [
-  { dx: -3, dy: 4 },
-  { dx: 21, dy: 9 },
-  { dx: 8, dy: 0 },
-  { dx: 25, dy: -31 },
-  { dx: 0, dy: 0 },
-  { dx: -27, dy: -31 },
-  { dx: 2, dy: 0 },
-  { dx: -21, dy: 13 },
-]
+const mobileLabelLayout = reactive([
+  { label: [230, 45], blue: [184, 45, 'end'], red: [276, 45, 'start'] },
+  { label: [380, 108], winner: [380, 90], loser: [380, 126] },
+  { label: [430, 230], winner: [430, 212], loser: [430, 248] },
+  { label: [380, 352], winner: [380, 334], loser: [380, 370] },
+  { label: [230, 410], blue: [184, 408, 'end'], red: [276, 408, 'start'] },
+  { label: [70, 352], winner: [70, 334], loser: [70, 370] },
+  { label: [40, 230], winner: [40, 212], loser: [40, 248] },
+  { label: [70, 108], winner: [70, 90], loser: [70, 126] },
+])
 
-function computeLabelPositions() {
-  const arena = arenaRef.value
-  if (!arena) return
-  const svg = arena.querySelector('.radar-svg')
-  if (!svg) return
-  const arenaRect = arena.getBoundingClientRect()
-  const svgRect = svg.getBoundingClientRect()
-  const scale = svgRect.width / 460
-  const ox = svgRect.left - arenaRect.left
-  const oy = svgRect.top - arenaRect.top
-  const count = 8
-  const baseOffset = baseOffsetVal.value
-  const positions = []
-  for (let i = 0; i < count; i++) {
-    const angle = -Math.PI / 2 + (Math.PI * 2 * i) / count
-    const vx = center + Math.cos(angle) * radius
-    const vy = center + Math.sin(angle) * radius
-    const extra = labelOffsets[i] || { dx: 0, dy: 0 }
-    const px = ox + vx * scale + Math.cos(angle) * baseOffset + extra.dx
-    const py = oy + vy * scale + Math.sin(angle) * baseOffset + extra.dy
-    positions.push({ left: px + 'px', top: py + 'px', transform: 'translate(-50%, -50%)' })
+function mobileLabelPoint(index, slot) {
+  const item = mobileLabelLayout[index] || mobileLabelLayout[0]
+  const point = item[slot] || item.label
+  return {
+    x: point[0],
+    y: point[1],
+    anchor: point[2] || 'middle',
   }
-  labelPositions.value = positions
 }
 
-function copyOffsets() {
-  const config = {
-    baseOffset: baseOffsetVal.value,
-    offsets: labelOffsets.map(o => ({ dx: o.dx, dy: o.dy })),
-  }
-  navigator.clipboard.writeText(JSON.stringify(config, null, 2))
+function mobileMetricClass(metric, camp) {
+  return [
+    'mobile-value',
+    camp === winnerCamp.value ? 'winner' : 'loser',
+    { hot: isMetricHighlighted(metric, camp) },
+  ]
 }
 
 const currentLeagueName = computed(() => leagues.value.find(l => l.leagueId === selectedLeagueId.value)?.leagueName || 'KPL')
@@ -343,43 +347,6 @@ const metricRows = computed(() => {
     winner: winnerCamp.value === 2 ? radarData.value.red.metrics[index] : blue,
     loser: winnerCamp.value === 2 ? blue : radarData.value.red.metrics[index],
   }))
-})
-
-const CountValue = defineComponent({
-  name: 'CountValue',
-  props: {
-    metric: { type: Object, required: true },
-  },
-  setup(props, { attrs }) {
-    const displayValue = ref(0)
-    let frameId = 0
-    const duration = 620
-
-    function animate() {
-      cancelAnimationFrame(frameId)
-      const target = Number(props.metric?.displayRaw ?? props.metric?.raw ?? 0) || 0
-      const startTime = performance.now()
-      const easeOut = t => 1 - Math.pow(1 - t, 3)
-
-      const tick = now => {
-        const progress = Math.min((now - startTime) / duration, 1)
-        displayValue.value = target * easeOut(progress)
-        if (progress < 1) {
-          frameId = requestAnimationFrame(tick)
-        } else {
-          displayValue.value = target
-        }
-      }
-
-      displayValue.value = 0
-      frameId = requestAnimationFrame(tick)
-    }
-
-    watch(() => `${props.metric?.key}-${props.metric?.displayRaw}-${props.metric?.raw}`, animate, { immediate: true })
-    onUnmounted(() => cancelAnimationFrame(frameId))
-
-    return () => h('b', attrs, formatAnimatedRaw(props.metric, displayValue.value))
-  },
 })
 
 const SideVisual = defineComponent({
@@ -534,7 +501,6 @@ async function loadRadar() {
       radarData.value = null
     } else {
       radarData.value = data
-      nextTick(computeLabelPositions)
     }
   } catch (error) {
     errorText.value = error?.message || '雷达图数据加载失败'
@@ -656,6 +622,7 @@ function highlightKeysForMetric(metricKey) {
     participationRate: ['participationRate'],
     kda: ['kda'],
     beHurtShare: ['beHurtTotal'],
+    beHurtPerDeath: ['beHurtTotal'],
   }
   return map[metricKey] || []
 }
@@ -702,11 +669,9 @@ watch(radarData, (v) => {
 onMounted(async () => {
   await init()
   nextTick(updatePill)
-  window.addEventListener('resize', computeLabelPositions)
   window.addEventListener('resize', updatePill)
 })
 onUnmounted(() => {
-  window.removeEventListener('resize', computeLabelPositions)
   window.removeEventListener('resize', updatePill)
 })
 </script>
@@ -807,12 +772,16 @@ onUnmounted(() => {
   margin: 6px auto 8px;
 }
 
-.select-left,
 .select-right,
-.select-strip label,
 .state-card {
   border: 1px solid var(--mono-line);
   background: var(--mono-panel);
+}
+
+.select-left,
+.select-strip label {
+  border: 0;
+  background: transparent;
 }
 
 .select-left {
@@ -934,7 +903,7 @@ onUnmounted(() => {
 :deep(.el-select__wrapper) {
   min-height: 27px;
   min-width: 0 !important;
-  background: var(--mono-panel) !important;
+  background: transparent !important;
   border: 1px solid var(--mono-line) !important;
   box-shadow: none !important;
   color: var(--mono-ink) !important;
@@ -1481,13 +1450,6 @@ onUnmounted(() => {
 .blue-point { fill: var(--purple); }
 .red-point { fill: var(--mono-soft); }
 
-.metric-callout {
-  position: absolute;
-  z-index: 2;
-  min-width: 120px;
-  text-align: center;
-  transition: transform .16s ease, filter .16s ease;
-}
 .metric-callout.active {
   filter: drop-shadow(0 8px 16px rgba(78, 73, 135, .18));
 }
@@ -1502,14 +1464,8 @@ onUnmounted(() => {
   letter-spacing: 1px;
 }
 .metric-values .winner-num,
-.metric-callout .winner-num { color: #1a1a1a; font-size: 18px; font-weight: 950; }
 .metric-values .loser-num,
-.metric-callout .loser-num { color: rgba(26, 26, 26, 0.45); font-size: 18px; }
 .metric-values .hot,
-.metric-callout .hot {
-  color: #e44848 !important;
-  text-shadow: 0 8px 18px rgba(228, 72, 72, .18);
-}
 .metric-callout span {
   display: inline-block;
   margin-top: 2px;
@@ -1662,8 +1618,8 @@ onUnmounted(() => {
 .hero-panel.red :deep(.equip-stack) { left: 12px; }
 
 .hero-panel :deep(.equip-stack img) {
-  width: 32px;
-  height: 32px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   object-fit: cover;
   background: rgba(255,255,255,.74);
@@ -1711,15 +1667,15 @@ onUnmounted(() => {
 }
 
 .hero-panel :deep(.coin) {
-  width: 18px;
-  height: 18px;
+  width: 12px;
+  height: 12px;
   display: grid;
   place-items: center;
   border-radius: 50%;
   color: #5f4706;
   background: radial-gradient(circle, #f7d36b, #b9861b);
   font-family: Georgia, serif;
-  font-size: 11px;
+  font-size: 8px;
   font-weight: 950;
 }
 
@@ -1880,15 +1836,6 @@ onUnmounted(() => {
 .loser-poly,
 .loser-line { animation-delay: .08s; }
 
-.metric-callout {
-  min-width: 118px;
-  display: grid;
-  justify-items: center;
-  gap: 1px;
-  animation: callout-in .34s cubic-bezier(.2, .8, .2, 1) both;
-  animation-delay: calc(var(--i) * 34ms + 120ms);
-}
-
 .metric-callout.horizontal {
   min-width: 210px;
   grid-template-columns: 1fr auto 1fr;
@@ -1899,17 +1846,7 @@ onUnmounted(() => {
 
 
 .metric-values,
-.metric-callout > b {
-  overflow: hidden;
-  min-height: 28px;
-}
-
 .metric-values b,
-.metric-callout > b {
-  display: inline-block;
-  will-change: transform, opacity;
-}
-
 .metric-callout .metric-label {
   display: inline-block;
   color: #1a1a1a;
@@ -1922,21 +1859,18 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-.metric-callout.horizontal .metric-label {
-  padding: 0 8px;
-}
-
 .hero-panel :deep(.portrait-block),
 .hero-panel :deep(.equip-block) {
   position: absolute;
   z-index: 4;
-  bottom: 96px;
   display: grid;
   justify-items: center;
   gap: 5px;
   color: #fff;
   text-shadow: 0 3px 12px rgba(0,0,0,.36);
 }
+.hero-panel :deep(.portrait-block) { bottom: 66px; }
+.hero-panel :deep(.equip-block) { bottom: 79px; }
 
 .hero-panel.blue :deep(.portrait-block) { left: 14px; }
 .hero-panel.red :deep(.portrait-block) { right: 14px; }
@@ -1966,15 +1900,15 @@ onUnmounted(() => {
 
 .hero-panel :deep(.player-portrait-wrap) {
   position: static;
-  width: 58px;
-  height: 58px;
+  width: 38px;
+  height: 38px;
 }
 
 .hero-panel :deep(.equip-stack) {
   position: static;
   display: grid;
-  grid-template-columns: repeat(3, 32px);
-  gap: 6px;
+  grid-template-columns: repeat(3, 20px);
+  gap: 5px;
 }
 
 .hero-panel :deep(.side-stats) {
@@ -1990,10 +1924,11 @@ onUnmounted(() => {
   gap: 5px;
   color: #fff;
   font-family: Impact, Haettenschweiler, sans-serif;
-  font-size: 20px;
   line-height: 1;
   letter-spacing: .5px;
 }
+.hero-panel :deep(.gold-line) { font-size: 17px; }
+.hero-panel :deep(.kda-side) { font-size: 14px; }
 
 .hero-panel :deep(.nameplate) {
   bottom: 16px;
@@ -2059,10 +1994,8 @@ onUnmounted(() => {
   .win-badge { min-width: 58px; height: 28px; font-size: 12px; }
   .radar-poster { padding: 14px 18px 12px; }
   .radar-svg { width: min(360px, 41vw); }
-  .metric-callout { min-width: 118px; }
-  .metric-values { font-size: 20px; }
-  .metric-callout span { padding-inline: 10px; font-size: 11px; }
-  .result-word { font-size: 34px; }
+.metric-values { font-size: 20px; }
+.result-word { font-size: 34px; }
   .nameplate strong { font-size: 32px; }
 }
 
@@ -2162,18 +2095,11 @@ onUnmounted(() => {
   .radar-svg {
     width: 330px;
   }
-  .metric-callout {
-    min-width: 106px;
-  }
-  .metric-values {
+.metric-values {
     gap: 5px;
     font-size: 17px;
   }
-  .metric-callout span {
-    padding: 3px 8px;
-    font-size: 10px;
-  }
-  .pos-1,
+.pos-1,
   .pos-2,
   .pos-3 { right: 0; }
   .pos-5,
@@ -2221,11 +2147,6 @@ onUnmounted(() => {
 .theme-dark .win-badge {
   border-color: rgba(255, 255, 255, .12);
   background: rgba(30, 30, 30, .92);
-}
-
-.theme-dark .metric-callout span {
-  background: rgba(255, 255, 255, .12);
-  color: var(--mono-ink);
 }
 
 .theme-dark .metric-callout .metric-label {
@@ -2286,10 +2207,7 @@ onUnmounted(() => {
   color: #e8e8e8;
 }
 .theme-dark .metric-values .winner-num,
-.theme-dark .metric-callout .winner-num { color: #e8e8e8; }
 .theme-dark .metric-values .loser-num,
-.theme-dark .metric-callout .loser-num { color: rgba(232, 232, 232, 0.45); }
-
 .theme-dark .score-line { color: #e8e8e8; }
 
 .theme-dark .winner-poly { fill: rgba(232, 232, 232, .15); }
@@ -2372,5 +2290,375 @@ onUnmounted(() => {
 }
 .theme-dark .el-select-dropdown__item.is-selected::after {
   background: #e8e8e8;
+}
+</style>
+
+<style>
+/* ── 竖屏：侧边栏置顶 ── */
+@media (max-width: 1120px) and (orientation: portrait), (pointer: coarse) and (orientation: portrait) {
+  .sidebar {
+    z-index: 100001 !important;
+  }
+
+  .matchup-page::after {
+    content: "请横屏观看对位雷达图";
+    position: fixed;
+    z-index: 99999;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    color: #1a1a1a;
+    background: radial-gradient(circle at 50% 34%, rgba(255,255,255,.9), rgba(248,245,236,.98) 54%, #f8f5ec);
+    font-size: 22px;
+    font-weight: 950;
+    letter-spacing: 1px;
+    text-align: center;
+  }
+
+  .matchup-page::before {
+    content: "旋转手机后可获得和 PC 端一致的海报布局";
+    position: fixed;
+    z-index: 100000;
+    left: 24px;
+    right: 24px;
+    top: calc(50% + 42px);
+    color: rgba(26, 26, 26, .58);
+    font-size: 13px;
+    font-weight: 800;
+    text-align: center;
+  }
+}
+
+/* ── 横屏布局 ── */
+@media (max-width: 1120px) and (orientation: landscape), (pointer: coarse) and (orientation: landscape) {
+  .sidebar {
+    display: none !important;
+  }
+
+  html,
+  body,
+  #app {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .matchup-page {
+    width: 100vw !important;
+    height: 100svh !important;
+    min-height: 0 !important;
+    margin-left: 0 !important;
+    padding: 6px 8px 7px !important;
+    overflow: hidden !important;
+    touch-action: manipulation !important;
+  }
+
+  .select-strip {
+    position: relative !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: 42px !important;
+    display: grid !important;
+    grid-template-columns: minmax(150px, 1fr) minmax(280px, 2.55fr) !important;
+    gap: 6px !important;
+    margin: 0 0 6px !important;
+    padding: 0 !important;
+    backdrop-filter: none !important;
+  }
+
+  .select-left,
+  .select-strip label {
+    min-height: 0 !important;
+    height: 42px !important;
+    border-radius: 0 !important;
+    border: 1px solid var(--mono-line) !important;
+    background: transparent !important;
+  }
+
+  .select-center :deep(.el-select__wrapper) {
+    background: transparent !important;
+    border: 1px solid var(--mono-line) !important;
+  }
+
+  .select-right {
+    display: none !important;
+  }
+
+  .select-center {
+    display: grid !important;
+    grid-template-columns: minmax(100px, 1.1fr) minmax(72px, .6fr) minmax(180px, 1.8fr) !important;
+    gap: 6px !important;
+    height: 42px !important;
+  }
+
+  .select-center .match-select,
+  .select-center .battle-select,
+  .select-center .role-tabs {
+    grid-column: auto !important;
+    width: auto !important;
+  }
+
+  .select-strip label {
+    padding: 4px 7px !important;
+  }
+
+  .select-strip label span {
+    font-size: 10px !important;
+  }
+
+  .role-tabs {
+    height: 42px !important;
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+    padding: 3px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    overflow: visible !important;
+  }
+
+  .role-tabs button {
+    min-width: 0 !important;
+    border-radius: 9px !important;
+    font-size: 11px !important;
+    writing-mode: horizontal-tb !important;
+    white-space: nowrap !important;
+  }
+
+  .role-pill {
+    top: 3px !important;
+    height: calc(100% - 6px) !important;
+    border-radius: 9px !important;
+  }
+
+  .poster-subtitle {
+    visibility: hidden !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .hero-panel :deep(.symbol-strip) {
+    display: none !important;
+  }
+
+}
+
+/* SVG ?? */
+.mobile-radar-labels {
+  display: block;
+}
+.mobile-radar-labels text {
+  font-family: Impact, Haettenschweiler, sans-serif;
+  font-size: 14px;
+  font-weight: 900;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, .78);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.mobile-radar-labels .mobile-label {
+  font-size: 11px;
+  fill: var(--mono-ink);
+  stroke: rgba(255, 255, 255, .92);
+  letter-spacing: .5px;
+}
+.mobile-radar-labels .mobile-value {
+  font-size: 14px;
+  fill: var(--mono-ink);
+}
+.mobile-radar-labels .mobile-value.winner {
+  fill: var(--mono-ink);
+}
+.mobile-radar-labels .mobile-value.loser {
+  fill: var(--loser);
+}
+.mobile-radar-labels .mobile-value.hot { fill: #ff5b5b; }
+@media (max-width: 1120px) and (orientation: landscape), (pointer: coarse) and (orientation: landscape) {
+  .poster-shell {
+    width: 100% !important;
+    max-width: none !important;
+    height: calc(100svh - 55px) !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(118px, 17vw) minmax(0, 1fr) minmax(118px, 17vw) !important;
+    gap: 6px !important;
+    overflow: hidden !important;
+  }
+  .hero-panel {
+    display: block !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    order: 0 !important;
+  }
+  .radar-poster {
+    order: 0 !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    padding: 8px 10px 6px !important;
+  }
+  .scoreboard {
+    min-height: 56px !important;
+    margin: -4px -4px 4px !important;
+    padding: 6px 12px !important;
+    display: grid !important;
+    grid-template-columns: 34px minmax(0, 1fr) 112px minmax(0, 1fr) 34px !important;
+    gap: 5px !important;
+    overflow: hidden !important;
+  }
+  .scoreboard .blue-logo {
+    grid-column: 1 !important;
+  }
+  .scoreboard .team-name.left {
+    grid-column: 2 !important;
+    text-align: left !important;
+  }
+  .scoreboard .team-name.right {
+    grid-column: 4 !important;
+    text-align: right !important;
+  }
+  .scoreboard .red-logo {
+    grid-column: 5 !important;
+  }
+  .scoreboard .team-logo {
+    display: block !important;
+    width: 32px !important;
+    height: 32px !important;
+  }
+  .score-center {
+    left: 50% !important;
+    top: 50% !important;
+  }
+  .score-center strong {
+    font-size: 15px !important;
+  }
+  .score-center span {
+    font-size: 28px !important;
+    letter-spacing: 2px !important;
+  }
+  .win-badge {
+    left: calc(50% + 72px) !important;
+    min-width: 36px !important;
+    height: 24px !important;
+    padding: 0 8px !important;
+    font-size: 11px !important;
+  }
+  .poster-footer {
+    margin-top: -8px !important;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
+    align-items: end !important;
+  }
+  .radar-arena {
+    min-height: 0 !important;
+  }
+  .radar-svg {
+    width: min(250px, 31vw) !important;
+    transform: translate(-50%, -50%) !important;
+  }
+  .hero-panel :deep(.result-chip) {
+    font-size: clamp(20px, 3vw, 28px) !important;
+  }
+  .hero-panel :deep(.corner-logo) {
+    width: 30px !important;
+    height: 30px !important;
+  }
+  .hero-panel :deep(.portrait-block),
+  .hero-panel :deep(.equip-block),
+  .hero-panel :deep(.nameplate) {
+    display: grid !important;
+  }
+  .hero-panel :deep(.portrait-block) {
+    bottom: 50px !important;
+  }
+  .hero-panel :deep(.equip-block) {
+    bottom: 54px !important;
+  }
+  .hero-panel :deep(.player-portrait-wrap) {
+    width: 34px !important;
+    height: 34px !important;
+  }
+  .hero-panel :deep(.player-portrait) {
+    width: 34px !important;
+    height: 34px !important;
+  }
+  .hero-panel :deep(.equip-stack) {
+    grid-template-columns: repeat(3, 18px) !important;
+    gap: 3px !important;
+  }
+  .hero-panel :deep(.equip-stack img) {
+    width: 18px !important;
+    height: 18px !important;
+  }
+  .hero-panel :deep(.gold-line) {
+    font-size: 13px !important;
+  }
+  .hero-panel :deep(.kda-side) {
+    font-size: 11px !important;
+  }
+  .hero-panel :deep(.nameplate) {
+    left: 8px !important;
+    right: 8px !important;
+    bottom: 8px !important;
+  }
+  .hero-panel :deep(.nameplate strong) {
+    overflow: hidden !important;
+    font-size: clamp(18px, 2.4vw, 24px) !important;
+    letter-spacing: -1px !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+  .hero-panel :deep(.nameplate span) {
+    overflow: hidden !important;
+    font-size: 10px !important;
+    line-height: 1.12 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+  .radar-highlights {
+    display: none !important;
+  }
+  .mobile-radar-labels {
+    display: block;
+  }
+  .mobile-radar-labels text {
+    font-size: 13px;
+  }
+  .mobile-radar-labels .mobile-label {
+    font-size: 10px;
+  }
+  .scoreboard .team-name {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    line-height: 1.08 !important;
+    font-size: 12px !important;
+  }
+  .footer-player strong {
+    overflow: hidden !important;
+    font-size: 22px !important;
+    line-height: 1 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+  .footer-player span {
+    overflow: hidden !important;
+    font-size: 12px !important;
+    line-height: 1.15 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+  .wheel-hint {
+    display: none !important;
+  }
 }
 </style>

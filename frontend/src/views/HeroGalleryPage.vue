@@ -1305,7 +1305,7 @@ onUnmounted(() => {
 
 @media (max-width: 767px) {
   .gallery-broadcast {
-    min-height: 100dvh;
+    min-height: 100vh;
     margin-left: 0;
     padding: 8px 8px calc(74px + env(safe-area-inset-bottom));
     overflow-y: auto;

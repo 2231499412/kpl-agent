@@ -268,8 +268,9 @@ function handleTouchEnd(event) {
   const touch = event.changedTouches[0]
   const diffX = touchStartX.value - touch.clientX
   const diffY = touchStartY.value - touch.clientY
-  const direction = Math.abs(diffX) > Math.abs(diffY) ? diffX : diffY
-  if (Math.abs(direction) > 42) stepPanel(direction > 0 ? 1 : -1)
+  if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 42) {
+    stepPanel(diffX > 0 ? 1 : -1)
+  }
 }
 
 function formatTime(value) {
@@ -372,6 +373,13 @@ onBeforeUnmount(() => {
 
 :global(body.home-lock) {
   overflow: hidden;
+}
+
+@media (max-width: 767px) {
+  :global(body.home-lock) {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
 }
 
 .home-backdrop {
@@ -965,6 +973,7 @@ onBeforeUnmount(() => {
   .home-stage {
     min-width: 0;
     overflow-x: hidden;
+    overflow-y: auto;
   }
 
   .home-topbar {
@@ -980,8 +989,12 @@ onBeforeUnmount(() => {
     display: none;
   }
 
+  .panel-rail {
+    height: auto;
+  }
+
   .home-panel {
-    min-height: 100dvh;
+    min-height: 100vh;
     padding: 86px 16px 54px;
   }
 

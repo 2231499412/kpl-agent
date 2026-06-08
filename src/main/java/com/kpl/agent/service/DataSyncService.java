@@ -644,7 +644,7 @@ public class DataSyncService {
         String result = String.format("同步完成: 比赛%d, 英雄%d, 选手%d, 战队%d",
                 matchCount, heroCount, playerCount, teamCount);
         log.info(result);
-        queryCacheService.evictByPattern("kpl:" + leagueId + ":*");
+        evictQueryCache();
         return result;
     }
 
@@ -692,7 +692,7 @@ public class DataSyncService {
             int heroCount = syncHeroStats(latest.getLeagueId());
             int playerCount = syncPlayerStats(latest.getLeagueId());
             int teamCount = syncTeamStats(latest.getLeagueId());
-            queryCacheService.evictByPattern("kpl:" + latest.getLeagueId() + ":*");
+            evictQueryCache();
             upsertCursor("latest_season", latest.getLeagueId());
 
             String result = String.format("增量同步完成: 赛事%s, 比赛%d, 英雄%d, 选手%d, 战队%d",
@@ -749,7 +749,7 @@ public class DataSyncService {
             }
 
             // 5. 清除缓存
-            queryCacheService.evictByPattern("kpl:" + leagueId + ":*");
+            evictQueryCache();
 
             String result = String.format("重置分路数据并重新同步完成: 重置%d条, 重新同步%d个对局", resetCount, detailCount);
             finishJob(job, "SUCCESS", result, null);
@@ -827,7 +827,7 @@ public class DataSyncService {
                 }
             }
 
-            queryCacheService.evictByPattern("kpl:" + leagueId + ":match:*");
+            evictQueryCache();
             upsertCursor("latest_deep_incremental", leagueId + ":" + safeLimit);
             String result = String.format("深度增量同步完成: 扫描比赛%d, 新增对局%d, 补齐选手详情%d, 跳过已存在对局%d",
                     finishedMatches.size(), battleCount, detailCount, skipped);
@@ -863,7 +863,7 @@ public class DataSyncService {
                 totalHeroes += syncHeroStats(league.getLeagueId());
                 totalPlayers += syncPlayerStats(league.getLeagueId());
                 totalTeams += syncTeamStats(league.getLeagueId());
-                queryCacheService.evictByPattern("kpl:" + league.getLeagueId() + ":*");
+                evictQueryCache();
             }
 
             String result = String.format("同步完成: 赛事%d, 比赛%d, 英雄%d, 选手%d, 战队%d",
@@ -901,7 +901,7 @@ public class DataSyncService {
                 totalHeroes += syncHeroStats(league.getLeagueId());
                 totalPlayers += syncPlayerStats(league.getLeagueId());
                 totalTeams += syncTeamStats(league.getLeagueId());
-                queryCacheService.evictByPattern("kpl:" + league.getLeagueId() + ":*");
+                evictQueryCache();
             }
 
             String result = String.format("同步完成: 赛事%d, 比赛%d, 英雄%d, 选手%d, 战队%d",
@@ -1081,7 +1081,11 @@ public class DataSyncService {
 
         log.info("装备名称编码修复完成: 修复 {} 个装备", fixed);
         // 清除相关缓存
-        queryCacheService.evictByPattern("kpl:*:equip:*");
+        evictQueryCache();
         return fixed;
+    }
+
+    private void evictQueryCache() {
+        queryCacheService.evictByPattern("kpl:query:*");
     }
 }

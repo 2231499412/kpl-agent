@@ -1527,7 +1527,7 @@ onUnmounted(() => {
 
 @media (max-width: 767px) {
   .bp-broadcast {
-    min-height: 100dvh;
+    min-height: 100vh;
     margin-left: 0;
     padding: 8px 8px calc(72px + env(safe-area-inset-bottom));
     overflow-x: hidden;

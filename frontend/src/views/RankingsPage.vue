@@ -1578,7 +1578,7 @@ onBeforeUnmount(() => {
 
 @media (max-width: 767px) {
   .rankings-console {
-    min-height: 100dvh;
+    min-height: 100vh;
     padding: 12px 12px calc(78px + env(safe-area-inset-bottom)) !important;
     overflow-x: hidden;
   }
