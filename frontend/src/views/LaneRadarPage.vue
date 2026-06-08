@@ -2731,15 +2731,23 @@ onUnmounted(() => {
   }
 }
 
-/* ── PC端装备图标放大 ── */
+/* ── PC端选手卡放大 ── */
 @media (min-width: 1121px) {
+  .hero-panel :deep(.player-portrait-wrap),
+  .hero-panel :deep(.player-portrait) {
+    width: 48px;
+    height: 48px;
+  }
+  .hero-panel :deep(.kda-side) {
+    font-size: 18px;
+  }
   .hero-panel :deep(.equip-stack) {
-    grid-template-columns: repeat(3, 28px);
+    grid-template-columns: repeat(3, 32px);
     gap: 6px;
   }
   .hero-panel :deep(.equip-stack img) {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
   }
 }
 </style>
