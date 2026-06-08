@@ -350,9 +350,9 @@ onMounted(async () => {
     ])
 
     const statsData = statsRes.status === 'fulfilled' ? statsRes.value?.data : {}
-    teamCount.value = statsData?.teamCount || 18
-    matchCount.value = statsData?.battleCount || statsData?.matchCount || 326
-    heroCount.value = statsData?.heroCount || 112
+    teamCount.value = statsData?.teamCount || 1750
+    matchCount.value = statsData?.battleCount || statsData?.matchCount || 10420
+    heroCount.value = statsData?.heroCount || 8306
 
     const matchData = matchRes.status === 'fulfilled' ? matchRes.value?.data : {}
     const matches = Array.isArray(matchData?.data) ? matchData.data : Array.isArray(matchData) ? matchData : []
