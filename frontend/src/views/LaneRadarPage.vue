@@ -1638,8 +1638,8 @@ onUnmounted(() => {
 .hero-panel.red :deep(.player-portrait-wrap) { right: 14px; }
 
 .hero-panel :deep(.player-portrait) {
-  width: 58px;
-  height: 58px;
+  width: 38px;
+  height: 38px;
   border: 2px solid rgba(255,255,255,.84);
   border-radius: 50%;
   object-fit: cover;
@@ -2503,15 +2503,15 @@ onUnmounted(() => {
     height: 100% !important;
     min-height: 0 !important;
     width: 100% !important;
-    padding: 8px 10px 6px !important;
+    padding: 6px 8px 6px !important;
   }
   .scoreboard {
-    min-height: 56px !important;
-    margin: -4px -4px 4px !important;
-    padding: 6px 12px !important;
+    min-height: 48px !important;
+    margin: -4px -4px 3px !important;
+    padding: 4px 8px !important;
     display: grid !important;
-    grid-template-columns: 34px minmax(0, 1fr) 112px minmax(0, 1fr) 34px !important;
-    gap: 5px !important;
+    grid-template-columns: 32px minmax(0, 1fr) 96px minmax(0, 1fr) 32px !important;
+    gap: 4px !important;
     overflow: hidden !important;
   }
   .scoreboard .blue-logo {
@@ -2530,25 +2530,25 @@ onUnmounted(() => {
   }
   .scoreboard .team-logo {
     display: block !important;
-    width: 32px !important;
-    height: 32px !important;
+    width: 28px !important;
+    height: 28px !important;
   }
   .score-center {
     left: 50% !important;
     top: 50% !important;
   }
   .score-center strong {
-    font-size: 15px !important;
+    font-size: 13px !important;
   }
   .score-center span {
-    font-size: 28px !important;
-    letter-spacing: 2px !important;
+    font-size: 24px !important;
+    letter-spacing: 1px !important;
   }
   .win-badge {
-    left: calc(50% + 72px) !important;
-    min-width: 36px !important;
-    height: 24px !important;
-    padding: 0 8px !important;
+    left: calc(50% + 64px) !important;
+    min-width: 32px !important;
+    height: 22px !important;
+    padding: 0 6px !important;
     font-size: 11px !important;
   }
   .poster-footer {
@@ -2560,7 +2560,7 @@ onUnmounted(() => {
     min-height: 0 !important;
   }
   .radar-svg {
-    width: min(250px, 31vw) !important;
+    width: min(235px, 29vw) !important;
     transform: translate(-50%, -50%) !important;
   }
   .hero-panel :deep(.result-chip) {
@@ -2598,10 +2598,10 @@ onUnmounted(() => {
     height: 18px !important;
   }
   .hero-panel :deep(.gold-line) {
-    font-size: 13px !important;
+    font-size: 12px !important;
   }
   .hero-panel :deep(.kda-side) {
-    font-size: 11px !important;
+    font-size: 10px !important;
   }
   .hero-panel :deep(.nameplate) {
     left: 8px !important;
@@ -2610,29 +2610,60 @@ onUnmounted(() => {
   }
   .hero-panel :deep(.nameplate strong) {
     overflow: hidden !important;
-    font-size: clamp(18px, 2.4vw, 24px) !important;
+    font-size: clamp(16px, 2.1vw, 22px) !important;
     letter-spacing: -1px !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
   }
   .hero-panel :deep(.nameplate span) {
     overflow: hidden !important;
-    font-size: 10px !important;
+    font-size: 9px !important;
     line-height: 1.12 !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
   }
   .radar-highlights {
+    inset: 74px 10px 54px !important;
+    display: grid !important;
+    grid-template-columns: 86px 1fr 86px !important;
+    align-items: center !important;
+    pointer-events: none !important;
+  }
+  .highlight-column {
+    gap: 6px !important;
+  }
+  .highlight-card {
+    padding: 5px 6px !important;
+    border-radius: 9px !important;
+    background: rgba(255, 255, 255, .58) !important;
+    box-shadow: 0 8px 18px rgba(28, 41, 68, .08) !important;
+  }
+  .highlight-card:nth-child(n + 3) {
     display: none !important;
+  }
+  .highlight-card span,
+  .highlight-card em {
+    font-size: 8px !important;
+    line-height: 1.05 !important;
+  }
+  .highlight-card strong {
+    margin: 1px 0 !important;
+    font-size: 15px !important;
   }
   .mobile-radar-labels {
     display: block;
   }
   .mobile-radar-labels text {
-    font-size: 13px;
+    font-size: 14px;
+    font-weight: 950;
+    text-rendering: geometricPrecision;
+    shape-rendering: geometricPrecision;
+    -webkit-font-smoothing: antialiased;
   }
   .mobile-radar-labels .mobile-label {
     font-size: 10px;
+    font-weight: 850;
+    letter-spacing: .2px;
   }
   .scoreboard .team-name {
     min-width: 0 !important;
@@ -2645,7 +2676,7 @@ onUnmounted(() => {
   }
   .footer-player strong {
     overflow: hidden !important;
-    font-size: 22px !important;
+    font-size: 20px !important;
     line-height: 1 !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
@@ -2659,6 +2690,44 @@ onUnmounted(() => {
   }
   .wheel-hint {
     display: none !important;
+  }
+
+  .select-strip {
+    height: 42px !important;
+    margin: 3px auto 5px !important;
+  }
+  .select-left {
+    min-width: 92px !important;
+  }
+  .select-strip label {
+    padding: 2px 5px !important;
+    gap: 4px !important;
+  }
+  .select-strip label span {
+    font-size: 9px !important;
+  }
+  .select-center {
+    gap: 4px !important;
+  }
+  .select-center .match-select {
+    flex: 2.7 1 0 !important;
+  }
+  .select-center .battle-select {
+    flex: 3.8 1 0 !important;
+  }
+  .select-center .role-tabs {
+    flex: 3 1 0 !important;
+  }
+  .role-tabs {
+    gap: 3px !important;
+    padding: 3px !important;
+  }
+  .role-tabs button {
+    font-size: 10px !important;
+    padding-inline: 4px !important;
+  }
+  :deep(.el-select__wrapper) {
+    min-height: 24px !important;
   }
 }
 </style>
