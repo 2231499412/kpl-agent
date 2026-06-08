@@ -2255,7 +2255,11 @@ onUnmounted(() => {
 }
 .theme-dark .metric-values .winner-num,
 .theme-dark .metric-values .loser-num,
-.theme-dark .score-line { color: #e8e8e8; }
+.theme-dark .metric-callout span,
+.theme-dark .score-line {
+  color: #e8e8e8;
+  background: #2a2a2a;
+}
 
 .theme-dark .winner-poly { fill: rgba(232, 232, 232, .15); }
 .theme-dark .loser-poly { fill: rgba(232, 232, 232, .08); }
@@ -2284,6 +2288,32 @@ onUnmounted(() => {
 .theme-dark .spinner {
   border-color: rgba(255, 255, 255, .1);
   border-top-color: var(--mono-ink);
+}
+
+.theme-dark .highlight-card {
+  background: rgba(255, 255, 255, .08);
+  border-color: rgba(255, 255, 255, .1);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, .3);
+}
+.theme-dark .highlight-card.camp-1 {
+  border-color: rgba(28, 164, 190, .3);
+}
+.theme-dark .highlight-card.camp-2 {
+  border-color: rgba(92, 78, 190, .3);
+}
+.theme-dark .highlight-card strong {
+  color: #e8e8e8;
+}
+.theme-dark .highlight-card span,
+.theme-dark .highlight-card em {
+  color: rgba(232, 232, 232, .65);
+}
+
+.theme-dark .mobile-radar-labels text {
+  stroke: rgba(0, 0, 0, .5);
+}
+.theme-dark .mobile-radar-labels .mobile-label {
+  stroke: rgba(0, 0, 0, .6);
 }
 
 </style>
