@@ -664,7 +664,7 @@ onUnmounted(() => {
   height: calc(100% - 8px);
   background: #1a1a1a;
   border-radius: 10px;
-  transition: left .5s cubic-bezier(.34,1.56,.64,1), width .5s cubic-bezier(.34,1.56,.64,1);
+  transition: left .36s cubic-bezier(.4,0,.2,1), width .36s cubic-bezier(.4,0,.2,1);
   z-index: 0;
   pointer-events: none;
 }

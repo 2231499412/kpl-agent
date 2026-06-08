@@ -1,5 +1,6 @@
 package com.kpl.agent.controller;
 
+import com.kpl.agent.api.TencentNewsClient;
 import com.kpl.agent.service.LeagueQueryService;
 import com.kpl.agent.service.LaneRadarService;
 import com.kpl.agent.service.QueryCacheService;
@@ -9,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -27,6 +29,7 @@ public class QueryController {
     private final LeagueQueryService leagueQueryService;
     private final LaneRadarService laneRadarService;
     private final QueryCacheService queryCacheService;
+    private final TencentNewsClient tencentNewsClient;
 
     @Value("${query.cache.ttl-seconds:600}")
     private long queryCacheTtlSeconds;
@@ -215,6 +218,20 @@ public class QueryController {
             @RequestParam(defaultValue = "6") int limit) {
         String lid = leagueQueryService.requireLeagueId(leagueId);
         return ApiResponse.ok(cached("equipPlayer", () -> equipStatsTool.queryByPlayer(name, lid, limit), lid, name, limit));
+    }
+
+    /** 版本动态列表：GET /api/query/patch-notes?limit=8 */
+    @GetMapping("/patch-notes")
+    public ApiResponse<List<Map<String, Object>>> queryPatchNotes(
+            @RequestParam(defaultValue = "8") int limit) {
+        return ApiResponse.ok(tencentNewsClient.getNewsList(limit));
+    }
+
+    /** 版本动态详情：GET /api/query/patch-notes/detail?id=801930 */
+    @GetMapping("/patch-notes/detail")
+    public ApiResponse<Map<String, Object>> queryPatchNoteDetail(
+            @RequestParam String id) {
+        return ApiResponse.ok(tencentNewsClient.getNewsDetail(id));
     }
 
     private Map<String, Object> cached(String namespace, java.util.function.Supplier<Map<String, Object>> loader, Object... keyParts) {

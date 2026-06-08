@@ -23,14 +23,16 @@
     </section>
 
     <!-- 分路筛选 -->
-    <div class="role-tabs">
+    <nav ref="roleNavRef" class="role-tabs">
+      <span class="role-pill" :style="pillStyle"></span>
       <button
         v-for="r in roleOptions"
         :key="r.value"
+        :ref="el => roleBtnRefs[r.value] = el"
         :class="['role-tab', { active: activeRole === r.value }]"
-        @click="activeRole = r.value"
+        @click="selectRole(r.value)"
       >{{ r.label }}</button>
-    </div>
+    </nav>
 
     <!-- 图例 + 评分说明 -->
     <div class="info-bar" v-if="!loading && filteredEquips.length">
@@ -55,33 +57,26 @@
 
     <!-- 梯度内容 -->
     <div v-else class="tier-content">
-      <template v-for="tier in visibleTiers" :key="tier.key">
-        <div class="tier-section" v-if="tier.equips.length">
-          <div class="tier-header">
-            <span :class="['tier-badge', 'tier-' + tier.key]">{{ tier.label }}</span>
-            <span class="tier-name">{{ tier.name }}</span>
-            <span class="tier-criteria">{{ tier.desc }}{{ tier.scoreRange ? ' · 评分 ' + tier.scoreRange : '' }}</span>
-            <span class="tier-count">{{ tier.equips.length }} 装备</span>
+      <TransitionGroup name="tier-sort" tag="div" class="equip-flat-grid">
+        <template v-for="(item, idx) in flatEquips" :key="item._key">
+          <div v-if="item._type === 'header'" class="tier-header tier-header-row">
+            <span :class="['tier-badge', 'tier-' + item.tier.key]">{{ item.tier.label }}</span>
+            <span class="tier-name">{{ item.tier.name }}</span>
+            <span class="tier-criteria">{{ item.tier.desc }}{{ item.tier.scoreRange ? ' · 评分 ' + item.tier.scoreRange : '' }}</span>
+            <span class="tier-count">{{ item.tier.equips.length }} 装备</span>
           </div>
-          <div class="equip-grid">
-            <div
-              v-for="item in tier.equips"
-              :key="item.equipId"
-              class="equip-card"
-              :class="{ 'high-pick': item.pickRate > 0.5, 'low-pick': item.pickCount < 5 }"
-              @click="openDetail(item)"
-            >
-              <img v-if="item.equipIcon" :src="item.equipIcon" class="equip-icon" />
-              <div v-else class="equip-icon-placeholder">?</div>
-              <span class="equip-score">{{ item._score }}</span>
-              <span class="equip-name">{{ item.equipName }}</span>
-              <span class="equip-meta">{{ item._lanePickCount != null ? item._lanePickCount + '次' : item.pickCount + '次' }} / {{ item.heroCount }}英雄</span>
-              <span class="equip-price" v-if="item.totalPrice">{{ item.totalPrice }} 金币</span>
-            </div>
+          <div v-else class="equip-card"
+            :class="{ 'high-pick': item.pickRate > 0.5, 'low-pick': item.pickCount < 5 }"
+            @click="openDetail(item)">
+            <img v-if="item.equipIcon" :src="item.equipIcon" class="equip-icon" />
+            <div v-else class="equip-icon-placeholder">?</div>
+            <span class="equip-score">{{ item._score }}</span>
+            <span class="equip-name">{{ item.equipName }}</span>
+            <span class="equip-meta">{{ item._lanePickCount != null ? item._lanePickCount + '次' : item.pickCount + '次' }} / {{ item.heroCount }}英雄</span>
+            <span class="equip-price" v-if="item.totalPrice">{{ item.totalPrice }} 金币</span>
           </div>
-        </div>
-        <div class="tier-divider" v-if="tier.key !== 't4' && tier.equips.length"></div>
-      </template>
+        </template>
+      </TransitionGroup>
 
       <div v-if="!filteredEquips.length && !loading" class="empty-state">
         <span>暂无数据，请先选择赛事</span>
@@ -138,7 +133,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getTheme, setTheme } from '../utils/theme'
 
 const theme = ref(getTheme())
@@ -149,6 +144,26 @@ const selectedLeagueId = ref('')
 const equipList = ref([])
 const loading = ref(false)
 const activeRole = ref('all')
+const roleNavRef = ref(null)
+const roleBtnRefs = {}
+const pillStyle = ref({})
+
+function selectRole(value) {
+  activeRole.value = value
+  nextTick(updatePill)
+}
+
+function updatePill() {
+  const nav = roleNavRef.value
+  const btn = roleBtnRefs[activeRole.value]
+  if (!nav || !btn) return
+  const navRect = nav.getBoundingClientRect()
+  const btnRect = btn.getBoundingClientRect()
+  pillStyle.value = {
+    left: (btnRect.left - navRect.left) + 'px',
+    width: btnRect.width + 'px',
+  }
+}
 
 const detailVisible = ref(false)
 const detailLoading = ref(false)
@@ -253,6 +268,18 @@ const visibleTiers = computed(() => {
   }))
 })
 
+const flatEquips = computed(() => {
+  const result = []
+  for (const tier of visibleTiers.value) {
+    if (!tier.equips.length) continue
+    result.push({ _type: 'header', _key: `tier-${tier.key}`, tier })
+    for (const item of tier.equips) {
+      result.push({ ...item, _type: 'item', _key: `eq-${item.equipId}` })
+    }
+  }
+  return result
+})
+
 const detailTitle = computed(() => detailData.value?.equipName || '装备详情')
 
 async function init() {
@@ -294,7 +321,14 @@ async function openDetail(item) {
   detailLoading.value = false
 }
 
-onMounted(init)
+onMounted(() => {
+  init()
+  nextTick(updatePill)
+  window.addEventListener('resize', updatePill)
+})
+onUnmounted(() => {
+  window.removeEventListener('resize', updatePill)
+})
 </script>
 
 <style scoped>
@@ -397,17 +431,55 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 
 /* 分路筛选 */
 .role-tabs {
-  display: flex; gap: 0; margin-bottom: 20px; border: 1px solid var(--c-line); background: var(--c-panel);
+  position: relative;
+  display: flex; gap: 5px; padding: 4px; margin-bottom: 20px;
+  border: 1px solid var(--c-line); background: var(--c-panel);
   overflow-x: auto;
 }
-.role-tab {
-  flex: 1; min-width: 0; padding: 10px 16px; border: none; background: transparent;
-  color: var(--c-soft); font-size: 13px; font-weight: 600; cursor: pointer;
-  transition: all 0.15s; white-space: nowrap; border-right: 1px solid var(--c-line);
+.role-pill {
+  position: absolute; top: 4px; height: calc(100% - 8px);
+  background: #f39c12; border-radius: 10px;
+  transition: left .36s cubic-bezier(.4,0,.2,1), width .36s cubic-bezier(.4,0,.2,1);
+  z-index: 0; pointer-events: none;
 }
-.role-tab:last-child { border-right: none; }
-.role-tab:hover { color: var(--c-ink); background: var(--c-hover); }
-.role-tab.active { color: #f39c12; background: rgba(243, 156, 18, 0.1); }
+.role-tab {
+  position: relative; z-index: 1;
+  flex: 1; min-width: 0; padding: 10px 16px; border: none; border-radius: 10px;
+  background: transparent;
+  color: var(--c-soft); font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: color .2s ease; white-space: nowrap;
+}
+.role-tab:hover { color: var(--c-ink); }
+.role-tab.active { color: #fff; }
+
+/* 扁平网格 + 排序动画 */
+.equip-flat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+.tier-header-row {
+  grid-column: 1 / -1;
+}
+.tier-sort-move {
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tier-sort-leave-active {
+  transition: opacity 0.36s cubic-bezier(0.4, 0, 1, 1),
+              transform 0.36s cubic-bezier(0.4, 0, 1, 1);
+  position: absolute;
+}
+.tier-sort-leave-to {
+  opacity: 0;
+  transform: scale(0.86);
+}
+.tier-sort-enter-active {
+  transition: all 0.35s cubic-bezier(0, 0, 0.2, 1) 0.15s;
+}
+.tier-sort-enter-from {
+  opacity: 0;
+  transform: scale(0.86);
+}
 
 /* 加载 */
 .loading-wrap {
@@ -586,7 +658,7 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
   .league-select { width: 132px; }
   .theme-toggle small { display: none; }
 
-  .role-tabs { gap: 0; }
+  .role-tabs { gap: 4px; padding: 3px; }
   .role-tab { padding: 8px 10px; font-size: 12px; }
 
   .tier-header { padding: 10px 0 8px; margin-bottom: 10px; }
@@ -596,6 +668,13 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
   .tier-count { font-size: 11px; }
 
   .equip-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .equip-flat-grid {
+    gap: 8px;
+  }
+  .equip-flat-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
   }

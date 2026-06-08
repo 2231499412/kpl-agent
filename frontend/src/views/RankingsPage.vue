@@ -60,6 +60,21 @@
             <span class="ls-label">选手</span>
           </div>
         </div>
+
+        <div class="patch-notes">
+          <div class="section-head">
+            <span>版本动态</span>
+          </div>
+          <div class="patch-list" v-if="patchNotes.length">
+            <div v-for="note in patchNotes" :key="note.id"
+                 class="patch-item"
+                 @click="openNote(note)">
+              <span class="patch-date">{{ formatPatchDate(note.date) }}</span>
+              <span class="patch-title">{{ note.title }}</span>
+            </div>
+          </div>
+          <div v-else class="patch-empty">暂无版本动态</div>
+        </div>
       </aside>
 
       <section class="main-board">
@@ -436,6 +451,11 @@
           <div v-else class="detail-empty">暂无数据</div>
         </el-dialog>
 
+        <el-dialog v-model="patchDialogVisible" :title="patchDialogTitle" width="680" class="patch-dialog" :modal-class="'patch-dialog-overlay'" destroy-on-close>
+          <div v-if="patchDialogLoading" class="patch-loading">加载中...</div>
+          <div v-else class="patch-dialog-content" v-html="patchDialogContent" />
+        </el-dialog>
+
         <div class="bottom-grid">
           <div class="panel agent-panel">
             <div class="section-head">
@@ -501,6 +521,11 @@ const agentQuestion = ref('AG 最近比赛表现怎么样')
 const agentMessages = ref([
   { id: 1, role: 'assistant', text: '数据链路已待命。' }
 ])
+const patchNotes = ref([])
+const patchDialogVisible = ref(false)
+const patchDialogTitle = ref('')
+const patchDialogContent = ref('')
+const patchDialogLoading = ref(false)
 const detailVisible = ref(false)
 const detailType = ref('')
 const detailTitle = ref('')
@@ -736,6 +761,7 @@ async function refreshAll() {
   await Promise.allSettled([loadStatus(), loadLeagues(), loadTeamIcons()])
   await loadDashboard()
   await loadLeagueMeta()
+  loadPatchNotes()
 }
 
 async function loadTeamIcons() {
@@ -1066,6 +1092,38 @@ function stripHtml(html) {
   return html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim()
 }
 
+async function loadPatchNotes() {
+  try {
+    patchNotes.value = await request('/api/query/patch-notes?limit=20')
+  } catch { patchNotes.value = [] }
+}
+
+async function openNote(note) {
+  patchDialogTitle.value = note.title
+  patchDialogVisible.value = true
+  if (note.contentHtml) {
+    patchDialogContent.value = note.contentHtml
+    return
+  }
+  patchDialogLoading.value = true
+  patchDialogContent.value = ''
+  try {
+    const detail = await request(`/api/query/patch-notes/detail?id=${note.id}`)
+    note.contentHtml = detail.contentHtml || ''
+    patchDialogContent.value = note.contentHtml
+  } catch {
+    patchDialogContent.value = '<p>加载失败</p>'
+  } finally {
+    patchDialogLoading.value = false
+  }
+}
+
+function formatPatchDate(date) {
+  if (!date) return ''
+  const parts = date.split('-')
+  return parts.length >= 3 ? `${parts[1]}-${parts[2]}` : date
+}
+
 function formatTime(value) {
   if (!value) return '-'
   return String(value).replace('T', ' ').slice(0, 16)
@@ -1303,6 +1361,80 @@ onBeforeUnmount(() => {
   letter-spacing: 1px;
 }
 
+/* ── 版本动态 ── */
+.rankings-console .patch-notes {
+  margin-top: 12px;
+}
+.rankings-console .patch-notes .section-head {
+  padding-bottom: 8px;
+  margin-bottom: 0;
+}
+.rankings-console .patch-item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--mono-line);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.rankings-console .patch-item:last-child {
+  border-bottom: none;
+}
+.rankings-console .patch-item:hover {
+  background: var(--stat-bg);
+}
+.rankings-console .patch-date {
+  display: block;
+  font-size: 11px;
+  color: var(--mono-dim);
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+.rankings-console .patch-title {
+  display: block;
+  font-size: 13px;
+  color: var(--mono-ink);
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+/* ── 版本动态弹窗 ── */
+.rankings-console .patch-dialog-content {
+  font-size: 14px;
+  color: var(--mono-ink);
+  line-height: 1.7;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+.rankings-console .patch-dialog-content img {
+  max-width: 100%;
+  height: auto;
+  margin: 6px 0;
+  border-radius: 4px;
+  display: block;
+}
+.rankings-console .patch-dialog-content h1,
+.rankings-console .patch-dialog-content h2,
+.rankings-console .patch-dialog-content h3 {
+  font-size: 16px;
+  font-weight: 900;
+  margin: 12px 0 6px;
+}
+.rankings-console .patch-dialog-content p {
+  margin: 6px 0;
+}
+.rankings-console .patch-loading {
+  padding: 24px 0;
+  text-align: center;
+  color: var(--mono-dim);
+  font-size: 13px;
+}
+.rankings-console .patch-empty {
+  padding: 12px 0;
+  font-size: 12px;
+  color: var(--mono-dim);
+  text-align: center;
+}
+
 .rankings-console .side-rail,
 .rankings-console .query-panel,
 .rankings-console .agent-panel {
@@ -1432,8 +1564,24 @@ onBeforeUnmount(() => {
 }
 
 /* ── 详情弹窗内部组件覆写为白色主题 ── */
-.rankings-console :deep(.detail-dialog .el-dialog__header) {
+.rankings-console :deep(.detail-dialog .el-dialog__header),
+.rankings-console :deep(.patch-dialog .el-dialog__header) {
   border-bottom-color: var(--mono-line) !important;
+}
+.rankings-console :deep(.patch-dialog) {
+  width: min(92vw, 960px) !important;
+  height: auto !important;
+  max-height: none !important;
+  margin: 4vh auto !important;
+}
+.rankings-console :deep(.patch-dialog .el-dialog__header) {
+  flex-shrink: 0 !important;
+  padding: 16px 20px 12px !important;
+}
+.rankings-console :deep(.patch-dialog .el-dialog__body) {
+  overflow-y: auto !important;
+  max-height: none !important;
+  padding: 0 20px 16px !important;
 }
 .rankings-console :deep(.match-meta) {
   color: var(--mono-dim) !important;
@@ -1621,6 +1769,19 @@ onBeforeUnmount(() => {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .rankings-console .patch-date {
+    display: inline;
+    margin-bottom: 0;
+    margin-right: 6px;
+  }
+  .rankings-console .patch-title {
+    display: inline;
+  }
+  .rankings-console .patch-list {
+    max-height: 260px;
+    overflow-y: auto;
+  }
+
   .rankings-console .table-container {
     width: 100%;
     max-width: 100%;
@@ -1684,6 +1845,17 @@ onBeforeUnmount(() => {
   .rankings-console :deep(.detail-dialog .el-dialog__body) {
     max-height: calc(86dvh - 64px);
     padding: 12px;
+  }
+  .rankings-console :deep(.patch-dialog .el-dialog__body) {
+    padding: 0 12px 12px !important;
+    max-height: calc(100dvh - 14vh - 80px) !important;
+    overflow-y: auto !important;
+  }
+  .rankings-console .patch-dialog-content img {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    object-fit: contain !important;
   }
 
   .rankings-console :deep(.stat-grid) {
@@ -1763,5 +1935,49 @@ onBeforeUnmount(() => {
 }
 .theme-dark .el-select-dropdown__item.is-selected::after {
   background: #e8e8e8;
+}
+
+/* 版本动态弹窗：遮罩层可滚动，弹窗完整展示 */
+.patch-dialog-overlay {
+  overflow-y: auto !important;
+  align-items: flex-start !important;
+}
+.patch-dialog-overlay .el-overlay-dialog {
+  margin: 4vh auto !important;
+}
+
+/* 弹窗内容图片：强制缩放，覆盖腾讯 HTML 内联 width/height 属性 */
+.patch-dialog-content img {
+  max-width: 100% !important;
+  width: auto !important;
+  height: auto !important;
+  display: block;
+  margin: 6px 0;
+  border-radius: 4px;
+}
+/* 小头像（width<=100 的方图）保持小尺寸 */
+.patch-dialog-content img[width="86"],
+.patch-dialog-content img[width="64"],
+.patch-dialog-content img[width="48"] {
+  width: 36px !important;
+  height: 36px !important;
+  display: inline-block !important;
+  vertical-align: middle;
+  border-radius: 50%;
+  margin: 2px 4px 2px 0;
+}
+@media (max-width: 767px) {
+  .patch-dialog-content img {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    object-fit: contain !important;
+  }
+  .patch-dialog-content img[width="86"],
+  .patch-dialog-content img[width="64"],
+  .patch-dialog-content img[width="48"] {
+    width: 28px !important;
+    height: 28px !important;
+  }
 }
 </style>

@@ -55,7 +55,7 @@
       <span>换一个小局或分路试试，可能该局缺少完整选手分路数据。</span>
     </section>
 
-    <section v-else-if="radarData" :key="radarKey" class="poster-shell">
+    <section v-else-if="radarData" :key="radarKey" class="poster-shell" @wheel="onWheel" @touchstart="onTouchStart" @touchend="onTouchEnd">
       <aside class="hero-panel blue">
         <SideVisual :side="radarData.blue" :result="sideResult(radarData.blue)" />
       </aside>
@@ -200,8 +200,9 @@
     </section>
 
     <Transition name="fade-hint">
-      <div v-if="wheelHintVisible && radarData" class="wheel-hint">鼠标滚轮切换分路</div>
+      <div v-if="wheelHintVisible && radarData" class="wheel-hint">{{ isMobile ? '左右滑动切换分路' : '鼠标滚轮切换分路' }}</div>
     </Transition>
+
 
   </main>
 </template>
@@ -231,6 +232,7 @@ const loading = ref(false)
 const errorText = ref('')
 const hoverMetric = ref(null)
 const arenaRef = ref(null)
+const isMobile = ref(window.innerWidth <= 1120)
 const roleNavRef = ref(null)
 const roleBtnRefs = {}
 const pillStyle = ref({})
@@ -244,6 +246,27 @@ function onWheel(e) {
   if (wheelTimer) return
   const idx = roleOptions.findIndex(r => r.value === selectedRole.value)
   const next = e.deltaY > 0 ? Math.min(idx + 1, roleOptions.length - 1) : Math.max(idx - 1, 0)
+  if (next === idx) return
+  selectedRole.value = roleOptions[next].value
+  loadRadar()
+  nextTick(() => updatePill())
+  wheelTimer = setTimeout(() => { wheelTimer = null }, 600)
+}
+
+let touchStartX = 0
+let touchStartY = 0
+function onTouchStart(e) {
+  touchStartX = e.touches[0].clientX
+  touchStartY = e.touches[0].clientY
+}
+function onTouchEnd(e) {
+  if (!radarData.value || loading.value) return
+  const dx = e.changedTouches[0].clientX - touchStartX
+  const dy = e.changedTouches[0].clientY - touchStartY
+  if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return
+  if (wheelTimer) return
+  const idx = roleOptions.findIndex(r => r.value === selectedRole.value)
+  const next = dx < 0 ? Math.min(idx + 1, roleOptions.length - 1) : Math.max(idx - 1, 0)
   if (next === idx) return
   selectedRole.value = roleOptions[next].value
   loadRadar()
@@ -360,6 +383,16 @@ const SideVisual = defineComponent({
       const heroGames = Array.isArray(props.side.heroGames) ? props.side.heroGames : []
       const mainHero = latestHeroGame(props.side) || props.side
       const summaryMode = heroGames.length > 1
+      const symbolIds = props.side.symbolIds ? [...new Set(String(props.side.symbolIds).split(/[+,]/).map(id => id.trim()).filter(Boolean))] : []
+      const mainSymbols = symbolIds
+      const extraSymbols = []
+      const renderSymbol = (id, extra = false) => h('img', {
+        key: `${extra ? 'extra' : 'main'}-${id}`,
+        src: `https://game.gtimg.cn/images/yxzj/img201606/mingwen/${id}.png`,
+        alt: id,
+        class: extra ? 'symbol-icon extra' : 'symbol-icon',
+        onError: event => { event.target.style.display = 'none' },
+      })
       return [
       h('img', { class: 'matchup-hero-bg', src: heroPoster(mainHero), alt: mainHero.heroName || props.side.heroName }),
       h('div', { class: 'hero-vignette' }),
@@ -374,17 +407,8 @@ const SideVisual = defineComponent({
             onError: event => { event.target.style.display = 'none' },
           })
         : null,
-      props.side.symbolIds ? h('div', { class: 'symbol-strip' },
-        [...new Set(String(props.side.symbolIds).split(/[+,]/).filter(Boolean))].map(id =>
-          h('img', {
-            key: id,
-            src: `https://game.gtimg.cn/images/yxzj/img201606/mingwen/${id.trim()}.png`,
-            alt: id.trim(),
-            class: 'symbol-icon',
-            onError: event => { event.target.style.display = 'none' },
-          })
-        )
-      ) : null,
+      mainSymbols.length ? h('div', { class: 'symbol-strip' }, mainSymbols.map(id => renderSymbol(id))) : null,
+      extraSymbols.length ? h('div', { class: 'symbol-extra-strip' }, extraSymbols.map(id => renderSymbol(id, true))) : null,
       h('div', { class: 'portrait-block' }, [
         h('div', { class: 'player-portrait-wrap' }, [
           props.side.playerIcon
@@ -666,13 +690,17 @@ watch(radarData, (v) => {
   }
 })
 
+function onResize() {
+  isMobile.value = window.innerWidth <= 1120
+  updatePill()
+}
 onMounted(async () => {
   await init()
   nextTick(updatePill)
-  window.addEventListener('resize', updatePill)
+  window.addEventListener('resize', onResize)
 })
 onUnmounted(() => {
-  window.removeEventListener('resize', updatePill)
+  window.removeEventListener('resize', onResize)
 })
 </script>
 
@@ -938,7 +966,7 @@ onUnmounted(() => {
   height: calc(100% - 8px);
   background: #1a1a1a;
   border-radius: 10px;
-  transition: left .5s cubic-bezier(.34,1.56,.64,1), width .5s cubic-bezier(.34,1.56,.64,1);
+  transition: left .36s cubic-bezier(.4,0,.2,1), width .36s cubic-bezier(.4,0,.2,1);
   z-index: 0;
   pointer-events: none;
 }
@@ -1172,6 +1200,15 @@ onUnmounted(() => {
 }
 .hero-panel.blue :deep(.symbol-strip) { right: 14px; }
 .hero-panel.red :deep(.symbol-strip) { left: 14px; }
+.hero-panel :deep(.symbol-extra-strip) {
+  position: absolute;
+  z-index: 6;
+  bottom: 18px;
+  display: flex;
+  gap: 2px;
+}
+.hero-panel.blue :deep(.symbol-extra-strip) { right: 46px; }
+.hero-panel.red :deep(.symbol-extra-strip) { left: 46px; }
 .hero-panel :deep(.symbol-icon) {
   width: 22px;
   height: 22px;
@@ -1900,15 +1937,25 @@ onUnmounted(() => {
 
 .hero-panel :deep(.player-portrait-wrap) {
   position: static;
-  width: 38px;
-  height: 38px;
+  width: 48px;
+  height: 48px;
+}
+
+.hero-panel :deep(.player-portrait) {
+  width: 48px;
+  height: 48px;
 }
 
 .hero-panel :deep(.equip-stack) {
   position: static;
   display: grid;
-  grid-template-columns: repeat(3, 20px);
-  gap: 5px;
+  grid-template-columns: repeat(3, 26px);
+  gap: 6px;
+}
+
+.hero-panel :deep(.equip-stack img) {
+  width: 26px;
+  height: 26px;
 }
 
 .hero-panel :deep(.side-stats) {
@@ -1927,8 +1974,8 @@ onUnmounted(() => {
   line-height: 1;
   letter-spacing: .5px;
 }
-.hero-panel :deep(.gold-line) { font-size: 17px; }
-.hero-panel :deep(.kda-side) { font-size: 14px; }
+.hero-panel :deep(.gold-line) { font-size: 22px; }
+.hero-panel :deep(.kda-side) { font-size: 18px; }
 
 .hero-panel :deep(.nameplate) {
   bottom: 16px;
@@ -2362,7 +2409,7 @@ onUnmounted(() => {
     max-width: none !important;
     height: 42px !important;
     display: grid !important;
-    grid-template-columns: minmax(150px, 1fr) minmax(280px, 2.55fr) !important;
+    grid-template-columns: minmax(90px, 120px) 1fr !important;
     gap: 6px !important;
     margin: 0 0 6px !important;
     padding: 0 !important;
@@ -2374,13 +2421,13 @@ onUnmounted(() => {
     min-height: 0 !important;
     height: 42px !important;
     border-radius: 0 !important;
-    border: 1px solid var(--mono-line) !important;
+    border: none !important;
     background: transparent !important;
   }
 
   .select-center :deep(.el-select__wrapper) {
     background: transparent !important;
-    border: 1px solid var(--mono-line) !important;
+    border: none !important;
   }
 
   .select-right {
@@ -2445,7 +2492,34 @@ onUnmounted(() => {
   }
 
   .hero-panel :deep(.symbol-strip) {
+    bottom: 34px !important;
+    display: flex !important;
+    gap: 2px !important;
+  }
+  .hero-panel.blue :deep(.symbol-strip) {
+    right: 8px !important;
+  }
+  .hero-panel.red :deep(.symbol-strip) {
+    left: 8px !important;
+  }
+  .hero-panel :deep(.symbol-strip .symbol-icon:nth-child(n + 4)) {
     display: none !important;
+  }
+  .hero-panel :deep(.symbol-extra-strip) {
+    bottom: 18px !important;
+    display: flex !important;
+    gap: 2px !important;
+  }
+  .hero-panel.blue :deep(.symbol-extra-strip) {
+    right: 30px !important;
+  }
+  .hero-panel.red :deep(.symbol-extra-strip) {
+    left: 30px !important;
+  }
+  .hero-panel :deep(.symbol-icon) {
+    width: 15px !important;
+    height: 15px !important;
+    border-radius: 3px !important;
   }
 
 }
@@ -2456,7 +2530,7 @@ onUnmounted(() => {
 }
 .mobile-radar-labels text {
   font-family: Impact, Haettenschweiler, sans-serif;
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 900;
   paint-order: stroke;
   stroke: rgba(255, 255, 255, .78);
@@ -2464,13 +2538,13 @@ onUnmounted(() => {
   stroke-linejoin: round;
 }
 .mobile-radar-labels .mobile-label {
-  font-size: 11px;
+  font-size: 14px;
   fill: var(--mono-ink);
   stroke: rgba(255, 255, 255, .92);
   letter-spacing: .5px;
 }
 .mobile-radar-labels .mobile-value {
-  font-size: 14px;
+  font-size: 18px;
   fill: var(--mono-ink);
 }
 .mobile-radar-labels .mobile-value.winner {
@@ -2576,32 +2650,41 @@ onUnmounted(() => {
     display: grid !important;
   }
   .hero-panel :deep(.portrait-block) {
-    bottom: 40px !important;
+    bottom: 34px !important;
   }
   .hero-panel :deep(.equip-block) {
-    bottom: 48px !important;
+    bottom: 42px !important;
   }
   .hero-panel :deep(.player-portrait-wrap) {
-    width: 34px !important;
-    height: 34px !important;
-  }
-  .hero-panel :deep(.player-portrait) {
-    width: 34px !important;
-    height: 34px !important;
-  }
-  .hero-panel :deep(.equip-stack) {
-    grid-template-columns: repeat(3, 18px) !important;
-    gap: 3px !important;
-  }
-  .hero-panel :deep(.equip-stack img) {
     width: 18px !important;
     height: 18px !important;
   }
+  .hero-panel :deep(.player-portrait) {
+    width: 18px !important;
+    height: 18px !important;
+  }
+  .hero-panel :deep(.equip-stack) {
+    grid-template-columns: repeat(3, 8px) !important;
+    gap: 1px !important;
+  }
+  .hero-panel :deep(.equip-stack img) {
+    width: 8px !important;
+    height: 8px !important;
+  }
   .hero-panel :deep(.gold-line) {
-    font-size: 12px !important;
+    font-size: 8px !important;
   }
   .hero-panel :deep(.kda-side) {
-    font-size: 10px !important;
+    font-size: 7px !important;
+  }
+  .hero-panel :deep(.symbol-strip) {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow: visible !important;
+    width: max-content !important;
+  }
+  .hero-panel :deep(.symbol-extra-strip) {
+    display: none !important;
   }
   .hero-panel :deep(.nameplate) {
     left: 8px !important;
@@ -2654,14 +2737,14 @@ onUnmounted(() => {
     display: block;
   }
   .mobile-radar-labels text {
-    font-size: 14px;
+    font-size: 18px;
     font-weight: 950;
     text-rendering: geometricPrecision;
     shape-rendering: geometricPrecision;
     -webkit-font-smoothing: antialiased;
   }
   .mobile-radar-labels .mobile-label {
-    font-size: 10px;
+    font-size: 13px;
     font-weight: 850;
     letter-spacing: .2px;
   }
@@ -2689,7 +2772,8 @@ onUnmounted(() => {
     white-space: nowrap !important;
   }
   .wheel-hint {
-    display: none !important;
+    bottom: 48px !important;
+    font-size: 11px !important;
   }
 
   .select-strip {
@@ -2735,19 +2819,63 @@ onUnmounted(() => {
 @media (min-width: 1121px) {
   .hero-panel :deep(.player-portrait-wrap),
   .hero-panel :deep(.player-portrait) {
-    width: 48px;
-    height: 48px;
+    width: 60px !important;
+    height: 60px !important;
   }
   .hero-panel :deep(.kda-side) {
-    font-size: 18px;
+    font-size: 22px !important;
   }
   .hero-panel :deep(.equip-stack) {
-    grid-template-columns: repeat(3, 32px);
-    gap: 6px;
+    grid-template-columns: repeat(3, 38px) !important;
+    gap: 7px !important;
   }
   .hero-panel :deep(.equip-stack img) {
-    width: 32px;
-    height: 32px;
+    width: 38px !important;
+    height: 38px !important;
   }
 }
+
+@media (max-width: 1120px) and (orientation: landscape), (pointer: coarse) and (orientation: landscape) {
+  .hero-panel :deep(.symbol-strip) {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow: visible !important;
+    width: max-content !important;
+  }
+
+  .hero-panel :deep(.symbol-strip .symbol-icon:nth-child(n + 4)) {
+    display: block !important;
+  }
+
+  .hero-panel :deep(.symbol-extra-strip) {
+    display: none !important;
+  }
+
+  .hero-panel :deep(.symbol-icon) {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  .hero-panel :deep(.equip-stack) {
+    grid-template-columns: repeat(3, 8px) !important;
+    gap: 1px !important;
+  }
+
+  .hero-panel :deep(.equip-stack img) {
+    width: 8px !important;
+    height: 8px !important;
+  }
+
+  .hero-panel :deep(.gold-line) {
+    gap: 1px !important;
+    font-size: 7px !important;
+  }
+
+  .hero-panel :deep(.coin) {
+    width: 6px !important;
+    height: 6px !important;
+    font-size: 4px !important;
+  }
+}
+
 </style>
