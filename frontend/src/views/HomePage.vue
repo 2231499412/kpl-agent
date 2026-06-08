@@ -117,9 +117,11 @@
       />
     </aside>
 
-    <div class="scroll-cue">
+    <div class="scroll-cue" :class="{ hide: footerOpen }">
       <span>SCROLL</span>
-      <i />
+      <svg class="scroll-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9" />
+      </svg>
     </div>
   </main>
 </template>
@@ -1025,23 +1027,33 @@ onBeforeUnmount(() => {
 
 .scroll-cue {
   position: absolute;
-  left: 42px;
-  bottom: 34px;
+  left: 50%;
+  bottom: 32px;
   z-index: 6;
+  transform: translateX(-50%);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
   color: var(--dim);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 3px;
+  transition: opacity 0.4s;
+  pointer-events: none;
 }
-
-.scroll-cue i {
-  display: block;
-  width: 82px;
-  height: 1px;
-  background: linear-gradient(90deg, var(--cyan), transparent);
+.scroll-cue.hide {
+  opacity: 0;
+}
+.scroll-arrow {
+  width: 22px;
+  height: 22px;
+  color: var(--cyan);
+  animation: scroll-bounce 1.6s ease-in-out infinite;
+}
+@keyframes scroll-bounce {
+  0%, 100% { transform: translateY(0); opacity: 0.6; }
+  50% { transform: translateY(6px); opacity: 1; }
 }
 
 @media (max-width: 1180px) {
