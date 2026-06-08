@@ -210,11 +210,13 @@ const tools = [
   { title: 'BP 分析', desc: 'Ban/Pick 策略辅助', route: '/bp-analysis', icon: DataAnalysis },
 ]
 
+const moduleCount = 9
+
 const stats = computed(() => [
   { label: '战队样本', value: teamCount.value || '--' },
   { label: '比赛记录', value: matchCount.value || '--' },
   { label: '英雄池', value: heroCount.value || '--' },
-  { label: '功能模块', value: tools.length },
+  { label: '功能模块', value: moduleCount },
 ])
 
 const contentEdgeStyle = computed(() => ({
@@ -341,28 +343,25 @@ onMounted(async () => {
   window.addEventListener('keydown', handleKeydown)
   window.addEventListener('resize', syncViewportWidth)
   try {
-    const [teamRes, heroRes, matchRes, leagueRes] = await Promise.allSettled([
-      fetch('/api/query/team/ranking').then((r) => r.json()),
-      fetch('/api/query/hero/top?sort=pick').then((r) => r.json()),
+    const [statsRes, matchRes, leagueRes] = await Promise.allSettled([
+      fetch('/api/leagues/stats').then((r) => r.json()),
       fetch('/api/query/match/schedule').then((r) => r.json()),
       fetch('/api/leagues?limit=50').then((r) => r.json()),
     ])
 
-    const teamData = teamRes.status === 'fulfilled' ? teamRes.value?.data : {}
-    const teams = Array.isArray(teamData?.data) ? teamData.data : Array.isArray(teamData) ? teamData : []
-    const heroData = heroRes.status === 'fulfilled' ? heroRes.value?.data : {}
-    const heroes = Array.isArray(heroData?.data) ? heroData.data : Array.isArray(heroData) ? heroData : []
+    const statsData = statsRes.status === 'fulfilled' ? statsRes.value?.data : {}
+    if (statsData) {
+      teamCount.value = statsData.teamCount || 0
+      matchCount.value = statsData.battleCount || statsData.matchCount || 0
+      heroCount.value = statsData.heroCount || 0
+    }
+
     const matchData = matchRes.status === 'fulfilled' ? matchRes.value?.data : {}
     const matches = Array.isArray(matchData?.data) ? matchData.data : Array.isArray(matchData) ? matchData : []
     const leagueData = leagueRes.status === 'fulfilled' ? leagueRes.value?.data : []
     const leagues = Array.isArray(leagueData) ? leagueData : []
     const leagueMap = Object.fromEntries((leagues || []).map(l => [l.leagueId, l.leagueName]))
 
-    if (Array.isArray(teams)) {
-      teamCount.value = teams.length
-      matchCount.value = teams.reduce((sum, team) => sum + (team.battleCount || 0), 0)
-    }
-    if (Array.isArray(heroes)) heroCount.value = heroes.length
     if (Array.isArray(matches) && matches.length) {
       const lid = matches[0]?.leagueId || ''
       const leagueName = leagueMap[lid] || 'KPL'
