@@ -324,8 +324,15 @@ function handleTouchEnd(event) {
   const touch = event.changedTouches[0]
   const diffX = touchStartX.value - touch.clientX
   const diffY = touchStartY.value - touch.clientY
-  if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 42) {
-    stepPanel(diffX > 0 ? 1 : -1)
+  const absX = Math.abs(diffX)
+  const absY = Math.abs(diffY)
+  if (absX > 42 || absY > 42) {
+    if (absY >= absX) {
+      // 下滑前进，上滑后退
+      stepPanel(diffY < 0 ? 1 : -1)
+    } else {
+      stepPanel(diffX > 0 ? 1 : -1)
+    }
   }
 }
 
