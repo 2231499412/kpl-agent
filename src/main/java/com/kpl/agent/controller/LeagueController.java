@@ -1,6 +1,7 @@
 package com.kpl.agent.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.kpl.agent.entity.HeroStats;
 import com.kpl.agent.entity.League;
 import com.kpl.agent.mapper.*;
 import com.kpl.agent.service.LeagueQueryService;
@@ -61,7 +62,8 @@ public class LeagueController {
                     Map<String, Object> stats = new LinkedHashMap<>();
                     stats.put("teamCount", teamStatsMapper.selectCount(null));
                     stats.put("matchCount", matchMapper.selectCount(null));
-                    stats.put("heroCount", heroStatsMapper.selectCount(null));
+                    stats.put("heroCount", heroStatsMapper.selectCount(
+                            new QueryWrapper<HeroStats>().select("DISTINCT hero_id")));
                     stats.put("battleCount", battleMapper.selectCount(null));
                     return stats;
                 }));
