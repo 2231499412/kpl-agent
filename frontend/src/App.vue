@@ -59,10 +59,26 @@ function detectTheme() {
   isDark.value = !!main
 }
 
+function tryPlayBgm() {
+  if (!bgmAudio.value || isPlaying.value) return
+  bgmAudio.value.play().then(() => {
+    isPlaying.value = true
+  }).catch(() => {})
+}
+
+function onFirstInteraction() {
+  tryPlayBgm()
+  document.removeEventListener('touchstart', onFirstInteraction)
+  document.removeEventListener('click', onFirstInteraction)
+  document.removeEventListener('keydown', onFirstInteraction)
+}
+
 onMounted(() => {
-  if (bgmAudio.value) {
-    bgmAudio.value.play().then(() => { isPlaying.value = true }).catch(() => {})
-  }
+  tryPlayBgm()
+  // 移动端需要用户交互才能播放音频
+  document.addEventListener('touchstart', onFirstInteraction, { once: false })
+  document.addEventListener('click', onFirstInteraction, { once: false })
+  document.addEventListener('keydown', onFirstInteraction, { once: false })
   document.addEventListener('scroll', checkScroll, { passive: true })
   setInterval(checkScroll, 500)
   detectTheme()
