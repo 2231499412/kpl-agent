@@ -350,7 +350,7 @@ onMounted(async () => {
     ])
 
     const statsData = statsRes.status === 'fulfilled' ? statsRes.value?.data : {}
-    teamCount.value = statsData?.teamCount || 1750
+    teamCount.value = statsData?.teamCount || 20
     matchCount.value = statsData?.battleCount || statsData?.matchCount || 10420
     heroCount.value = statsData?.heroCount || 116
 
