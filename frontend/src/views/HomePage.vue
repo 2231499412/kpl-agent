@@ -48,6 +48,7 @@
             <router-link class="primary-link" to="/rankings">进入数据排名</router-link>
             <router-link :class="['ghost-link', { disabled: isAiDevMode }]" to="/agent">AI 复盘 <span v-if="isAiDevMode" class="dev-tag">开发中</span></router-link>
           </div>
+          <p v-if="panel.key === 'hero'" class="hero-credit">by flylegends · 玩家交流群 791050795</p>
 
           <div v-if="panel.key === 'overview'" class="metric-grid">
             <div v-for="stat in stats" :key="stat.label" class="metric-card">
@@ -91,6 +92,12 @@
               github.com/2231499412/kpl-agent
             </a>
             <p class="footer-desc">KPL 赛事数据分析平台，数据来源于腾讯官方接口。欢迎 Star & PR。</p>
+          </div>
+          <div class="footer-block">
+            <h4 class="footer-label">联系作者</h4>
+            <p class="footer-info"><b>flylegends</b></p>
+            <p class="footer-info">邮箱：2231499412@qq.com</p>
+            <p class="footer-info">玩家交流群：791050795</p>
           </div>
           <div class="footer-block">
             <h4 class="footer-label">技术栈</h4>
@@ -735,6 +742,13 @@ onBeforeUnmount(() => {
   margin-top: 38px;
 }
 
+.hero-credit {
+  margin: 16px 0 0;
+  font-size: 11px;
+  color: var(--dim);
+  letter-spacing: 1px;
+}
+
 .primary-link,
 .ghost-link {
   display: inline-flex;
@@ -955,10 +969,16 @@ onBeforeUnmount(() => {
 }
 .footer-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 40px;
-  max-width: 960px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 32px;
+  max-width: 1080px;
   margin: 0 auto;
+}
+.footer-info {
+  margin: 0;
+  font-size: 13px;
+  color: var(--soft);
+  line-height: 1.8;
 }
 .footer-block {
   display: flex;
@@ -1190,8 +1210,8 @@ onBeforeUnmount(() => {
     padding: 28px 20px 36px;
   }
   .footer-grid {
-    grid-template-columns: 1fr;
-    gap: 24px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
   }
   .footer-link {
     font-size: 15px;

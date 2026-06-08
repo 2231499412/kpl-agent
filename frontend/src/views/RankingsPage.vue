@@ -75,6 +75,11 @@
           </div>
           <div v-else class="patch-empty">暂无版本动态</div>
         </div>
+
+        <div class="sidebar-author">
+          <span class="author-name">flylegends</span>
+          <span class="author-contact">交流群 791050795</span>
+        </div>
       </aside>
 
       <section class="main-board">
@@ -1433,6 +1438,24 @@ onBeforeUnmount(() => {
   font-size: 12px;
   color: var(--mono-dim);
   text-align: center;
+}
+.rankings-console .sidebar-author {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--mono-line);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rankings-console .sidebar-author .author-name {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--mono-ink);
+  letter-spacing: 1px;
+}
+.rankings-console .sidebar-author .author-contact {
+  font-size: 11px;
+  color: var(--mono-dim);
 }
 
 .rankings-console .side-rail,
