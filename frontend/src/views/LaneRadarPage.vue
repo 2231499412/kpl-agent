@@ -2255,6 +2255,7 @@ onUnmounted(() => {
 }
 .theme-dark .metric-values .winner-num,
 .theme-dark .metric-values .loser-num,
+.theme-dark .metric-values .hot,
 .theme-dark .metric-callout span,
 .theme-dark .score-line {
   color: #e8e8e8;
@@ -2310,10 +2311,21 @@ onUnmounted(() => {
 }
 
 .theme-dark .mobile-radar-labels text {
-  stroke: rgba(0, 0, 0, .5);
+  stroke: none;
+  paint-order: fill;
 }
 .theme-dark .mobile-radar-labels .mobile-label {
-  stroke: rgba(0, 0, 0, .6);
+  stroke: none;
+}
+
+.theme-dark .scoreboard .team-name {
+  text-shadow: none;
+}
+.theme-dark .highlight-card {
+  backdrop-filter: none;
+}
+.theme-dark .scoreboard .score-center {
+  text-shadow: none;
 }
 
 </style>
