@@ -1618,8 +1618,8 @@ onUnmounted(() => {
 .hero-panel.red :deep(.equip-stack) { left: 12px; }
 
 .hero-panel :deep(.equip-stack img) {
-  width: 28px;
-  height: 28px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   object-fit: cover;
   background: rgba(255,255,255,.74);
@@ -1907,7 +1907,7 @@ onUnmounted(() => {
 .hero-panel :deep(.equip-stack) {
   position: static;
   display: grid;
-  grid-template-columns: repeat(3, 28px);
+  grid-template-columns: repeat(3, 20px);
   gap: 5px;
 }
 
@@ -2728,6 +2728,18 @@ onUnmounted(() => {
   }
   :deep(.el-select__wrapper) {
     min-height: 24px !important;
+  }
+}
+
+/* ── PC端装备图标放大 ── */
+@media (min-width: 1121px) {
+  .hero-panel :deep(.equip-stack) {
+    grid-template-columns: repeat(3, 28px);
+    gap: 6px;
+  }
+  .hero-panel :deep(.equip-stack img) {
+    width: 28px;
+    height: 28px;
   }
 }
 </style>
