@@ -87,7 +87,9 @@
       </article>
     </section>
 
-    <footer class="home-footer" :class="{ open: footerOpen }">
+    <div v-if="footerOpen" class="footer-backdrop" @click="footerOpen = false"></div>
+    <footer class="home-footer" :class="{ open: footerOpen }"
+      @touchstart="footerTouchStart" @touchend="footerTouchEnd">
       <div class="footer-inner">
         <div class="footer-grid">
           <div class="footer-block">
@@ -314,6 +316,17 @@ function handleKeydown(event) {
   }
 }
 
+const footerTouchStartY = ref(0)
+
+function footerTouchStart(event) {
+  footerTouchStartY.value = event.changedTouches[0].clientY
+}
+
+function footerTouchEnd(event) {
+  const diffY = event.changedTouches[0].clientY - footerTouchStartY.value
+  if (diffY > 60) footerOpen.value = false
+}
+
 function handleTouchStart(event) {
   const touch = event.changedTouches[0]
   touchStartX.value = touch.clientX
@@ -435,8 +448,7 @@ onBeforeUnmount(() => {
 
 @media (max-width: 767px) {
   :global(body.home-lock) {
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: hidden;
   }
 }
 
@@ -970,6 +982,14 @@ onBeforeUnmount(() => {
   transform: translateY(-50%);
 }
 
+/* 页脚遮罩 */
+.footer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  background: rgba(0, 0, 0, 0.4);
+}
+
 /* 页脚 */
 .home-footer {
   position: fixed;
@@ -1139,8 +1159,8 @@ onBeforeUnmount(() => {
 @media (max-width: 767px) {
   .home-stage {
     min-width: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: hidden;
+    touch-action: none;
   }
 
   .home-topbar {
@@ -1157,12 +1177,16 @@ onBeforeUnmount(() => {
   }
 
   .panel-rail {
-    height: auto;
+    height: 100vh;
+    height: 100svh;
   }
 
   .home-panel {
-    min-height: 100vh;
+    height: 100vh;
+    height: 100svh;
+    min-height: 0;
     padding: 86px 16px 54px;
+    overflow: hidden;
   }
 
   .panel-inner,
@@ -1170,6 +1194,7 @@ onBeforeUnmount(() => {
   .agent-console {
     width: 100%;
     max-width: none;
+    overflow: hidden;
   }
 
   .hero-title,
