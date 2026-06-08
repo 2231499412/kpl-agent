@@ -19,15 +19,21 @@
   <div v-if="route.path !== '/lane-radar'" class="back-to-top" :class="{ dark: isDark, 'back-top-agent': route.path === '/agent' }" @click="scrollToTop" title="回到顶部">
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
   </div>
+
+  <!-- 手机端回到首页 -->
+  <div v-if="route.meta.showSidebar" class="mobile-home-btn" :class="{ dark: isDark }" @click="router.push('/')" title="回到首页">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10"/></svg>
+  </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import LoadingScreen from './components/LoadingScreen.vue'
 import SideBar from './components/SideBar.vue'
 
 const route = useRoute()
+const router = useRouter()
 
 const bgmAudio = ref(null)
 const isPlaying = ref(false)
@@ -264,6 +270,38 @@ function onPageEnter(el) {
 }
 .back-to-top.back-top-agent {
   bottom: 80px;
+}
+
+/* 手机端回到首页按钮 */
+.mobile-home-btn {
+  display: none;
+}
+@media (max-width: 767px) {
+  .mobile-home-btn {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 9999;
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    background: rgba(26, 26, 26, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 50%;
+    color: #e8e8e8;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    transition: background 0.2s, transform 0.2s;
+  }
+  .mobile-home-btn.dark {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(0, 0, 0, 0.1);
+    color: #1a1a1a;
+  }
+  .mobile-home-btn:active {
+    transform: scale(0.92);
+  }
 }
 
 .back-top-fade-enter-active { transition: opacity 0.25s ease, transform 0.25s ease; }
