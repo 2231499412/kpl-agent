@@ -279,8 +279,8 @@ function onPageEnter(el) {
 @media (max-width: 767px) {
   .mobile-home-btn {
     position: fixed;
-    top: 12px;
-    right: 12px;
+    bottom: calc(78px + env(safe-area-inset-bottom));
+    left: 12px;
     z-index: 9999;
     width: 36px;
     height: 36px;
