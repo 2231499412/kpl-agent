@@ -596,7 +596,7 @@ function highlightValue(item) {
     : unit === '次' || value >= 100
       ? Math.round(value).toLocaleString()
       : value.toFixed(1)
-  return `${text}${unit}`
+  return unit === '次' ? text : `${text}${unit}`
 }
 
 function sideHighlights(camp) {
@@ -1618,8 +1618,8 @@ onUnmounted(() => {
 .hero-panel.red :deep(.equip-stack) { left: 12px; }
 
 .hero-panel :deep(.equip-stack img) {
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   object-fit: cover;
   background: rgba(255,255,255,.74);
@@ -1907,7 +1907,7 @@ onUnmounted(() => {
 .hero-panel :deep(.equip-stack) {
   position: static;
   display: grid;
-  grid-template-columns: repeat(3, 20px);
+  grid-template-columns: repeat(3, 28px);
   gap: 5px;
 }
 
@@ -2576,10 +2576,10 @@ onUnmounted(() => {
     display: grid !important;
   }
   .hero-panel :deep(.portrait-block) {
-    bottom: 50px !important;
+    bottom: 40px !important;
   }
   .hero-panel :deep(.equip-block) {
-    bottom: 54px !important;
+    bottom: 48px !important;
   }
   .hero-panel :deep(.player-portrait-wrap) {
     width: 34px !important;
