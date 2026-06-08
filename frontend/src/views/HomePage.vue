@@ -48,7 +48,11 @@
             <router-link class="primary-link" to="/rankings">进入数据排名</router-link>
             <router-link :class="['ghost-link', { disabled: isAiDevMode }]" to="/agent">AI 复盘 <span v-if="isAiDevMode" class="dev-tag">开发中</span></router-link>
           </div>
-          <p v-if="panel.key === 'hero'" class="hero-credit">by flylegends · 玩家交流群 791050795</p>
+          <div v-if="panel.key === 'hero'" class="hero-credit">
+            <span>by <b>flylegends</b></span>
+            <span class="credit-sep">·</span>
+            <span>交流群 791050795</span>
+          </div>
 
           <div v-if="panel.key === 'overview'" class="metric-grid">
             <div v-for="stat in stats" :key="stat.label" class="metric-card">
@@ -87,17 +91,17 @@
       <div class="footer-inner">
         <div class="footer-grid">
           <div class="footer-block">
+            <h4 class="footer-label">联系作者</h4>
+            <p class="footer-info"><b>flylegends</b></p>
+            <p class="footer-info">邮箱：2231499412@qq.com</p>
+            <p class="footer-info">玩家交流群：791050795</p>
+          </div>
+          <div class="footer-block">
             <h4 class="footer-label">开源项目</h4>
             <a class="footer-link" href="https://github.com/2231499412/kpl-agent" target="_blank" rel="noopener">
               github.com/2231499412/kpl-agent
             </a>
             <p class="footer-desc">KPL 赛事数据分析平台，数据来源于腾讯官方接口。欢迎 Star & PR。</p>
-          </div>
-          <div class="footer-block">
-            <h4 class="footer-label">联系作者</h4>
-            <p class="footer-info"><b>flylegends</b></p>
-            <p class="footer-info">邮箱：2231499412@qq.com</p>
-            <p class="footer-info">玩家交流群：791050795</p>
           </div>
           <div class="footer-block">
             <h4 class="footer-label">技术栈</h4>
@@ -743,10 +747,20 @@ onBeforeUnmount(() => {
 }
 
 .hero-credit {
-  margin: 16px 0 0;
-  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 20px 0 0;
+  font-size: 12px;
+  color: var(--soft);
+  font-weight: 500;
+}
+.hero-credit b {
+  color: var(--ink);
+  font-weight: 700;
+}
+.credit-sep {
   color: var(--dim);
-  letter-spacing: 1px;
 }
 
 .primary-link,
