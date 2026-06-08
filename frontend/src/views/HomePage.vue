@@ -139,7 +139,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Box, Calendar, DataAnalysis, Operation, Trophy } from '@element-plus/icons-vue'
+import { Aim, Box, Calendar, ChatDotRound, DataAnalysis, List, Operation, Picture, Trophy } from '@element-plus/icons-vue'
 import homeBg from '../assets/home-bg.webp'
 
 const isAiDevMode = import.meta.env.VITE_AI_DEV_MODE === 'true'
@@ -206,8 +206,12 @@ const tools = [
   { title: '数据排名', desc: '战队 / 选手 / 英雄', route: '/rankings', icon: Trophy },
   { title: '赛程查询', desc: '赛程与对局详情', route: '/matches', icon: Calendar },
   { title: '装备分析', desc: '出场率与分路偏好', route: '/equipment', icon: Box },
+  { title: '英雄梯度', desc: '版本强势英雄分档', route: '/tier-list', icon: List },
+  { title: '英雄图鉴', desc: '全英雄资料与皮肤', route: '/hero-gallery', icon: Picture },
+  { title: '对位雷达', desc: '选手对位数据对比', route: '/lane-radar', icon: Aim },
   { title: 'BP 模拟', desc: '自由模拟 Ban/Pick 博弈', route: '/bp-simulator', icon: Operation },
   { title: 'BP 分析', desc: 'Ban/Pick 策略辅助', route: '/bp-analysis', icon: DataAnalysis },
+  { title: 'AI 复盘', desc: '智能对局分析', route: '/agent', icon: ChatDotRound },
 ]
 
 const moduleCount = 9
@@ -350,7 +354,7 @@ onMounted(async () => {
     ])
 
     const statsData = statsRes.status === 'fulfilled' ? statsRes.value?.data : {}
-    teamCount.value = statsData?.teamCount || 20
+    teamCount.value = statsData?.teamCount || 34
     matchCount.value = statsData?.battleCount || statsData?.matchCount || 10420
     heroCount.value = statsData?.heroCount || 116
 
