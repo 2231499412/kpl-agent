@@ -40,19 +40,17 @@
                 <span class="time-hour">{{ formatTime(match.startTime) }}</span>
               </div>
               <div class="match-teams">
-                <span class="team-score t1" :class="{ winner: match.winCamp === 1 }">{{ match.camp1Score ?? '-' }}</span>
-                <div class="team-group g1" :class="{ winner: match.winCamp === 1 }">
+                <div class="team-side" :class="{ winner: match.winCamp === 1 }">
                   <img v-if="teamIcons[match.camp1TeamName]" :src="teamIcons[match.camp1TeamName]" class="team-logo" />
-                  <span v-else class="team-logo" />
                   <span class="team-name">{{ match.camp1TeamName || '蓝方' }}</span>
+                  <span class="team-score">{{ match.camp1Score ?? '-' }}</span>
                 </div>
                 <span class="vs-divider">VS</span>
-                <div class="team-group g2" :class="{ winner: match.winCamp === 2 }">
+                <div class="team-side" :class="{ winner: match.winCamp === 2 }">
+                  <span class="team-score">{{ match.camp2Score ?? '-' }}</span>
                   <span class="team-name">{{ match.camp2TeamName || '红方' }}</span>
                   <img v-if="teamIcons[match.camp2TeamName]" :src="teamIcons[match.camp2TeamName]" class="team-logo" />
-                  <span v-else class="team-logo" />
                 </div>
-                <span class="team-score t2" :class="{ winner: match.winCamp === 2 }">{{ match.camp2Score ?? '-' }}</span>
               </div>
               <div class="match-meta">
                 <span v-if="match.bo" class="bo-tag">BO{{ match.bo }}</span>
@@ -473,43 +471,43 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
 .time-hour { font-size: 12px; color: var(--mono-dim); margin-top: 2px; }
 
 .match-teams {
-  display: grid;
-  grid-template-columns: 36px auto 40px auto 36px;
-  align-items: center;
-  justify-items: center;
-  gap: 6px;
-}
-.team-group {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-width: 0;
+  justify-content: center;
+  gap: 18px;
 }
-.team-group.g1 { justify-content: flex-end; }
-.team-name {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--mono-soft);
-  transition: color 0.15s;
-}
-.team-group.winner .team-name {
-  color: var(--winner-color);
-  font-weight: 800;
+.team-side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .team-logo {
   width: 28px; height: 28px; object-fit: contain;
   border-radius: 4px; flex-shrink: 0;
 }
+.team-name {
+  min-width: 72px;
+  white-space: nowrap;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--mono-soft);
+  transition: color 0.15s;
+  line-height: 24px;
+}
+.team-side.winner .team-name {
+  color: var(--winner-color);
+  font-weight: 800;
+}
 .team-score {
+  width: 24px;
+  text-align: center;
   font-size: 20px;
   font-weight: 900;
   color: var(--mono-dim);
   line-height: 24px;
 }
-.team-score.winner {
+.team-side.winner .team-score {
   color: var(--mono-ink);
 }
 .vs-divider {
@@ -687,11 +685,15 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
     width: 100%;
   }
   .match-teams {
-    grid-template-columns: 28px auto 32px auto 28px;
-    gap: 4px;
+    grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr);
+    gap: 6px;
   }
   .team-name {
+    overflow: hidden;
+    max-width: 100%;
     font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .match-meta { justify-content: flex-start; flex-wrap: wrap; font-size: 11px; }
   .battle-card { padding: 12px; }
