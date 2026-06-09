@@ -23,7 +23,7 @@
 
     <!-- 分路筛选 -->
     <nav ref="roleNavRef" class="role-tabs">
-      <span class="role-pill" :style="pillStyle"></span>
+      <span class="role-pill" :style="pillStyle" v-if="pillReady"></span>
       <button
         v-for="r in roleOptions"
         :key="r.value"
@@ -127,6 +127,7 @@ const activeRole = ref('all')
 const roleNavRef = ref(null)
 const roleBtnRefs = {}
 const pillStyle = ref({})
+const pillReady = ref(false)
 
 const detailOpen = ref(false)
 const selectedHero = ref(null)
@@ -151,6 +152,7 @@ function updatePill() {
     width: btnRect.width + 'px',
     transform: `translateX(${btnRect.left - navRect.left}px)`,
   }
+  pillReady.value = true
 }
 
 const currentDate = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
