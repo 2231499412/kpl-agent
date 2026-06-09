@@ -1932,6 +1932,16 @@ onBeforeUnmount(() => {
     padding: 7px 8px;
   }
 }
+
+.rankings-console :deep(.hero-table-header) {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--mono-soft);
+}
+
+.rankings-console.theme-dark :deep(.hero-table-header) {
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+}
 </style>
 
 <style>
