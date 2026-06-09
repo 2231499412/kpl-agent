@@ -111,6 +111,18 @@
             </div>
           </div>
         </div>
+
+        <div class="equip-section" v-if="detailPlayers.length">
+          <h4>高胜率选手</h4>
+          <div class="player-list">
+            <div v-for="p in detailPlayers" :key="p.playerName" class="player-chip">
+              <span class="p-name">{{ p.playerName }}</span>
+              <span class="p-team">{{ p.teamName }}</span>
+              <span class="p-wr" :class="{ 'wr-high': p.winRate >= 60, 'wr-low': p.winRate < 40 }">{{ p.winRate }}%</span>
+              <span class="p-games">{{ p.games }}场</span>
+            </div>
+          </div>
+        </div>
       </template>
     </el-dialog>
   </main>
@@ -129,9 +141,17 @@ const activeRole = ref('all')
 
 const detailOpen = ref(false)
 const selectedHero = ref(null)
-function openDetail(hero) {
+const detailPlayers = ref([])
+async function openDetail(hero) {
   selectedHero.value = hero
+  detailPlayers.value = []
   detailOpen.value = true
+  try {
+    const res = await fetch(`/api/query/hero/players?name=${encodeURIComponent(hero.heroName)}`)
+    const json = await res.json()
+    const data = json?.data?.data || json?.data || []
+    detailPlayers.value = data.slice(0, 10)
+  } catch { detailPlayers.value = [] }
 }
 function pct(v) { return v != null ? (Number(v) * 100).toFixed(1) : '—' }
 
@@ -640,4 +660,19 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
   padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700;
   background: var(--c-card); color: var(--c-soft);
 }
+.equip-section { margin-top: 16px; }
+.equip-section h4 { font-size: 12px; font-weight: 800; color: var(--c-dim); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 10px; }
+.player-list { display: flex; flex-direction: column; gap: 4px; }
+.player-chip {
+  display: grid; grid-template-columns: 1fr 1fr 60px 60px;
+  align-items: center; gap: 8px; padding: 8px 10px;
+  border: 1px solid var(--c-line); background: var(--c-card);
+  font-size: 12px;
+}
+.p-name { font-weight: 700; color: var(--c-ink); }
+.p-team { color: var(--c-soft); }
+.p-wr { font-weight: 700; text-align: center; color: var(--c-ink); }
+.p-wr.wr-high { color: #27ae60; }
+.p-wr.wr-low { color: #e74c3c; }
+.p-games { color: var(--c-dim); text-align: center; }
 </style>
