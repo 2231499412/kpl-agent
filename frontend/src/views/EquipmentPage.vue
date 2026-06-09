@@ -442,10 +442,11 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
   position: absolute;
   top: 4px;
   left: 0;
+  width: 0;
   height: calc(100% - 8px);
   background: #1a1a1a;
   border-radius: 10px;
-  transition: transform .3s cubic-bezier(.4,0,.2,1);
+  transition: transform .3s cubic-bezier(.4,0,.2,1), width .3s cubic-bezier(.4,0,.2,1);
   z-index: 0;
   pointer-events: none;
 }
