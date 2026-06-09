@@ -88,7 +88,7 @@
         <div class="turn-side" :class="currentStepObj.side">
           {{ bpDone ? '阵容锁定' : currentStepObj.side === 'blue' ? '蓝方操作' : '红方操作' }}
         </div>
-        <div class="timer">{{ bpDone ? 'OK' : timerEnabled ? timerLeft : '' }}</div>
+        <div class="timer">{{ bpDone ? 'OK' : timerEnabled ? timerLeft : currentActionNum }}</div>
         <div class="timer-track" v-if="timerEnabled">
           <span :class="currentStepObj.side" :style="{ width: `${(timerLeft / 30) * 100}%` }" />
         </div>
@@ -625,6 +625,18 @@ function changeBo(n) {
   startTimer()
 }
 const currentStepObj = computed(() => activeSequence.value[currentGameObj.value.currentStep] || { type: 'done', side: '', label: '完成' })
+const currentActionNum = computed(() => {
+  if (bpDone.value) return ''
+  const seq = activeSequence.value
+  const step = currentGameObj.value.currentStep
+  const cur = seq[step]
+  if (!cur) return ''
+  let count = 0
+  for (let i = 0; i <= step; i++) {
+    if (seq[i].type === cur.type && seq[i].side === cur.side) count++
+  }
+  return `第${count}${cur.type === 'ban' ? '禁' : '选'}`
+})
 const bpDone = computed(() => currentGameObj.value.currentStep >= activeSequence.value.length)
 const activeSlotText = computed(() => {
   if (bpDone.value) return ''
