@@ -1199,8 +1199,8 @@ onBeforeUnmount(() => {
   --mono-bg: #f8f5ec;
   --mono-panel: rgba(255, 255, 255, 0.92);
   --mono-panel-soft: rgba(255, 255, 255, 0.82);
-  --mono-line: rgba(0, 0, 0, 0.18);
-  --mono-line-strong: rgba(0, 0, 0, 0.3);
+  --mono-line: rgba(0, 0, 0, 0.28);
+  --mono-line-strong: rgba(0, 0, 0, 0.4);
   --mono-ink: #1a1a1a;
   --mono-soft: rgba(26, 26, 26, 0.65);
   --mono-dim: rgba(26, 26, 26, 0.4);
@@ -1248,8 +1248,8 @@ onBeforeUnmount(() => {
   --mono-bg: #0a0a0a;
   --mono-panel: rgba(18, 18, 18, 0.92);
   --mono-panel-soft: rgba(30, 30, 30, 0.82);
-  --mono-line: rgba(255, 255, 255, 0.12);
-  --mono-line-strong: rgba(255, 255, 255, 0.25);
+  --mono-line: rgba(255, 255, 255, 0.2);
+  --mono-line-strong: rgba(255, 255, 255, 0.35);
   --mono-ink: #e8e8e8;
   --mono-soft: rgba(232, 232, 232, 0.65);
   --mono-dim: rgba(232, 232, 232, 0.38);
