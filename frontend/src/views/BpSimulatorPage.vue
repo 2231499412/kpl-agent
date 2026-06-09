@@ -569,6 +569,8 @@ function createBpSequence(firstPickSide = 'blue') {
     { type: 'ban', side: fp, label: `${fpL} Ban 3` },
     { type: 'ban', side: sp, label: `${spL} Ban 4` },
     { type: 'ban', side: fp, label: `${fpL} Ban 4` },
+    { type: 'ban', side: sp, label: `${spL} Ban 5` },
+    { type: 'ban', side: fp, label: `${fpL} Ban 5` },
     { type: 'pick', side: sp, label: `${spL} Pick 4` },
     { type: 'pick', side: fp, label: `${fpL} Pick 4` },
     { type: 'pick', side: sp, label: `${spL} Pick 5` },
@@ -591,8 +593,8 @@ const blindPickSequence = [
 
 function createGameState(blindPick = false, firstPickSide = 'blue') {
   return {
-    blueBans: blindPick ? [] : [null, null, null, null],
-    redBans: blindPick ? [] : [null, null, null, null],
+    blueBans: blindPick ? [] : [null, null, null, null, null],
+    redBans: blindPick ? [] : [null, null, null, null, null],
     bluePicks: [null, null, null, null, null],
     redPicks: [null, null, null, null, null],
     currentStep: 0,
