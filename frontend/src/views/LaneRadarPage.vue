@@ -713,7 +713,7 @@ onUnmounted(() => {
 .matchup-page {
   --mono-bg: #f8f5ec;
   --mono-panel: rgba(255, 255, 255, 0.92);
-  --mono-line: rgba(0, 0, 0, 0.28);
+  --mono-line: rgba(0, 0, 0, 0.38);
   --mono-ink: #1a1a1a;
   --mono-soft: rgba(26, 26, 26, 0.65);
   --mono-dim: rgba(26, 26, 26, 0.4);
