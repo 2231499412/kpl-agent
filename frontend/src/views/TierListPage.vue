@@ -74,6 +74,7 @@
               :src="item.heroIcon || ('https://res.edata.qq.com/sgame/static/images/hero/' + item.heroId + '.jpg')"
               class="hero-avatar"
               :alt="item.heroName"
+              @load="$event.target.style.opacity = 1"
             />
             <span class="hero-score">{{ item._score }}</span>
             <span class="hero-name">{{ item.heroName }}</span>
@@ -518,6 +519,7 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 .hero-avatar {
   width: 48px; height: 48px; border-radius: 4px; object-fit: cover;
   border: 1px solid var(--c-line);
+  opacity: 0; transition: opacity .15s ease;
 }
 .hero-score {
   font-size: 18px; font-weight: 900; color: var(--c-ink);

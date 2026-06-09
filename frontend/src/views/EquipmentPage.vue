@@ -68,7 +68,7 @@
           <div v-else class="equip-card"
             :class="{ 'high-pick': item.pickRate > 0.5, 'low-pick': item.pickCount < 5 }"
             @click="openDetail(item)">
-            <img v-if="item.equipIcon" :src="item.equipIcon" class="equip-icon" />
+            <img v-if="item.equipIcon" :src="item.equipIcon" class="equip-icon" @load="$event.target.style.opacity = 1" />
             <div v-else class="equip-icon-placeholder">?</div>
             <span class="equip-score">{{ item._score }}</span>
             <span class="equip-name">{{ item.equipName }}</span>
@@ -94,7 +94,7 @@
       <template v-else-if="detailData">
         <div class="detail-body">
           <div class="detail-info">
-            <img v-if="detailData.equipIcon" :src="detailData.equipIcon" class="detail-icon" />
+            <img v-if="detailData.equipIcon" :src="detailData.equipIcon" class="detail-icon" @load="$event.target.style.opacity = 1" />
             <div>
               <h3>{{ detailData.equipName }}</h3>
               <p v-if="detailData.totalPrice" class="detail-price">
@@ -120,7 +120,7 @@
             <h4>常用英雄</h4>
             <div class="hero-grid-detail">
               <div v-for="h in detailData.heroes" :key="h.heroId" class="hero-card-detail">
-                <img :src="'https://res.edata.qq.com/sgame/static/images/hero/' + h.heroId + '.jpg'" class="hero-img" />
+                <img :src="'https://res.edata.qq.com/sgame/static/images/hero/' + h.heroId + '.jpg'" class="hero-img" @load="$event.target.style.opacity = 1" />
                 <span class="hero-name-detail">{{ h.heroName }}</span>
                 <span class="hero-count">{{ h.cnt }} 次</span>
               </div>
@@ -560,6 +560,7 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 .equip-icon {
   width: 48px; height: 48px; border-radius: 4px; object-fit: cover;
   border: 1px solid var(--c-line);
+  opacity: 0; transition: opacity .15s ease;
 }
 .equip-icon-placeholder {
   width: 48px; height: 48px; border-radius: 4px; display: grid; place-items: center;
@@ -613,6 +614,7 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 .detail-icon {
   width: 48px; height: 48px; border: 1px solid var(--c-line);
   border-radius: 6px; object-fit: cover;
+  opacity: 0; transition: opacity .15s ease;
 }
 .detail-info h3 { margin: 0; font-size: 18px; font-weight: 900; color: var(--c-ink); }
 .detail-price { margin: 4px 0 0; font-size: 13px; font-weight: 700; color: #f39c12; }
@@ -631,7 +633,7 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
   display: flex; align-items: center; gap: 8px;
   padding: 8px 12px; border: 1px solid var(--c-line); background: var(--c-card);
 }
-.hero-img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+.hero-img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; opacity: 0; transition: opacity .15s ease; }
 .hero-name-detail { font-size: 13px; font-weight: 600; color: var(--c-ink); }
 .hero-count { font-size: 11px; color: var(--c-dim); }
 
