@@ -635,7 +635,7 @@ const currentActionNum = computed(() => {
   for (let i = 0; i <= step; i++) {
     if (seq[i].type === cur.type && seq[i].side === cur.side) count++
   }
-  return `第${count}${cur.type === 'ban' ? '禁' : '选'}`
+  return count
 })
 const bpDone = computed(() => currentGameObj.value.currentStep >= activeSequence.value.length)
 const activeSlotText = computed(() => {
