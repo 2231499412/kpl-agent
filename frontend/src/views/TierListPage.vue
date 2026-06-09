@@ -285,7 +285,7 @@ onUnmounted(() => {
 .tier-console {
   --c-bg: #f8f5ec;
   --c-panel: rgba(255, 255, 255, 0.92);
-  --c-line: rgba(0, 0, 0, 0.28);
+  --c-line: rgba(0, 0, 0, 0.38);
   --c-ink: #1a1a1a;
   --c-soft: rgba(26, 26, 26, 0.6);
   --c-dim: rgba(26, 26, 26, 0.35);
