@@ -113,12 +113,12 @@
             @error="onPosterError($event, hero)"
           >
           <div v-else class="pick-placeholder">
-            <span>0{{ i + 1 }}</span>
+            <span>0{{ 5 - i }}</span>
             <b>{{ isActivePick('red', i) ? '选择英雄' : '待选' }}</b>
           </div>
           <footer>
-            <strong>{{ hero?.heroName || redPlayers[i] }}</strong>
-            <span>{{ hero?._role || roleLabels[i] }}</span>
+            <strong>{{ hero?.heroName || redPlayers[4 - i] }}</strong>
+            <span>{{ hero?._role || roleLabels[4 - i] }}</span>
           </footer>
         </button>
       </div>
