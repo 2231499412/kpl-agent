@@ -69,7 +69,8 @@
             <span class="tier-count">{{ item.tier.heroes.length }} 英雄</span>
           </div>
           <div v-else class="hero-card"
-            :class="{ 'high-ban': item.banRate > 0.3, 'low-pick': item.battleCount < 10 }">
+            :class="{ 'high-ban': item.banRate > 0.3, 'low-pick': item.battleCount < 10 }"
+            @click="openDetail(item)">
             <img
               :src="item.heroIcon || ('https://res.edata.qq.com/sgame/static/images/hero/' + item.heroId + '.jpg')"
               class="hero-avatar"
@@ -86,6 +87,30 @@
         <span>暂无数据，请先选择赛事</span>
       </div>
     </div>
+
+    <el-dialog v-model="detailOpen" width="420px" class="hero-detail-dialog" destroy-on-close>
+      <template v-if="selectedHero">
+        <div class="detail-hero-row">
+          <img :src="selectedHero.heroIcon || ('https://res.edata.qq.com/sgame/static/images/hero/' + selectedHero.heroId + '.jpg')" class="detail-avatar" :alt="selectedHero.heroName" />
+          <div class="detail-hero-info">
+            <strong>{{ selectedHero.heroName }}</strong>
+            <div class="detail-tags">
+              <span :class="['tier-badge', 'tier-' + selectedHero._tier]">{{ tierDefs.find(t => t.key === selectedHero._tier)?.label }}</span>
+              <span v-if="selectedHero._role" class="role-tag">{{ selectedHero._role }}</span>
+            </div>
+          </div>
+          <div class="detail-score-big">{{ selectedHero._score }}</div>
+        </div>
+        <div class="detail-stats-grid">
+          <div class="detail-stat"><small>出场</small><b>{{ selectedHero.battleCount || 0 }}</b></div>
+          <div class="detail-stat"><small>胜率</small><b>{{ pct(selectedHero.winRate) }}%</b></div>
+          <div class="detail-stat"><small>Pick率</small><b>{{ pct(selectedHero.pickRate) }}%</b></div>
+          <div class="detail-stat"><small>Ban率</small><b>{{ pct(selectedHero.banRate) }}%</b></div>
+          <div class="detail-stat"><small>KDA</small><b>{{ selectedHero.avgKda != null ? selectedHero.avgKda.toFixed(1) : '—' }}</b></div>
+          <div class="detail-stat"><small>评分</small><b>{{ selectedHero._score }}</b></div>
+        </div>
+      </template>
+    </el-dialog>
   </main>
 </template>
 
@@ -102,6 +127,14 @@ const activeRole = ref('all')
 const roleNavRef = ref(null)
 const roleBtnRefs = {}
 const pillStyle = ref({})
+
+const detailOpen = ref(false)
+const selectedHero = ref(null)
+function openDetail(hero) {
+  selectedHero.value = hero
+  detailOpen.value = true
+}
+function pct(v) { return v != null ? (Number(v) * 100).toFixed(1) : '—' }
 
 function selectRole(value) {
   activeRole.value = value
@@ -507,7 +540,7 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 .hero-card {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
   padding: 10px 6px 8px; background: var(--c-card); border: 1px solid var(--c-line);
-  transition: all 0.15s; position: relative;
+  transition: all 0.15s; position: relative; cursor: pointer;
 }
 .hero-card:hover {
   background: var(--c-hover); border-color: var(--c-ink);
@@ -601,4 +634,52 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
   .score-formula { margin-left: 0; }
   .formula-note { font-size: 10px; }
 }
+
+/* 英雄详情弹窗 */
+:deep(.hero-detail-dialog .el-dialog) {
+  border: 1px solid var(--c-line);
+  border-radius: 0;
+  background: var(--c-panel);
+}
+:deep(.hero-detail-dialog .el-dialog__title) {
+  color: var(--c-ink); font-weight: 900;
+}
+:deep(.hero-detail-dialog .el-dialog__headerbtn .el-dialog__close) {
+  color: var(--c-soft);
+}
+.detail-hero-row {
+  display: flex; align-items: center; gap: 14px;
+}
+.detail-avatar {
+  width: 64px; height: 64px; border-radius: 6px; object-fit: cover;
+  border: 1px solid var(--c-line);
+  opacity: 0; transition: opacity .15s ease;
+}
+.detail-hero-info { flex: 1; min-width: 0; }
+.detail-hero-info strong { display: block; font-size: 20px; font-weight: 900; color: var(--c-ink); }
+.detail-tags { display: flex; gap: 6px; margin-top: 6px; }
+.tier-badge {
+  padding: 2px 8px; border-radius: 3px; color: #fff; font-size: 11px; font-weight: 900;
+}
+.tier-badge.tier-t0 { background: #e74c3c; }
+.tier-badge.tier-t05 { background: #e84393; }
+.tier-badge.tier-t1 { background: #e67e22; }
+.tier-badge.tier-t2 { background: #3498db; }
+.tier-badge.tier-t3 { background: #6c5ce7; }
+.tier-badge.tier-t4 { background: #95a5a6; }
+.role-tag {
+  padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700;
+  background: var(--c-card); color: var(--c-soft);
+}
+.detail-score-big {
+  font-size: 36px; font-weight: 950; color: var(--c-ink); line-height: 1;
+}
+.detail-stats-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 18px;
+}
+.detail-stat {
+  padding: 10px; background: var(--c-card); border: 1px solid var(--c-line); text-align: center;
+}
+.detail-stat small { display: block; color: var(--c-dim); font-size: 10px; font-weight: 800; letter-spacing: 1px; }
+.detail-stat b { display: block; margin-top: 4px; font-size: 18px; font-weight: 900; color: var(--c-ink); }
 </style>
