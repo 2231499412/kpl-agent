@@ -1214,7 +1214,7 @@ onUnmounted(() => {
 .phase-kicker { font-size: 11px; font-weight: 950; letter-spacing: 4px; }
 .turn-side { margin-top: 14px; color: var(--blue); font-size: 12px; font-weight: 900; letter-spacing: 2px; }
 .turn-side.red { color: var(--red); }
-.timer { margin-top: 2px; color: var(--blue); font-family: Impact, Haettenschweiler, sans-serif; font-size: clamp(64px, 8vw, 96px); font-style: italic; line-height: 1; letter-spacing: -5px; text-shadow: 7px 7px 0 rgba(103, 82, 215, .12); }
+.timer { margin-top: 2px; margin-left: -6px; color: var(--blue); font-family: Impact, Haettenschweiler, sans-serif; font-size: clamp(64px, 8vw, 96px); font-style: italic; line-height: 1; letter-spacing: -5px; text-shadow: 7px 7px 0 rgba(103, 82, 215, .12); }
 .turn-side.red + .timer { color: var(--red); text-shadow: 7px 7px 0 rgba(210, 90, 120, .12); }
 .timer-track { width: min(138px, 70%); height: 4px; margin: 8px 0 14px; overflow: hidden; background: rgba(22, 32, 44, .12); }
 .timer-track span { display: block; height: 100%; background: var(--blue); transition: width 1s linear; }
