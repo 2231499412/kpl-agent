@@ -394,7 +394,7 @@ const SideVisual = defineComponent({
         onError: event => { event.target.style.display = 'none' },
       })
       return [
-      h('img', { class: 'matchup-hero-bg', src: heroPoster(mainHero), alt: mainHero.heroName || props.side.heroName }),
+      h('img', { class: 'matchup-hero-bg', src: heroPoster(mainHero), alt: mainHero.heroName || props.side.heroName, onLoad: e => { e.target.style.opacity = 1 } }),
       h('div', { class: 'hero-vignette' }),
       props.side.teamIcon ? h('img', { class: 'corner-logo', src: props.side.teamIcon, alt: props.side.teamName }) : null,
       h('div', { class: ['result-chip', props.result === '胜' ? 'win' : 'lose'] }, props.result === '胜' ? '胜利' : '失败'),
@@ -1064,6 +1064,8 @@ onUnmounted(() => {
   object-fit: cover;
   object-position: center 12%;
   filter: saturate(1.04) contrast(1.04);
+  opacity: 0;
+  transition: opacity .4s ease;
 }
 .hero-panel.blue .matchup-hero-bg { object-position: 48% 12%; }
 .hero-panel.red .matchup-hero-bg { object-position: 52% 12%; }
@@ -1606,6 +1608,8 @@ onUnmounted(() => {
   object-fit: cover;
   object-position: center 12%;
   filter: saturate(1.04) contrast(1.04);
+  opacity: 0;
+  transition: opacity .4s ease;
 }
 
 .hero-panel.blue :deep(.matchup-hero-bg) { object-position: 48% 12%; }

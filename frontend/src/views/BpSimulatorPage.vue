@@ -71,6 +71,7 @@
             :alt="hero.heroName"
             :style="getHeroPosterStyle(hero)"
             @error="onPosterError($event, hero)"
+            @load="$event.target.style.opacity = 1"
           >
           <div v-else class="pick-placeholder">
             <span>0{{ i + 1 }}</span>
@@ -111,6 +112,7 @@
             :alt="hero.heroName"
             :style="getHeroPosterStyle(hero)"
             @error="onPosterError($event, hero)"
+            @load="$event.target.style.opacity = 1"
           >
           <div v-else class="pick-placeholder">
             <span>0{{ 5 - i }}</span>
@@ -1131,7 +1133,8 @@ onUnmounted(() => {
   filter: saturate(.92) contrast(1.05);
   transform: scale(var(--poster-scale, 1.14));
   transform-origin: var(--poster-x, 50%) var(--poster-y, 18%);
-  animation: hero-in .35s ease both;
+  opacity: 0;
+  transition: opacity .4s ease;
 }
 .pick-card::after {
   content: "";
@@ -1666,9 +1669,6 @@ onUnmounted(() => {
 
 @keyframes breathe {
   50% { filter: brightness(1.15); box-shadow: inset 0 0 0 3px currentColor, 0 0 22px currentColor; }
-}
-@keyframes hero-in {
-  from { opacity: 0; filter: saturate(.7) contrast(1.02); }
 }
 
 @media (max-width: 1200px) {
