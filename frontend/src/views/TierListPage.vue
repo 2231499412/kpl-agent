@@ -285,7 +285,7 @@ onUnmounted(() => {
 .tier-console {
   --c-bg: #f8f5ec;
   --c-panel: rgba(255, 255, 255, 0.92);
-  --c-line: rgba(0, 0, 0, 0.1);
+  --c-line: rgba(0, 0, 0, 0.28);
   --c-ink: #1a1a1a;
   --c-soft: rgba(26, 26, 26, 0.6);
   --c-dim: rgba(26, 26, 26, 0.35);
@@ -310,7 +310,7 @@ onUnmounted(() => {
 .tier-console.theme-dark {
   --c-bg: #0a0a0a;
   --c-panel: rgba(18, 18, 18, 0.92);
-  --c-line: rgba(255, 255, 255, 0.1);
+  --c-line: rgba(255, 255, 255, 0.2);
   --c-ink: #e8e8e8;
   --c-soft: rgba(232, 232, 232, 0.6);
   --c-dim: rgba(232, 232, 232, 0.35);
