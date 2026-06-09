@@ -428,7 +428,7 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
   min-width: 0;
   gap: 5px;
   padding: 4px;
-  overflow-x: auto;
+  overflow: hidden;
 }
 .role-pill {
   position: absolute;
@@ -443,8 +443,8 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 .role-tabs button {
   position: relative;
   z-index: 1;
-  flex: 1 0 auto;
-  min-width: 86px;
+  flex: 1 1 0;
+  min-width: 0;
   height: 48px;
   padding: 0 14px;
   border: 1px solid var(--c-line);

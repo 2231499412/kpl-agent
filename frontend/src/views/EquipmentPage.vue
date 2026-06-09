@@ -161,8 +161,10 @@ function updatePill() {
     if (!nav || !btn) return
     const navRect = nav.getBoundingClientRect()
     const btnRect = btn.getBoundingClientRect()
+    const left = btnRect.left - navRect.left
+    console.log('[pill-debug]', { navLeft: navRect.left, navWidth: navRect.width, btnLeft: btnRect.left, btnWidth: btnRect.width, computedLeft: left, navScrollWidth: nav.scrollWidth, navClientWidth: nav.clientWidth })
     pillStyle.value = {
-      left: (btnRect.left - navRect.left) + 'px',
+      left: left + 'px',
       width: btnRect.width + 'px',
     }
     pillReady.value = true
@@ -440,7 +442,7 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
   min-width: 0;
   gap: 5px;
   padding: 4px;
-  overflow-x: auto;
+  overflow: hidden;
 }
 .role-pill {
   position: absolute;
@@ -455,8 +457,8 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 .role-tabs button {
   position: relative;
   z-index: 1;
-  flex: 1 0 auto;
-  min-width: 86px;
+  flex: 1 1 0;
+  min-width: 0;
   height: 48px;
   padding: 0 14px;
   border: 1px solid var(--c-line);
