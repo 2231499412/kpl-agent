@@ -818,12 +818,15 @@ function swapSides() {
 function firstToMatchPoint() {
   const wins = { mixue: 0, luckin: 0 }
   const mp = boFormat.value === 7 ? 3 : 4
+  let first = null
   for (const g of games.value) {
     if (!g.winner) break
     wins[g.winner]++
-    if (wins[g.winner] >= mp) return g.winner
+    if (wins[g.winner] >= mp && !first) first = g.winner
   }
-  return null
+  // 双方同时到赛点（如3:3），不算谁先到
+  if (wins.mixue >= mp && wins.luckin >= mp) return null
+  return first
 }
 
 function markWin(side) {
@@ -841,6 +844,13 @@ function markWin(side) {
     if (chooser) {
       sideChooseLoserTeam.value = chooser
       sideChooseOpen.value = true
+    } else {
+      // 双方同时到赛点（如3:3），不弹窗，败方坐蓝方
+      const loserKey = side === 'blue' ? redSideTeam.value : blueSideTeam.value
+      blueSideTeam.value = loserKey
+      const isLast = (boFormat.value === 7 && nextGi === 6) || (boFormat.value === 9 && nextGi === 8)
+      Object.assign(games.value[nextGi], createGameState(isLast))
+      games.value[nextGi].blueSideTeam = loserKey
     }
   } else if (!isBlindPickGame) {
     // 普通局：败方选边
