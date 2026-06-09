@@ -40,17 +40,15 @@
                 <span class="time-hour">{{ formatTime(match.startTime) }}</span>
               </div>
               <div class="match-teams">
-                <div class="team-side" :class="{ winner: match.winCamp === 1 }">
-                  <img v-if="teamIcons[match.camp1TeamName]" :src="teamIcons[match.camp1TeamName]" class="team-logo" />
-                  <span class="team-name">{{ match.camp1TeamName || '蓝方' }}</span>
-                  <span class="team-score">{{ match.camp1Score ?? '-' }}</span>
-                </div>
+                <img v-if="teamIcons[match.camp1TeamName]" :src="teamIcons[match.camp1TeamName]" class="team-logo" />
+                <span v-else class="team-logo" />
+                <span class="team-name t1" :class="{ winner: match.winCamp === 1 }">{{ match.camp1TeamName || '蓝方' }}</span>
+                <span class="team-score t1" :class="{ winner: match.winCamp === 1 }">{{ match.camp1Score ?? '-' }}</span>
                 <span class="vs-divider">VS</span>
-                <div class="team-side" :class="{ winner: match.winCamp === 2 }">
-                  <span class="team-score">{{ match.camp2Score ?? '-' }}</span>
-                  <span class="team-name">{{ match.camp2TeamName || '红方' }}</span>
-                  <img v-if="teamIcons[match.camp2TeamName]" :src="teamIcons[match.camp2TeamName]" class="team-logo" />
-                </div>
+                <span class="team-score t2" :class="{ winner: match.winCamp === 2 }">{{ match.camp2Score ?? '-' }}</span>
+                <span class="team-name t2" :class="{ winner: match.winCamp === 2 }">{{ match.camp2TeamName || '红方' }}</span>
+                <img v-if="teamIcons[match.camp2TeamName]" :src="teamIcons[match.camp2TeamName]" class="team-logo" />
+                <span v-else class="team-logo" />
               </div>
               <div class="match-meta">
                 <span v-if="match.bo" class="bo-tag">BO{{ match.bo }}</span>
@@ -471,55 +469,30 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
 .time-hour { font-size: 12px; color: var(--mono-dim); margin-top: 2px; }
 
 .match-teams {
-  display: flex;
+  display: grid;
+  grid-template-columns: 28px 1fr 36px 40px 36px 1fr 28px;
   align-items: center;
-  justify-content: center;
-  gap: 0;
-}
-.match-teams .team-side {
-  flex: 1;
-  min-width: 0;
-  max-width: 220px;
-}
-.match-teams .team-side:first-child {
-  justify-content: flex-end;
-}
-.team-side {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.team-side:last-child {
-  justify-content: flex-end;
-}
-.team-logo {
-  width: 28px; height: 28px; object-fit: contain;
-  border-radius: 4px; flex-shrink: 0;
+  gap: 6px;
 }
 .team-name {
-  min-width: 72px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   text-align: center;
   font-size: 14px;
   font-weight: 600;
   color: var(--mono-soft);
   transition: color 0.15s;
-  line-height: 24px;
 }
-.team-side.winner .team-name {
+.team-name.t1 { text-align: right; }
+.team-name.t2 { text-align: left; }
+.team-name.winner {
   color: var(--winner-color);
   font-weight: 800;
 }
-.team-score {
-  width: 24px;
-  text-align: center;
-  font-size: 20px;
-  font-weight: 900;
-  color: var(--mono-dim);
-  line-height: 24px;
-}
-.team-side.winner .team-score {
-  color: var(--mono-ink);
+.team-logo {
+  width: 28px; height: 28px; object-fit: contain;
+  border-radius: 4px; flex-shrink: 0;
 }
 .vs-divider {
   width: 36px;
@@ -696,15 +669,11 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
     width: 100%;
   }
   .match-teams {
-    grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr);
-    gap: 6px;
+    grid-template-columns: 24px 1fr 28px 32px 28px 1fr 24px;
+    gap: 4px;
   }
   .team-name {
-    overflow: hidden;
-    max-width: 100%;
     font-size: 13px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
   .match-meta { justify-content: flex-start; flex-wrap: wrap; font-size: 11px; }
   .battle-card { padding: 12px; }
