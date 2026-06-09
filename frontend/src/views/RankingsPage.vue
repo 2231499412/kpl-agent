@@ -1933,6 +1933,12 @@ onBeforeUnmount(() => {
   }
 }
 
+.rankings-console :deep(.hero-table) {
+  border-color: var(--mono-line);
+}
+.rankings-console :deep(.hero-table-row) {
+  border-bottom-color: var(--mono-line);
+}
 .rankings-console :deep(.hero-table-header) {
   background: rgba(0, 0, 0, 0.04);
   color: var(--mono-soft);

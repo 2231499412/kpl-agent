@@ -471,15 +471,18 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
 .time-hour { font-size: 12px; color: var(--mono-dim); margin-top: 2px; }
 
 .match-teams {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: center;
-  gap: 18px;
+  gap: 12px;
 }
 .team-side {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+.team-side:last-child {
+  justify-content: flex-end;
 }
 .team-logo {
   width: 28px; height: 28px; object-fit: contain;
