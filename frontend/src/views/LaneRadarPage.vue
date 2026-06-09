@@ -62,7 +62,7 @@
 
       <article class="radar-poster">
         <header class="scoreboard">
-          <img v-if="radarData.blue.teamIcon" class="team-logo blue-logo" :src="radarData.blue.teamIcon" :alt="radarData.blue.teamName">
+          <img v-if="radarData.blue.teamIcon" class="team-logo blue-logo" :src="radarData.blue.teamIcon" :alt="radarData.blue.teamName" @load="$event.target.style.opacity = 1">
           <div class="team-name left">{{ currentMatch?.camp1TeamName || radarData.blue.teamName }}</div>
           <div class="score-center">
             <strong>{{ currentGameTitle }}</strong>
@@ -70,7 +70,7 @@
           </div>
           <div class="win-badge" :class="{ blue: winnerCamp === 1, red: winnerCamp === 2 }">胜</div>
           <div class="team-name right">{{ currentMatch?.camp2TeamName || radarData.red.teamName }}</div>
-          <img v-if="radarData.red.teamIcon" class="team-logo red-logo" :src="radarData.red.teamIcon" :alt="radarData.red.teamName">
+          <img v-if="radarData.red.teamIcon" class="team-logo red-logo" :src="radarData.red.teamIcon" :alt="radarData.red.teamName" @load="$event.target.style.opacity = 1">
         </header>
 
         <div class="poster-subtitle">
@@ -140,7 +140,7 @@
               <span class="orbit-label">{{ shortPlayer(radarData.blue.playerName) }}</span>
               <div class="orbit-icons">
                 <span v-for="game in radarData.blue.heroGames || []" :key="`blue-${game.battleId}`" class="orbit-hero" :class="{ win: game.result === '胜' }" :title="heroGameTitle(game)">
-                  <img :src="heroIcon(game)" :alt="game.heroName">
+                  <img :src="heroIcon(game)" :alt="game.heroName" @load="$event.target.style.opacity = 1">
                   <b>G{{ game.battleSeq }}</b>
                 </span>
               </div>
@@ -149,7 +149,7 @@
               <span class="orbit-label">{{ shortPlayer(radarData.red.playerName) }}</span>
               <div class="orbit-icons">
                 <span v-for="game in radarData.red.heroGames || []" :key="`red-${game.battleId}`" class="orbit-hero" :class="{ win: game.result === '胜' }" :title="heroGameTitle(game)">
-                  <img :src="heroIcon(game)" :alt="game.heroName">
+                  <img :src="heroIcon(game)" :alt="game.heroName" @load="$event.target.style.opacity = 1">
                   <b>G{{ game.battleSeq }}</b>
                 </span>
               </div>
@@ -412,8 +412,8 @@ const SideVisual = defineComponent({
       h('div', { class: 'portrait-block' }, [
         h('div', { class: 'player-portrait-wrap' }, [
           props.side.playerIcon
-            ? h('img', { class: 'player-portrait', src: props.side.playerIcon, alt: shortPlayer(props.side.playerName) })
-            : h('img', { class: 'player-portrait hero-fallback', src: heroIcon(props.side), alt: props.side.heroName }),
+            ? h('img', { class: 'player-portrait', src: props.side.playerIcon, alt: shortPlayer(props.side.playerName), onLoad: e => { e.target.style.opacity = 1 } })
+            : h('img', { class: 'player-portrait hero-fallback', src: heroIcon(props.side), alt: props.side.heroName, onLoad: e => { e.target.style.opacity = 1 } }),
         ]),
         h('div', { class: 'kda-side' }, kdaText(props.side)),
       ]),
@@ -1136,6 +1136,8 @@ onUnmounted(() => {
   border-radius: 50%;
   object-fit: cover;
   box-shadow: 0 9px 22px rgba(0,0,0,.24);
+  opacity: 0;
+  transition: opacity .4s ease;
 }
 
 .side-stats {
@@ -1370,6 +1372,8 @@ onUnmounted(() => {
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
+  opacity: 0;
+  transition: opacity .4s ease;
 }
 
 .orbit-hero b {
@@ -1777,6 +1781,8 @@ onUnmounted(() => {
   height: 48px;
   padding: 3px;
   border-radius: 50%;
+  opacity: 0;
+  transition: opacity .4s ease;
   background: rgba(255, 255, 255, .74);
   box-shadow: 0 8px 18px rgba(66, 78, 115, .14);
 }

@@ -454,6 +454,7 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
   z-index: 1;
   flex: 1 0 auto;
   min-width: 86px;
+  height: 48px;
   padding: 0 14px;
   border: 1px solid var(--c-line);
   border-radius: 10px;
