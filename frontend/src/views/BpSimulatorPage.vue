@@ -572,9 +572,9 @@ function createBpSequence(firstPickSide = 'blue') {
     { type: 'ban', side: sp, label: `${spL} Ban 5` },
     { type: 'ban', side: fp, label: `${fpL} Ban 5` },
     { type: 'pick', side: sp, label: `${spL} Pick 4` },
-    { type: 'pick', side: sp, label: `${spL} Pick 5` },
     { type: 'pick', side: fp, label: `${fpL} Pick 4` },
     { type: 'pick', side: fp, label: `${fpL} Pick 5` },
+    { type: 'pick', side: sp, label: `${spL} Pick 5` },
   ]
 }
 
