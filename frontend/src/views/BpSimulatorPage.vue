@@ -88,8 +88,8 @@
         <div class="turn-side" :class="currentStepObj.side">
           {{ bpDone ? '阵容锁定' : currentStepObj.side === 'blue' ? '蓝方操作' : '红方操作' }}
         </div>
-        <div class="timer">{{ bpDone ? 'OK' : timerEnabled ? timerLeft : '--' }}</div>
-        <div class="timer-track">
+        <div class="timer">{{ bpDone ? 'OK' : timerEnabled ? timerLeft : '' }}</div>
+        <div class="timer-track" v-if="timerEnabled">
           <span :class="currentStepObj.side" :style="{ width: `${(timerLeft / 30) * 100}%` }" />
         </div>
         <strong class="phase-name">{{ bpDone ? '本局 BP 已完成' : currentStepObj.label }}</strong>
