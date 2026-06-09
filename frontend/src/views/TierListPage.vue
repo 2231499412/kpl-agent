@@ -22,12 +22,10 @@
     </section>
 
     <!-- 分路筛选 -->
-    <nav ref="roleNavRef" class="role-tabs">
-      <span class="role-pill" :style="pillStyle" v-if="pillReady"></span>
+    <nav class="role-tabs">
       <button
         v-for="r in roleOptions"
         :key="r.value"
-        :ref="el => roleBtnRefs[r.value] = el"
         :class="{ active: activeRole === r.value }"
         @click="selectRole(r.value)"
       >{{ r.label }}</button>
@@ -124,10 +122,6 @@ watch(theme, (v) => setTheme(v))
 const loading = ref(false)
 const heroList = ref([])
 const activeRole = ref('all')
-const roleNavRef = ref(null)
-const roleBtnRefs = {}
-const pillStyle = ref({})
-const pillReady = ref(false)
 
 const detailOpen = ref(false)
 const selectedHero = ref(null)
@@ -139,30 +133,6 @@ function pct(v) { return v != null ? (Number(v) * 100).toFixed(1) : '—' }
 
 function selectRole(value) {
   activeRole.value = value
-  nextTick(updatePill)
-}
-
-let pillRo = null
-function updatePill() {
-  const nav = roleNavRef.value
-  const btn = roleBtnRefs[activeRole.value]
-  if (!nav || !btn) return
-  const navRect = nav.getBoundingClientRect()
-  const btnRect = btn.getBoundingClientRect()
-  pillStyle.value = {
-    left: (btnRect.left - navRect.left) + 'px',
-    width: btnRect.width + 'px',
-  }
-  pillReady.value = true
-}
-
-function initPillObserver() {
-  const nav = roleNavRef.value
-  if (!nav) return
-  pillRo?.disconnect()
-  pillRo = new ResizeObserver(() => updatePill())
-  pillRo.observe(nav)
-  updatePill()
 }
 
 const currentDate = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -319,12 +289,8 @@ async function loadData() {
 
 onMounted(() => {
   loadData()
-  nextTick(initPillObserver)
-  window.addEventListener('resize', updatePill)
 })
 onUnmounted(() => {
-  pillRo?.disconnect()
-  window.removeEventListener('resize', updatePill)
 })
 </script>
 
@@ -432,26 +398,11 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 
 /* 分路筛选 */
 .role-tabs {
-  position: relative;
   display: flex;
-  min-width: 0;
   gap: 5px;
   padding: 4px;
-  overflow: hidden;
-}
-.role-pill {
-  position: absolute;
-  top: 4px;
-  height: calc(100% - 8px);
-  background: #1a1a1a;
-  border-radius: 10px;
-  transition: left .3s cubic-bezier(.4,0,.2,1), width .3s cubic-bezier(.4,0,.2,1);
-  z-index: 0;
-  pointer-events: none;
 }
 .role-tabs button {
-  position: relative;
-  z-index: 1;
   flex: 1 1 0;
   min-width: 0;
   height: 48px;
@@ -463,10 +414,14 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
   font-size: 12px;
   font-weight: 900;
   cursor: pointer;
-  transition: color .2s ease;
+  transition: color .2s ease, background .2s ease;
 }
 .role-tabs button:hover { color: var(--c-ink); }
-.role-tabs button.active { color: #f8f5ec; }
+.role-tabs button.active {
+  color: #f8f5ec;
+  background: #1a1a1a;
+  border-color: #1a1a1a;
+}
 
 /* 扁平网格 + 排序动画 */
 .hero-flat-grid {
