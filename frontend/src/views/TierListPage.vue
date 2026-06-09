@@ -86,26 +86,30 @@
       </div>
     </div>
 
-    <el-dialog v-model="detailOpen" width="420px" class="hero-detail-dialog" destroy-on-close>
+    <el-dialog v-model="detailOpen" :title="selectedHero?.heroName + ' - 英雄详情'" width="640px" class="detail-dialog" destroy-on-close>
       <template v-if="selectedHero">
-        <div class="detail-hero-row">
-          <img :src="selectedHero.heroIcon || ('https://res.edata.qq.com/sgame/static/images/hero/' + selectedHero.heroId + '.jpg')" class="detail-avatar" :alt="selectedHero.heroName" />
-          <div class="detail-hero-info">
-            <strong>{{ selectedHero.heroName }}</strong>
-            <div class="detail-tags">
-              <span :class="['tier-badge', 'tier-' + selectedHero._tier]">{{ tierDefs.find(t => t.key === selectedHero._tier)?.label }}</span>
-              <span v-if="selectedHero._role" class="role-tag">{{ selectedHero._role }}</span>
+        <div class="detail-profile">
+          <div class="profile-card">
+            <div class="profile-header">
+              <img :src="selectedHero.heroIcon || ('https://res.edata.qq.com/sgame/static/images/hero/' + selectedHero.heroId + '.jpg')" class="profile-avatar" />
+              <div>
+                <b>{{ selectedHero.heroName }}</b>
+                <small>
+                  <span :class="['tier-badge', 'tier-' + selectedHero._tier]">{{ tierDefs.find(t => t.key === selectedHero._tier)?.label }}</span>
+                  <span v-if="selectedHero._role" class="role-tag">{{ selectedHero._role }}</span>
+                  · 出场 {{ selectedHero.battleCount || 0 }} 局
+                </small>
+              </div>
+            </div>
+            <div class="stat-grid">
+              <div class="stat-item"><span class="sv">{{ pct(selectedHero.pickRate) }}%</span><span class="sl">Pick 率</span></div>
+              <div class="stat-item"><span class="sv">{{ pct(selectedHero.banRate) }}%</span><span class="sl">Ban 率</span></div>
+              <div class="stat-item"><span class="sv">{{ pct(selectedHero.winRate) }}%</span><span class="sl">胜率</span></div>
+              <div class="stat-item"><span class="sv">{{ selectedHero.avgKda != null ? selectedHero.avgKda.toFixed(2) : '—' }}</span><span class="sl">KDA</span></div>
+              <div class="stat-item"><span class="sv">{{ selectedHero.avgKill != null ? selectedHero.avgKill.toFixed(1) : '—' }}</span><span class="sl">场均击杀</span></div>
+              <div class="stat-item"><span class="sv">{{ selectedHero._score }}</span><span class="sl">综合评分</span></div>
             </div>
           </div>
-          <div class="detail-score-big">{{ selectedHero._score }}</div>
-        </div>
-        <div class="detail-stats-grid">
-          <div class="detail-stat"><small>出场</small><b>{{ selectedHero.battleCount || 0 }}</b></div>
-          <div class="detail-stat"><small>胜率</small><b>{{ pct(selectedHero.winRate) }}%</b></div>
-          <div class="detail-stat"><small>Pick率</small><b>{{ pct(selectedHero.pickRate) }}%</b></div>
-          <div class="detail-stat"><small>Ban率</small><b>{{ pct(selectedHero.banRate) }}%</b></div>
-          <div class="detail-stat"><small>KDA</small><b>{{ selectedHero.avgKda != null ? selectedHero.avgKda.toFixed(1) : '—' }}</b></div>
-          <div class="detail-stat"><small>评分</small><b>{{ selectedHero._score }}</b></div>
         </div>
       </template>
     </el-dialog>
@@ -603,28 +607,26 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 }
 
 /* 英雄详情弹窗 */
-:deep(.hero-detail-dialog .el-dialog) {
-  border: 1px solid var(--c-line);
-  border-radius: 0;
-  background: var(--c-panel);
+.detail-dialog { border-radius: 0; }
+.detail-dialog :deep(.el-dialog__header) {
+  border-bottom: 1px solid var(--c-line); padding: 14px 20px; margin: 0;
 }
-:deep(.hero-detail-dialog .el-dialog__title) {
-  color: var(--c-ink); font-weight: 900;
+.detail-dialog :deep(.el-dialog__body) { padding: 20px; }
+.detail-dialog :deep(.el-dialog__title) { color: var(--c-ink); font-weight: 900; }
+.detail-dialog :deep(.el-dialog__headerbtn .el-dialog__close) { color: var(--c-soft); }
+.detail-profile { margin-bottom: 16px; }
+.profile-card { padding: 16px; border: 1px solid var(--c-line); background: var(--c-card); }
+.profile-header { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.profile-avatar { width: 48px; height: 48px; border: 1px solid var(--c-line); object-fit: cover; }
+.profile-header b { font-size: 16px; display: block; color: var(--c-ink); }
+.profile-header small { color: var(--c-dim); font-size: 12px; }
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat-item {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px; border: 1px solid var(--c-line); background: var(--c-card);
 }
-:deep(.hero-detail-dialog .el-dialog__headerbtn .el-dialog__close) {
-  color: var(--c-soft);
-}
-.detail-hero-row {
-  display: flex; align-items: center; gap: 14px;
-}
-.detail-avatar {
-  width: 64px; height: 64px; border-radius: 6px; object-fit: cover;
-  border: 1px solid var(--c-line);
-  opacity: 0; transition: opacity .15s ease;
-}
-.detail-hero-info { flex: 1; min-width: 0; }
-.detail-hero-info strong { display: block; font-size: 20px; font-weight: 900; color: var(--c-ink); }
-.detail-tags { display: flex; gap: 6px; margin-top: 6px; }
+.sv { font-size: 16px; font-weight: 800; color: var(--c-ink); }
+.sl { font-size: 10px; color: var(--c-dim); font-weight: 600; }
 .tier-badge {
   padding: 2px 8px; border-radius: 3px; color: #fff; font-size: 11px; font-weight: 900;
 }
@@ -638,15 +640,4 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
   padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700;
   background: var(--c-card); color: var(--c-soft);
 }
-.detail-score-big {
-  font-size: 36px; font-weight: 950; color: var(--c-ink); line-height: 1;
-}
-.detail-stats-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 18px;
-}
-.detail-stat {
-  padding: 10px; background: var(--c-card); border: 1px solid var(--c-line); text-align: center;
-}
-.detail-stat small { display: block; color: var(--c-dim); font-size: 10px; font-weight: 800; letter-spacing: 1px; }
-.detail-stat b { display: block; margin-top: 4px; font-size: 18px; font-weight: 900; color: var(--c-ink); }
 </style>
