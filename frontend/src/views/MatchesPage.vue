@@ -260,7 +260,7 @@ onMounted(init)
 .matches-console {
   --mono-bg: #f8f5ec;
   --mono-panel: rgba(255, 255, 255, 0.92);
-  --mono-line: rgba(0, 0, 0, 0.18);
+  --mono-line: rgba(0, 0, 0, 0.28);
   --mono-line-strong: rgba(0, 0, 0, 0.32);
   --mono-ink: #1a1a1a;
   --mono-soft: rgba(26, 26, 26, 0.65);
@@ -289,7 +289,7 @@ onMounted(init)
 .matches-console.theme-dark {
   --mono-bg: #0a0a0a;
   --mono-panel: rgba(18, 18, 18, 0.92);
-  --mono-line: rgba(255, 255, 255, 0.18);
+  --mono-line: rgba(255, 255, 255, 0.2);
   --mono-line-strong: rgba(255, 255, 255, 0.32);
   --mono-ink: #e8e8e8;
   --mono-soft: rgba(232, 232, 232, 0.65);
