@@ -88,7 +88,7 @@
         <div class="turn-side" :class="currentStepObj.side">
           {{ bpDone ? '阵容锁定' : currentStepObj.side === 'blue' ? '蓝方操作' : '红方操作' }}
         </div>
-        <div class="timer">{{ bpDone ? 'OK' : timerLeft }}</div>
+        <div class="timer">{{ bpDone ? 'OK' : timerEnabled ? timerLeft : '--' }}</div>
         <div class="timer-track">
           <span :class="currentStepObj.side" :style="{ width: `${(timerLeft / 30) * 100}%` }" />
         </div>
@@ -153,6 +153,7 @@
       <div class="action-bar">
         <button @click="undo" :disabled="currentGameObj.currentStep === 0">撤销</button>
         <button @click="swapSides">交换阵营</button>
+        <button :class="timerEnabled ? 'timer-on' : ''" @click="toggleTimer">{{ timerEnabled ? '关闭计时' : '开启计时' }}</button>
         <button class="blue-action" @click="markWin('blue')">蓝方胜</button>
         <button class="red-action" @click="markWin('red')">红方胜</button>
         <button class="danger" @click="resetGame">重置本局</button>
@@ -600,6 +601,7 @@ const blueTeamScore = computed(() => currentGameObj.value.bluePicks.reduce((s, h
 const redTeamScore = computed(() => currentGameObj.value.redPicks.reduce((s, h) => s + heroScore(h), 0))
 
 const timerLeft = ref(30)
+const timerEnabled = ref(false)
 let timerInterval
 
 function stopTimer() {
@@ -610,11 +612,20 @@ function stopTimer() {
 function startTimer() {
   stopTimer()
   timerLeft.value = 30
-  if (bpDone.value) return
+  if (!timerEnabled.value || bpDone.value) return
   timerInterval = setInterval(() => {
     timerLeft.value -= 1
     if (timerLeft.value <= 0) advanceStep()
   }, 1000)
+}
+
+function toggleTimer() {
+  timerEnabled.value = !timerEnabled.value
+  if (timerEnabled.value) {
+    startTimer()
+  } else {
+    stopTimer()
+  }
 }
 
 function getSlotInfo(step) {
@@ -862,6 +873,9 @@ onUnmounted(() => {
 .team-red { justify-content: flex-end; }
 .team-identity { min-width: 0; gap: 10px; }
 .team-red .team-identity { text-align: right; justify-content: flex-end; }
+.team-red .ban-strip { flex-direction: row-reverse; }
+.team-red .pick-team { direction: rtl; }
+.team-red .pick-team > * { direction: ltr; }
 .team-identity small { display: block; margin-bottom: 2px; color: rgba(22, 32, 44, .46); font-size: 9px; font-weight: 900; letter-spacing: 2px; }
 .team-identity strong { display: block; font-size: clamp(17px, 1.8vw, 28px); font-weight: 950; white-space: nowrap; }
 .team-logo {
@@ -1432,6 +1446,7 @@ onUnmounted(() => {
 .action-bar button:last-child { border-right: none; }
 .action-bar button:hover { color: var(--ink); background: rgba(255, 255, 255, .45); }
 .action-bar button:disabled { opacity: .35; cursor: not-allowed; }
+.action-bar button.timer-on { color: #fff; background: var(--blue); }
 .action-bar .blue-action { color: var(--blue); }
 .action-bar .red-action { color: var(--red); }
 .action-bar .danger { color: #b93e5d; }
