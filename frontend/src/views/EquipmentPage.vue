@@ -154,21 +154,28 @@ function selectRole(value) {
   nextTick(updatePill)
 }
 
+let pillRo = null
 function updatePill() {
-  requestAnimationFrame(() => {
-    const nav = roleNavRef.value
-    const btn = roleBtnRefs[activeRole.value]
-    if (!nav || !btn) return
-    const navRect = nav.getBoundingClientRect()
-    const btnRect = btn.getBoundingClientRect()
-    const left = btnRect.left - navRect.left
-    console.log('[pill-debug]', { navLeft: navRect.left, navWidth: navRect.width, btnLeft: btnRect.left, btnWidth: btnRect.width, computedLeft: left, navScrollWidth: nav.scrollWidth, navClientWidth: nav.clientWidth })
-    pillStyle.value = {
-      left: left + 'px',
-      width: btnRect.width + 'px',
-    }
-    pillReady.value = true
-  })
+  const nav = roleNavRef.value
+  const btn = roleBtnRefs[activeRole.value]
+  if (!nav || !btn) return
+  const navRect = nav.getBoundingClientRect()
+  const btnRect = btn.getBoundingClientRect()
+  const left = btnRect.left - navRect.left
+  pillStyle.value = {
+    left: left + 'px',
+    width: btnRect.width + 'px',
+  }
+  pillReady.value = true
+}
+
+function initPillObserver() {
+  const nav = roleNavRef.value
+  if (!nav) return
+  pillRo?.disconnect()
+  pillRo = new ResizeObserver(() => updatePill())
+  pillRo.observe(nav)
+  updatePill()
 }
 
 const detailVisible = ref(false)
@@ -329,10 +336,11 @@ async function openDetail(item) {
 
 onMounted(() => {
   init()
-  nextTick(updatePill)
+  nextTick(initPillObserver)
   window.addEventListener('resize', updatePill)
 })
 onUnmounted(() => {
+  pillRo?.disconnect()
   window.removeEventListener('resize', updatePill)
 })
 </script>

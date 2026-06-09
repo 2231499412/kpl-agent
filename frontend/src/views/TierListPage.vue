@@ -142,19 +142,27 @@ function selectRole(value) {
   nextTick(updatePill)
 }
 
+let pillRo = null
 function updatePill() {
-  requestAnimationFrame(() => {
-    const nav = roleNavRef.value
-    const btn = roleBtnRefs[activeRole.value]
-    if (!nav || !btn) return
-    const navRect = nav.getBoundingClientRect()
-    const btnRect = btn.getBoundingClientRect()
-    pillStyle.value = {
-      left: (btnRect.left - navRect.left) + 'px',
-      width: btnRect.width + 'px',
-    }
-    pillReady.value = true
-  })
+  const nav = roleNavRef.value
+  const btn = roleBtnRefs[activeRole.value]
+  if (!nav || !btn) return
+  const navRect = nav.getBoundingClientRect()
+  const btnRect = btn.getBoundingClientRect()
+  pillStyle.value = {
+    left: (btnRect.left - navRect.left) + 'px',
+    width: btnRect.width + 'px',
+  }
+  pillReady.value = true
+}
+
+function initPillObserver() {
+  const nav = roleNavRef.value
+  if (!nav) return
+  pillRo?.disconnect()
+  pillRo = new ResizeObserver(() => updatePill())
+  pillRo.observe(nav)
+  updatePill()
 }
 
 const currentDate = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -311,10 +319,11 @@ async function loadData() {
 
 onMounted(() => {
   loadData()
-  nextTick(updatePill)
+  nextTick(initPillObserver)
   window.addEventListener('resize', updatePill)
 })
 onUnmounted(() => {
+  pillRo?.disconnect()
   window.removeEventListener('resize', updatePill)
 })
 </script>
