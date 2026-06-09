@@ -29,7 +29,7 @@
         v-for="r in roleOptions"
         :key="r.value"
         :ref="el => roleBtnRefs[r.value] = el"
-        :class="['role-tab', { active: activeRole === r.value }]"
+        :class="{ active: activeRole === r.value }"
         @click="selectRole(r.value)"
       >{{ r.label }}</button>
     </nav>
@@ -160,8 +160,8 @@ function updatePill() {
   const navRect = nav.getBoundingClientRect()
   const btnRect = btn.getBoundingClientRect()
   pillStyle.value = {
-    left: (btnRect.left - navRect.left) + 'px',
     width: btnRect.width + 'px',
+    transform: `translateX(${btnRect.left - navRect.left}px)`,
   }
 }
 
@@ -432,25 +432,40 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 /* 分路筛选 */
 .role-tabs {
   position: relative;
-  display: flex; gap: 5px; padding: 4px; margin-bottom: 20px;
-  border: 1px solid var(--c-line); background: var(--c-panel);
+  display: flex;
+  min-width: 0;
+  gap: 5px;
+  padding: 4px;
   overflow-x: auto;
 }
 .role-pill {
-  position: absolute; top: 4px; height: calc(100% - 8px);
-  background: #f39c12; border-radius: 10px;
-  transition: left .36s cubic-bezier(.4,0,.2,1), width .36s cubic-bezier(.4,0,.2,1);
-  z-index: 0; pointer-events: none;
+  position: absolute;
+  top: 4px;
+  left: 0;
+  height: calc(100% - 8px);
+  background: #1a1a1a;
+  border-radius: 10px;
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
+  z-index: 0;
+  pointer-events: none;
 }
-.role-tab {
-  position: relative; z-index: 1;
-  flex: 1; min-width: 0; padding: 10px 16px; border: none; border-radius: 10px;
+.role-tabs button {
+  position: relative;
+  z-index: 1;
+  flex: 1 0 auto;
+  min-width: 86px;
+  padding: 0 14px;
+  border: 1px solid var(--c-line);
+  border-radius: 10px;
+  color: var(--c-soft);
   background: transparent;
-  color: var(--c-soft); font-size: 13px; font-weight: 600; cursor: pointer;
-  transition: color .2s ease; white-space: nowrap;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: color .2s ease;
 }
-.role-tab:hover { color: var(--c-ink); }
-.role-tab.active { color: #fff; }
+.role-tabs button:hover { color: var(--c-ink); }
+.role-tabs button.active { color: #f8f5ec; }
 
 /* 扁平网格 + 排序动画 */
 .equip-flat-grid {
@@ -659,7 +674,7 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
   .theme-toggle small { display: none; }
 
   .role-tabs { gap: 4px; padding: 3px; }
-  .role-tab { padding: 8px 10px; font-size: 12px; }
+  .role-tabs button { flex: 0 0 76px; min-width: 76px; height: 42px; padding: 0 10px; }
 
   .tier-header { padding: 10px 0 8px; margin-bottom: 10px; }
   .tier-badge { min-width: 32px; height: 22px; font-size: 12px; }
