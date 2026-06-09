@@ -143,16 +143,18 @@ function selectRole(value) {
 }
 
 function updatePill() {
-  const nav = roleNavRef.value
-  const btn = roleBtnRefs[activeRole.value]
-  if (!nav || !btn) return
-  const navRect = nav.getBoundingClientRect()
-  const btnRect = btn.getBoundingClientRect()
-  pillStyle.value = {
-    left: (btnRect.left - navRect.left) + 'px',
-    width: btnRect.width + 'px',
-  }
-  pillReady.value = true
+  requestAnimationFrame(() => {
+    const nav = roleNavRef.value
+    const btn = roleBtnRefs[activeRole.value]
+    if (!nav || !btn) return
+    const navRect = nav.getBoundingClientRect()
+    const btnRect = btn.getBoundingClientRect()
+    pillStyle.value = {
+      left: (btnRect.left - navRect.left) + 'px',
+      width: btnRect.width + 'px',
+    }
+    pillReady.value = true
+  })
 }
 
 const currentDate = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
