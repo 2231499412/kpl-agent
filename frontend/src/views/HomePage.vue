@@ -50,8 +50,6 @@
           </div>
           <div v-if="panel.key === 'hero'" class="hero-credit">
             <span>by <b>flylegends</b></span>
-            <span class="credit-sep">·</span>
-            <span>交流群 791050795</span>
           </div>
 
           <div v-if="panel.key === 'overview'" class="metric-grid">

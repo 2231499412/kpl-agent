@@ -73,6 +73,9 @@
               <span class="patch-title">{{ note.title }}</span>
             </div>
           </div>
+          <div v-else-if="patchLoading" class="patch-skeleton">
+            <div class="skel-bar" v-for="i in 4" :key="i" />
+          </div>
           <div v-else class="patch-empty">暂无版本动态</div>
         </div>
 
@@ -509,7 +512,7 @@ import { ElMessage } from 'element-plus'
 const md = new MarkdownIt({ html: false, breaks: true })
 function renderMd(text) { return md.render(text || '') }
 
-const leagues = ref([])
+const leagues = ref(JSON.parse(localStorage.getItem('kpl_leagues') || '[]'))
 const theme = ref(getTheme())
 watch(theme, (v) => setTheme(v))
 
@@ -526,7 +529,8 @@ const agentQuestion = ref('AG 最近比赛表现怎么样')
 const agentMessages = ref([
   { id: 1, role: 'assistant', text: '数据链路已待命。' }
 ])
-const patchNotes = ref([])
+const patchNotes = ref(JSON.parse(localStorage.getItem('kpl_patchNotes') || '[]'))
+const patchLoading = ref(false)
 const patchDialogVisible = ref(false)
 const patchDialogTitle = ref('')
 const patchDialogContent = ref('')
@@ -538,7 +542,7 @@ const detailLoading = ref(false)
 const detailData = ref(null)
 const detailRow = ref(null)
 
-const teamIconMap = ref({})
+const teamIconMap = ref(JSON.parse(localStorage.getItem('kpl_teamIcons') || '{}'))
 
 const loading = ref({
   query: false,
@@ -775,8 +779,11 @@ async function loadTeamIcons() {
     const teams = res?.data?.data || res?.data || []
     const map = {}
     if (Array.isArray(teams)) teams.forEach(t => { if (t.teamName && t.teamIcon) map[t.teamName] = t.teamIcon })
-    teamIconMap.value = map
-  } catch { /* ignore */ }
+    if (Object.keys(map).length) {
+      teamIconMap.value = map
+      localStorage.setItem('kpl_teamIcons', JSON.stringify(map))
+    }
+  } catch { /* 失败时保留缓存 */ }
 }
 
 function mergeTeamIcons(rows) {
@@ -807,7 +814,13 @@ async function loadStatus() {
 }
 
 async function loadLeagues() {
-  leagues.value = await request('/api/leagues?limit=30')
+  try {
+    const data = await request('/api/leagues?limit=30')
+    if (data?.length) {
+      leagues.value = data
+      localStorage.setItem('kpl_leagues', JSON.stringify(data))
+    }
+  } catch { /* 失败时保留缓存 */ }
   if (!selectedLeagueId.value && leagues.value.length) {
     selectedLeagueId.value = leagues.value[0].leagueId
   }
@@ -1098,9 +1111,18 @@ function stripHtml(html) {
 }
 
 async function loadPatchNotes() {
+  patchLoading.value = true
   try {
-    patchNotes.value = await request('/api/query/patch-notes?limit=20')
-  } catch { patchNotes.value = [] }
+    const data = await request('/api/query/patch-notes?limit=20')
+    if (data?.length) {
+      patchNotes.value = data
+      localStorage.setItem('kpl_patchNotes', JSON.stringify(data))
+    }
+  } catch {
+    // 失败时保留缓存数据，不清空
+  } finally {
+    patchLoading.value = false
+  }
 }
 
 async function openNote(note) {
@@ -1438,6 +1460,26 @@ onBeforeUnmount(() => {
   font-size: 12px;
   color: var(--mono-dim);
   text-align: center;
+}
+.rankings-console .patch-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 0;
+}
+.rankings-console .skel-bar {
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--mono-line) 25%, rgba(128,128,128,0.1) 50%, var(--mono-line) 75%);
+  background-size: 200% 100%;
+  animation: skel-shimmer 1.5s ease-in-out infinite;
+}
+.rankings-console .skel-bar:nth-child(2) { width: 85%; }
+.rankings-console .skel-bar:nth-child(3) { width: 70%; }
+.rankings-console .skel-bar:nth-child(4) { width: 60%; }
+@keyframes skel-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 .rankings-console .sidebar-author {
   margin-top: 16px;

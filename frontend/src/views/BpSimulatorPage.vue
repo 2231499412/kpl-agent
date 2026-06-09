@@ -17,10 +17,10 @@
           </button>
         </div>
         <div class="team-identity">
-          <div class="team-logo"><img :src="mixueLogo" alt="蜜雪冰城"></div>
+          <div class="team-logo"><img :src="blueSideTeamObj.logo" :alt="blueSideTeam"></div>
           <div>
             <small>蓝方</small>
-            <strong>蜜雪冰城队</strong>
+            <strong>{{ blueSideTeamObj.name }}</strong>
           </div>
         </div>
       </section>
@@ -28,9 +28,9 @@
       <section class="score-head">
         <small>2026 KPL · BO{{ boFormat }}</small>
         <div class="score-line">
-          <strong>{{ blueWins }}</strong>
+          <strong>{{ teamWins(blueSideTeam) }}</strong>
           <span>-</span>
-          <strong>{{ redWins }}</strong>
+          <strong>{{ teamWins(redSideTeam) }}</strong>
         </div>
         <em>第 {{ currentGame + 1 }} 局</em>
       </section>
@@ -39,9 +39,9 @@
         <div class="team-identity">
           <div>
             <small>红方</small>
-            <strong>瑞幸咖啡队</strong>
+            <strong>{{ redSideTeamObj.name }}</strong>
           </div>
-          <div class="team-logo team-logo-red"><img :src="luckinLogo" alt="瑞幸咖啡"></div>
+          <div class="team-logo team-logo-red"><img :src="redSideTeamObj.logo" :alt="redSideTeam"></div>
         </div>
         <div class="ban-strip" v-if="!isBlindPick">
           <button
@@ -147,15 +147,15 @@
           @click="switchGame(i)"
         >
           <span>第 {{ i + 1 }} 局</span>
-          <b>{{ getGameWinner(i) === 'blue' ? '蓝胜' : getGameWinner(i) === 'red' ? '红胜' : '未开始' }}</b>
+          <b>{{ getGameWinnerLabel(i) }}</b>
         </button>
       </nav>
       <div class="action-bar">
         <button @click="undo" :disabled="currentGameObj.currentStep === 0">撤销</button>
         <button @click="swapSides">交换阵营</button>
         <button :class="timerEnabled ? 'timer-on' : ''" @click="toggleTimer">{{ timerEnabled ? '关闭计时' : '开启计时' }}</button>
-        <button class="blue-action" @click="markWin('blue')">蓝方胜</button>
-        <button class="red-action" @click="markWin('red')">红方胜</button>
+        <button class="blue-action" @click="markWin('blue')">{{ blueSideTeamObj.short }}胜</button>
+        <button class="red-action" @click="markWin('red')">{{ redSideTeamObj.short }}胜</button>
         <button class="danger" @click="resetGame">重置本局</button>
       </div>
     </section>
@@ -326,6 +326,31 @@
         </div>
       </div>
     </el-dialog>
+
+    <el-dialog
+      v-model="sideChooseOpen"
+      :title="sideChooseLabel"
+      width="420px"
+      class="side-choose-dialog"
+    >
+      <p class="side-choose-desc">选择下一局的阵营，决定先 Ban/Pick 还是后 Ban/Pick</p>
+      <div class="side-choose-options">
+        <button class="side-option side-option-blue" @click="chooseSide('blueSide')">
+          <div class="side-option-indicator blue" />
+          <div>
+            <strong>蓝方</strong>
+            <small>先 Ban · 先 Pick</small>
+          </div>
+        </button>
+        <button class="side-option side-option-red" @click="chooseSide('redSide')">
+          <div class="side-option-indicator red" />
+          <div>
+            <strong>红方</strong>
+            <small>后 Ban · 后 Pick</small>
+          </div>
+        </button>
+      </div>
+    </el-dialog>
   </main>
 </template>
 
@@ -342,6 +367,25 @@ const roleOptions = [
   { label: '全部', value: 'all' },
   ...roleLabels.map(role => ({ label: role, value: role })),
 ]
+
+const TEAMS = {
+  mixue: { key: 'mixue', name: '蜜雪冰城队', short: '蜜雪冰城', logo: mixueLogo },
+  luckin: { key: 'luckin', name: '瑞幸咖啡队', short: '瑞幸咖啡', logo: luckinLogo },
+}
+const blueSideTeam = ref('mixue')
+const blueSideTeamObj = computed(() => TEAMS[blueSideTeam.value])
+const redSideTeamObj = computed(() => TEAMS[blueSideTeam.value === 'mixue' ? 'luckin' : 'mixue'])
+const redSideTeam = computed(() => redSideTeamObj.value.key)
+
+function teamWins(teamKey) {
+  return games.value.filter(g => g.winner === teamKey).length
+}
+
+function getGameWinnerLabel(i) {
+  const w = games.value[i].winner
+  if (!w) return '未开始'
+  return TEAMS[w]?.short || '未知'
+}
 
 function getHeroImg(hero) {
   return hero?.heroIcon || (hero?.heroId ? `https://res.edata.qq.com/sgame/static/images/hero/${hero.heroId}.jpg` : '')
@@ -503,26 +547,32 @@ const pickerTitle = computed(() => {
   return `${side} · ${type}英雄`
 })
 
-const bpSequence = [
-  { type: 'ban', side: 'blue', label: '蓝方 Ban 1' },
-  { type: 'ban', side: 'red', label: '红方 Ban 1' },
-  { type: 'ban', side: 'blue', label: '蓝方 Ban 2' },
-  { type: 'ban', side: 'red', label: '红方 Ban 2' },
-  { type: 'pick', side: 'blue', label: '蓝方 Pick 1' },
-  { type: 'pick', side: 'red', label: '红方 Pick 1' },
-  { type: 'pick', side: 'red', label: '红方 Pick 2' },
-  { type: 'pick', side: 'blue', label: '蓝方 Pick 2' },
-  { type: 'pick', side: 'blue', label: '蓝方 Pick 3' },
-  { type: 'pick', side: 'red', label: '红方 Pick 3' },
-  { type: 'ban', side: 'red', label: '红方 Ban 3' },
-  { type: 'ban', side: 'blue', label: '蓝方 Ban 3' },
-  { type: 'ban', side: 'red', label: '红方 Ban 4' },
-  { type: 'ban', side: 'blue', label: '蓝方 Ban 4' },
-  { type: 'pick', side: 'red', label: '红方 Pick 4' },
-  { type: 'pick', side: 'blue', label: '蓝方 Pick 4' },
-  { type: 'pick', side: 'red', label: '红方 Pick 5' },
-  { type: 'pick', side: 'blue', label: '蓝方 Pick 5' },
-]
+function createBpSequence(firstPickSide = 'blue') {
+  const fp = firstPickSide       // 先 pick 方
+  const sp = fp === 'blue' ? 'red' : 'blue'
+  const fpL = fp === 'blue' ? '蓝方' : '红方'
+  const spL = sp === 'blue' ? '蓝方' : '红方'
+  return [
+    { type: 'ban', side: fp, label: `${fpL} Ban 1` },
+    { type: 'ban', side: sp, label: `${spL} Ban 1` },
+    { type: 'ban', side: fp, label: `${fpL} Ban 2` },
+    { type: 'ban', side: sp, label: `${spL} Ban 2` },
+    { type: 'pick', side: fp, label: `${fpL} Pick 1` },
+    { type: 'pick', side: sp, label: `${spL} Pick 1` },
+    { type: 'pick', side: sp, label: `${spL} Pick 2` },
+    { type: 'pick', side: fp, label: `${fpL} Pick 2` },
+    { type: 'pick', side: fp, label: `${fpL} Pick 3` },
+    { type: 'pick', side: sp, label: `${spL} Pick 3` },
+    { type: 'ban', side: sp, label: `${spL} Ban 3` },
+    { type: 'ban', side: fp, label: `${fpL} Ban 3` },
+    { type: 'ban', side: sp, label: `${spL} Ban 4` },
+    { type: 'ban', side: fp, label: `${fpL} Ban 4` },
+    { type: 'pick', side: sp, label: `${spL} Pick 4` },
+    { type: 'pick', side: fp, label: `${fpL} Pick 4` },
+    { type: 'pick', side: sp, label: `${spL} Pick 5` },
+    { type: 'pick', side: fp, label: `${fpL} Pick 5` },
+  ]
+}
 
 const blindPickSequence = [
   { type: 'pick', side: 'blue', label: '蓝方 Pick 1' },
@@ -537,14 +587,16 @@ const blindPickSequence = [
   { type: 'pick', side: 'red', label: '红方 Pick 5' },
 ]
 
-function createGameState(blindPick = false) {
+function createGameState(blindPick = false, firstPickSide = 'blue') {
   return {
     blueBans: blindPick ? [] : [null, null, null, null],
     redBans: blindPick ? [] : [null, null, null, null],
     bluePicks: [null, null, null, null, null],
     redPicks: [null, null, null, null, null],
     currentStep: 0,
-    blueIsFirst: true,
+    blueIsFirst: firstPickSide === 'blue',
+    firstPickSide,
+    blueSideTeam: 'mixue',
     winner: null,
     blindPick,
   }
@@ -553,16 +605,17 @@ function createGameState(blindPick = false) {
 const boOptions = [3, 5, 7, 9]
 const boFormat = ref(5)
 const boOpen = ref(false)
-const games = ref(Array.from({ length: 5 }, createGameState))
+const games = ref(Array.from({ length: 5 }, () => createGameState()))
 const currentGame = ref(0)
 const currentGameObj = computed(() => games.value[currentGame.value])
 const isBlindPick = computed(() => (boFormat.value === 7 && currentGame.value === 6) || (boFormat.value === 9 && currentGame.value === 8))
-const activeSequence = computed(() => isBlindPick.value ? blindPickSequence : bpSequence)
+const activeSequence = computed(() => isBlindPick.value ? blindPickSequence : createBpSequence(currentGameObj.value.firstPickSide))
 
 function changeBo(n) {
   stopTimer()
   boFormat.value = n
   boOpen.value = false
+  blueSideTeam.value = 'mixue'
   games.value = Array.from({ length: n }, (_, i) => {
     const isLast = (n === 7 && i === 6) || (n === 9 && i === 8)
     return createGameState(isLast)
@@ -587,8 +640,6 @@ const remainingActionText = computed(() => {
   const banLeft = game.blueBans.concat(game.redBans).filter(item => !item).length
   return `剩余 ${banLeft} 个禁用位 · ${pickLeft} 个选择位`
 })
-const blueWins = computed(() => games.value.filter(game => game.winner === 'blue').length)
-const redWins = computed(() => games.value.filter(game => game.winner === 'red').length)
 
 function pct(v) { return (Number(v) * 100).toFixed(1) }
 function heroScore(hero) {
@@ -633,7 +684,11 @@ function getSlotInfo(step) {
   if (!sequence) return null
   const key = `${sequence.side}${sequence.type === 'ban' ? 'Bans' : 'Picks'}`
   const arr = currentGameObj.value[key]
-  return { ...sequence, arr, idx: arr.indexOf(null) }
+  // 红方 pick 从右往左填充，与蓝方对称
+  const idx = (sequence.type === 'pick' && sequence.side === 'red')
+    ? arr.lastIndexOf(null)
+    : arr.indexOf(null)
+  return { ...sequence, arr, idx }
 }
 
 function isActiveBan(side, idx) {
@@ -724,9 +779,10 @@ function undo() {
     const arr = step.side === 'blue' ? game.blueBans : game.redBans
     if (idx >= 0 && idx < arr.length) arr[idx] = null
   } else {
-    // pick index = number of prior pick steps for this side
     const pickSteps = seq.filter(s => s.type === 'pick' && s.side === step.side)
-    const idx = pickSteps.indexOf(step)
+    let idx = pickSteps.indexOf(step)
+    // 红方 pick 从右往左填充，撤销时索引也要反转
+    if (step.side === 'red') idx = game.redPicks.length - 1 - idx
     const arr = step.side === 'blue' ? game.bluePicks : game.redPicks
     if (idx >= 0 && idx < arr.length) arr[idx] = null
   }
@@ -734,13 +790,18 @@ function undo() {
 }
 
 function resetGame() {
-  games.value[currentGame.value] = createGameState()
+  const gi = currentGame.value
+  const isLast = (boFormat.value === 7 && gi === 6) || (boFormat.value === 9 && gi === 8)
+  games.value[gi] = createGameState(isLast, games.value[gi].firstPickSide)
   lastPickedHero.value = null
   startTimer()
 }
 
 function switchGame(index) {
   currentGame.value = index
+  if (games.value[index].blueSideTeam) {
+    blueSideTeam.value = games.value[index].blueSideTeam
+  }
   lastPickedHero.value = null
   startTimer()
 }
@@ -750,20 +811,78 @@ function swapSides() {
   ;[game.blueBans, game.redBans] = [game.redBans, game.blueBans]
   ;[game.bluePicks, game.redPicks] = [game.redPicks, game.bluePicks]
   game.blueIsFirst = !game.blueIsFirst
+  game.firstPickSide = game.firstPickSide === 'blue' ? 'red' : 'blue'
+  blueSideTeam.value = blueSideTeam.value === 'mixue' ? 'luckin' : 'mixue'
+}
+
+function firstToMatchPoint() {
+  const wins = { mixue: 0, luckin: 0 }
+  const mp = boFormat.value === 7 ? 3 : 4
+  for (const g of games.value) {
+    if (!g.winner) break
+    wins[g.winner]++
+    if (wins[g.winner] >= mp) return g.winner
+  }
+  return null
 }
 
 function markWin(side) {
-  currentGameObj.value.winner = side
+  const game = currentGameObj.value
+  game.winner = side === 'blue' ? blueSideTeam.value : redSideTeam.value
+  game.blueSideTeam = blueSideTeam.value
+  const gi = currentGame.value
+  const isBlindPickGame = (boFormat.value === 7 && gi === 6) || (boFormat.value === 9 && gi === 8)
+  const nextGi = gi + 1
+  if (nextGi >= games.value.length) return
+  const nextIsBlindPick = (boFormat.value === 7 && nextGi === 6) || (boFormat.value === 9 && nextGi === 8)
+  if (nextIsBlindPick) {
+    // 巅峰对决：先拿到赛点的队伍优先选边
+    const chooser = firstToMatchPoint()
+    if (chooser) {
+      sideChooseLoserTeam.value = chooser
+      sideChooseOpen.value = true
+    }
+  } else if (!isBlindPickGame) {
+    // 普通局：败方选边
+    const loserKey = side === 'blue' ? redSideTeam.value : blueSideTeam.value
+    sideChooseLoserTeam.value = loserKey
+    sideChooseOpen.value = true
+  }
+}
+
+// === 败方选边 ===
+const sideChooseOpen = ref(false)
+const sideChooseLoserTeam = ref(null)
+const sideChooseLabel = computed(() => {
+  const t = TEAMS[sideChooseLoserTeam.value]?.short || '败方'
+  const gi = currentGame.value + 1
+  const isBlindPickNext = (boFormat.value === 7 && gi === 6) || (boFormat.value === 9 && gi === 8)
+  if (isBlindPickNext) return `${t}（先拿到赛点）优先选边`
+  return `${t}（败方）选择阵营`
+})
+
+function chooseSide(sideChoice) {
+  const gi = currentGame.value + 1
+  if (gi >= games.value.length) return
+  // sideChoice: 'blueSide' = 败方选蓝方, 'redSide' = 败方选红方
+  const loserTeam = sideChooseLoserTeam.value
+  const nextBlueTeam = sideChoice === 'blueSide' ? loserTeam : (loserTeam === 'mixue' ? 'luckin' : 'mixue')
+  blueSideTeam.value = nextBlueTeam
+  const isLast = (boFormat.value === 7 && gi === 6) || (boFormat.value === 9 && gi === 8)
+  // 蓝方始终先 BP，败方选阵营只是决定谁坐哪边
+  const fps = 'blue'
+  Object.assign(games.value[gi], createGameState(isLast, fps))
+  games.value[gi].blueSideTeam = nextBlueTeam
+  sideChooseOpen.value = false
+  currentGame.value = gi
+  lastPickedHero.value = null
+  startTimer()
 }
 
 function isGameDone(index) {
   const game = games.value[index]
-  const seq = game.blindPick ? blindPickSequence : bpSequence
+  const seq = game.blindPick ? blindPickSequence : createBpSequence(game.firstPickSide)
   return game.currentStep >= seq.length
-}
-
-function getGameWinner(index) {
-  return games.value[index].winner
 }
 
 async function loadHeroes() {
@@ -1539,6 +1658,47 @@ onUnmounted(() => {
   .timer { font-size: 78px; }
   .action-bar button { min-height: 38px; }
 }
+
+:global(.side-choose-dialog .el-dialog),
+:global(.el-dialog.side-choose-dialog) {
+  border: 1px solid rgba(255, 255, 255, .7) !important;
+  border-radius: 0 !important;
+  background: rgba(232, 238, 249, .96) !important;
+  backdrop-filter: blur(22px);
+}
+:global(.side-choose-dialog .el-dialog__title),
+:global(.el-dialog.side-choose-dialog .el-dialog__title) {
+  color: #16202c !important;
+  font-weight: 900 !important;
+}
+:global(.el-dialog.side-choose-dialog .el-dialog__headerbtn .el-dialog__close) {
+  color: rgba(22, 32, 44, .48) !important;
+}
+.side-choose-desc { color: rgba(22, 32, 44, .58); font-size: 13px; margin-bottom: 20px; }
+.side-choose-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.side-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 18px;
+  border: 2px solid rgba(22, 32, 44, .1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .5);
+  cursor: pointer;
+  transition: all .2s;
+}
+.side-option:hover { border-color: var(--blue); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(103, 82, 215, .15); }
+.side-option-red:hover { border-color: var(--red); box-shadow: 0 8px 24px rgba(210, 90, 120, .15); }
+.side-option-indicator {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.side-option-indicator.blue { background: linear-gradient(135deg, var(--blue), var(--blue-bright)); }
+.side-option-indicator.red { background: linear-gradient(135deg, var(--red), var(--red-bright)); }
+.side-option strong { display: block; font-size: 18px; font-weight: 950; color: var(--ink); }
+.side-option small { display: block; margin-top: 3px; font-size: 11px; color: rgba(22, 32, 44, .48); }
 
 @media (max-width: 767px) {
   .bp-broadcast {

@@ -58,9 +58,11 @@
             @click="openHero(hero); selectedSkin = skin"
           >
             <img
-              :src="getHeroPoster(hero, skin)"
+              v-lazy
+              :data-src="getHeroPoster(hero, skin)"
               :alt="`${hero.heroName} 皮肤${skin}`"
               :style="getPosterStyle(hero)"
+              @load="$event.target.style.opacity = 1"
               @error="onPosterGridError($event, hero, skin - 1)"
             >
             <div class="poster-shade" />
@@ -85,7 +87,8 @@
           @click="openHero(hero)"
         >
           <img
-            :src="getHeroPoster(hero, 1)"
+            v-lazy
+            :data-src="getHeroPoster(hero, 1)"
             :alt="hero.heroName"
             :style="getPosterStyle(hero)"
             @load="onPosterLoad($event)"
@@ -118,7 +121,7 @@
               :key="currentArtUrl"
               :src="currentArtUrl"
               :alt="`${selectedHero.heroName} 原画`"
-              @load="artMissing = false"
+              @load="artMissing = false; $event.target.style.opacity = 1"
               @error="onArtError"
             >
             <div v-if="artMissing" class="art-missing-state">
@@ -150,6 +153,7 @@
                 <img
                   :src="getHeroPoster(selectedHero, skin)"
                   :alt="`${selectedHero.heroName} 皮肤 ${skin}`"
+                  @load="$event.target.style.opacity = 1"
                   @error="hideBrokenThumb($event, selectedHero, skin - 1)"
                 >
                 <span>{{ skin }}</span>
@@ -198,6 +202,27 @@ const artMissing = ref(false)
 
 const showAllSkins = ref(true)
 
+let imgObserver = null
+function initImgObserver() {
+  imgObserver = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue
+      const img = entry.target
+      const src = img.dataset.src
+      if (src) {
+        img.src = src
+        img.removeAttribute('data-src')
+      }
+      imgObserver.unobserve(img)
+    }
+  }, { rootMargin: '300px' })
+}
+
+const vLazy = {
+  mounted(el) { imgObserver?.observe(el) },
+  updated(el) { imgObserver?.observe(el) },
+}
+
 function selectRole(value) {
   activeRole.value = value
   nextTick(updatePill)
@@ -210,8 +235,8 @@ function updatePill() {
   const navRect = nav.getBoundingClientRect()
   const btnRect = btn.getBoundingClientRect()
   pillStyle.value = {
-    left: (btnRect.left - navRect.left) + 'px',
     width: btnRect.width + 'px',
+    transform: `translateX(${btnRect.left - navRect.left}px)`,
   }
 }
 
@@ -302,6 +327,8 @@ function onPosterLoad(event) {
   const img = event.target
   if (img.naturalWidth < 260 || img.naturalHeight < 260) {
     img.closest('.poster-card')?.classList.add('poster-missing')
+  } else {
+    img.style.opacity = 1
   }
 }
 
@@ -492,11 +519,13 @@ async function loadHeroes() {
 }
 
 onMounted(() => {
+  initImgObserver()
   loadHeroes()
   nextTick(updatePill)
   window.addEventListener('resize', updatePill)
 })
 onUnmounted(() => {
+  imgObserver?.disconnect()
   window.removeEventListener('resize', updatePill)
 })
 </script>
@@ -661,10 +690,11 @@ onUnmounted(() => {
 .role-pill {
   position: absolute;
   top: 4px;
+  left: 0;
   height: calc(100% - 8px);
   background: #1a1a1a;
   border-radius: 10px;
-  transition: left .36s cubic-bezier(.4,0,.2,1), width .36s cubic-bezier(.4,0,.2,1);
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
   z-index: 0;
   pointer-events: none;
 }
@@ -754,7 +784,8 @@ onUnmounted(() => {
   object-fit: cover;
   object-position: var(--poster-x, 50%) var(--poster-y, 15%);
   filter: saturate(.94) contrast(1.05);
-  transition: transform .35s ease, filter .35s ease;
+  opacity: 0;
+  transition: opacity .4s ease, transform .35s ease, filter .35s ease;
 }
 
 .poster-card:hover img {
@@ -874,6 +905,8 @@ onUnmounted(() => {
   height: 100%;
   min-height: 520px;
   object-fit: contain;
+  opacity: 0;
+  transition: opacity .4s ease;
 }
 
 .art-missing-state {
@@ -1013,6 +1046,8 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  opacity: 0;
+  transition: opacity .3s ease;
 }
 
 .skin-grid span {
