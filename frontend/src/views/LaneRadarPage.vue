@@ -1065,7 +1065,7 @@ onUnmounted(() => {
   object-position: center 12%;
   filter: saturate(1.04) contrast(1.04);
   opacity: 0;
-  transition: opacity .4s ease;
+  transition: opacity .15s ease;
 }
 .hero-panel.blue .matchup-hero-bg { object-position: 48% 12%; }
 .hero-panel.red .matchup-hero-bg { object-position: 52% 12%; }
@@ -1139,7 +1139,7 @@ onUnmounted(() => {
   object-fit: cover;
   box-shadow: 0 9px 22px rgba(0,0,0,.24);
   opacity: 0;
-  transition: opacity .4s ease;
+  transition: opacity .15s ease;
 }
 
 .side-stats {
@@ -1375,7 +1375,7 @@ onUnmounted(() => {
   border-radius: 50%;
   object-fit: cover;
   opacity: 0;
-  transition: opacity .4s ease;
+  transition: opacity .15s ease;
 }
 
 .orbit-hero b {
@@ -1609,7 +1609,7 @@ onUnmounted(() => {
   object-position: center 12%;
   filter: saturate(1.04) contrast(1.04);
   opacity: 0;
-  transition: opacity .4s ease;
+  transition: opacity .15s ease;
 }
 
 .hero-panel.blue :deep(.matchup-hero-bg) { object-position: 48% 12%; }
@@ -1786,7 +1786,7 @@ onUnmounted(() => {
   padding: 3px;
   border-radius: 50%;
   opacity: 0;
-  transition: opacity .4s ease;
+  transition: opacity .15s ease;
   background: rgba(255, 255, 255, .74);
   box-shadow: 0 8px 18px rgba(66, 78, 115, .14);
 }
