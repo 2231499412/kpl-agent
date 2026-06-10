@@ -1,7 +1,7 @@
 <template>
   <LoadingScreen />
   <transition name="sidebar-enter">
-    <SideBar v-if="route.meta.showSidebar" />
+    <SideBar v-if="route.meta.showSidebar && !(route.path === '/lane-radar' && isMobileLandscape)" />
   </transition>
   <router-view v-slot="{ Component, route: r }">
     <transition name="page-zoom">
@@ -21,7 +21,7 @@
   </div>
 
   <!-- 手机端回到首页 -->
-  <div v-if="route.meta.showSidebar" class="mobile-home-btn" :class="{ dark: isDark }" @click="router.push('/')" title="回到首页">
+  <div v-if="route.meta.showSidebar && !(route.path === '/lane-radar' && isMobileLandscape)" class="mobile-home-btn" :class="{ dark: isDark }" @click="router.push('/')" title="回到首页">
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10"/></svg>
   </div>
 </template>
@@ -39,6 +39,8 @@ const bgmAudio = ref(null)
 const isPlaying = ref(false)
 const showBackToTop = ref(false)
 const isDark = ref(false)
+const bgmMuted = ref(localStorage.getItem('bgm-muted') === 'true')
+const isMobileLandscape = ref(false)
 
 function checkScroll() {
   const sy = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0
@@ -55,8 +57,14 @@ function toggleBgm() {
   if (isPlaying.value) {
     bgmAudio.value.pause()
     isPlaying.value = false
+    bgmMuted.value = true
+    localStorage.setItem('bgm-muted', 'true')
   } else {
-    bgmAudio.value.play().then(() => { isPlaying.value = true }).catch(() => {})
+    bgmAudio.value.play().then(() => {
+      isPlaying.value = true
+      bgmMuted.value = false
+      localStorage.setItem('bgm-muted', 'false')
+    }).catch(() => {})
   }
 }
 
@@ -65,15 +73,19 @@ function detectTheme() {
   isDark.value = !!main
 }
 
+function checkMobileLandscape() {
+  isMobileLandscape.value = window.innerWidth <= 767 && window.innerWidth > window.innerHeight
+}
+
 function tryPlayBgm() {
-  if (!bgmAudio.value || isPlaying.value) return
+  if (!bgmAudio.value || isPlaying.value || bgmMuted.value) return
   bgmAudio.value.play().then(() => {
     isPlaying.value = true
   }).catch(() => {})
 }
 
 function onFirstInteraction() {
-  tryPlayBgm()
+  if (!bgmMuted.value) tryPlayBgm()
   document.removeEventListener('touchstart', onFirstInteraction)
   document.removeEventListener('click', onFirstInteraction)
   document.removeEventListener('keydown', onFirstInteraction)
@@ -82,12 +94,17 @@ function onFirstInteraction() {
 onMounted(() => {
   tryPlayBgm()
   // 移动端需要用户交互才能播放音频
-  document.addEventListener('touchstart', onFirstInteraction, { once: false })
-  document.addEventListener('click', onFirstInteraction, { once: false })
-  document.addEventListener('keydown', onFirstInteraction, { once: false })
+  if (!bgmMuted.value) {
+    document.addEventListener('touchstart', onFirstInteraction, { once: false })
+    document.addEventListener('click', onFirstInteraction, { once: false })
+    document.addEventListener('keydown', onFirstInteraction, { once: false })
+  }
   document.addEventListener('scroll', checkScroll, { passive: true })
   setInterval(checkScroll, 500)
   detectTheme()
+  checkMobileLandscape()
+  window.addEventListener('resize', checkMobileLandscape)
+  window.addEventListener('orientationchange', () => setTimeout(checkMobileLandscape, 100))
   const observer = new MutationObserver(detectTheme)
   observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] })
 })

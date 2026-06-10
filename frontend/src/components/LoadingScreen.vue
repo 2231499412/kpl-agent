@@ -609,23 +609,102 @@ h1 {
 
 @media (max-width: 760px) {
   .terminal-frame {
-    width: calc(100vw - 32px);
-    min-height: 430px;
-    padding: 28px;
+    width: calc(100vw - 24px);
+    min-height: auto;
+    padding: 20px 14px;
   }
 
   h1 {
-    font-size: 26px;
+    font-size: 20px;
+  }
+
+  .brand-mark {
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+  }
+
+  .brand-kicker {
+    font-size: 9px;
+    letter-spacing: 2px;
   }
 
   .locator-stage {
-    grid-template-columns: 1fr;
-    min-height: 360px;
-    padding-right: 18px;
+    min-height: 220px;
+    padding: 14px;
+  }
+
+  .locator-node {
+    width: 160px;
+    min-height: 60px;
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .locator-node:nth-of-type(1) {
+    left: 50%;
+    top: 8px;
+    transform: translateX(-72%);
+  }
+
+  .locator-node:nth-of-type(2) {
+    left: 50%;
+    top: 52px;
+    transform: translateX(-18%);
+  }
+
+  .locator-node:nth-of-type(3) {
+    left: 50%;
+    top: 96px;
+    transform: translateX(-58%);
+  }
+
+  .locator-node:nth-of-type(4) {
+    left: 50%;
+    top: 140px;
+    transform: translateX(-8%);
+  }
+
+  .locator-node small {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+  }
+
+  .locator-node strong {
+    font-size: 14px;
+    margin-top: 4px;
+  }
+
+  .locator-node span {
+    font-size: 10px;
   }
 
   .locator-readout {
     display: none;
+  }
+
+  .locator-bracket {
+    width: 72px;
+    height: 40px;
+    transform: translate(calc(var(--locator-x) - 36px), calc(var(--locator-y) - 20px));
+  }
+
+  .locator-bracket::before,
+  .locator-bracket::after {
+    width: 16px;
+  }
+
+  .locator-bracket::before {
+    left: -20px;
+  }
+
+  .locator-bracket::after {
+    right: -20px;
+  }
+
+  .status-row {
+    font-size: 10px;
+    letter-spacing: 0.5px;
   }
 }
 </style>

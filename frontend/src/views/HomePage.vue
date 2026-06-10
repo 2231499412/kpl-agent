@@ -48,9 +48,6 @@
             <router-link class="primary-link" to="/rankings">进入数据排名</router-link>
             <router-link :class="['ghost-link', { disabled: isAiDevMode }]" to="/agent">AI 复盘 <span v-if="isAiDevMode" class="dev-tag">开发中</span></router-link>
           </div>
-          <div v-if="panel.key === 'hero'" class="hero-credit">
-            <span>by <b>flylegends</b></span>
-          </div>
 
           <div v-if="panel.key === 'overview'" class="metric-grid">
             <div v-for="stat in stats" :key="stat.label" class="metric-card">

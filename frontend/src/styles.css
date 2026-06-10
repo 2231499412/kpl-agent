@@ -885,15 +885,20 @@ h1 {
 
 /* ─── 最近比赛 ─── */
 .recent-match-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 90px 1fr 50px 1fr;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 8px 0;
   border-bottom: 1px solid var(--line);
   font-size: 13px;
 }
 .rm-team {
-  flex: 1;
+  color: var(--text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .rm-team:last-child {
   text-align: right;
@@ -901,7 +906,6 @@ h1 {
 .rm-score {
   font-weight: 700;
   color: var(--text);
-  min-width: 40px;
   text-align: center;
 }
 
@@ -1041,6 +1045,12 @@ h1 {
 .bp-console.theme-light .picker-avatar-placeholder {
   background: rgba(0, 0, 0, 0.1);
   color: rgba(0, 0, 0, 0.35);
+}
+.theme-light .rm-team {
+  color: #1a1a1a !important;
+}
+.theme-light .rm-score {
+  color: #1a1a1a !important;
 }
 
 
