@@ -13,7 +13,7 @@
   <div class="bgm-control" :class="{ playing: isPlaying, dark: isDark, 'bgm-top': route.path === '/lane-radar', 'bgm-agent': route.path === '/agent' }" @click="toggleBgm" :title="isPlaying ? '暂停音乐' : '播放音乐'">
     <span class="bgm-bars"><i /><i /><i /><i /></span>
   </div>
-  <audio ref="bgmAudio" src="/bgm.mp3" loop preload="auto"></audio>
+  <audio ref="bgmAudio" src="https://music.163.com/song/media/outer/url?id=1361800752.mp3" loop preload="auto" @error="onBgmError"></audio>
 
   <!-- 回到顶部 -->
   <div v-if="route.path !== '/lane-radar'" class="back-to-top" :class="{ dark: isDark, 'back-top-agent': route.path === '/agent' }" @click="scrollToTop" title="回到顶部">
@@ -75,6 +75,11 @@ function detectTheme() {
 
 function checkMobileLandscape() {
   isMobileLandscape.value = window.innerWidth <= 767 && window.innerWidth > window.innerHeight
+}
+
+function onBgmError() {
+  if (!bgmAudio.value || bgmAudio.value.src.includes('/bgm.mp3')) return
+  bgmAudio.value.src = '/bgm.mp3'
 }
 
 function tryPlayBgm() {
