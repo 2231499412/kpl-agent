@@ -627,7 +627,9 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 }
 
 /* 英雄详情弹窗 */
-.detail-dialog { border-radius: 0; }
+.detail-dialog :deep(.el-dialog) {
+  border: 1px solid var(--c-line); border-radius: 0; background: var(--c-panel);
+}
 .detail-dialog :deep(.el-dialog__header) {
   border-bottom: 1px solid var(--c-line); padding: 14px 20px; margin: 0;
 }
