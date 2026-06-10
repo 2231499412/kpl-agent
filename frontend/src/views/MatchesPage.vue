@@ -696,16 +696,31 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
     white-space: nowrap;
   }
   .match-meta { justify-content: flex-start; flex-wrap: wrap; font-size: 11px; }
-  .battle-card { padding: 12px; }
-  .team-columns { grid-template-columns: 1fr; gap: 10px; }
-  .player-stats,
-  .equip-list { overflow-x: auto; flex-wrap: nowrap; }
-  :deep(.el-dialog) { width: calc(100vw - 16px) !important; }
+  .battle-card { padding: 10px; }
+  .battle-head { margin-bottom: 8px; padding-bottom: 6px; }
+  .battle-num { font-size: 13px; }
+  .battle-winner { font-size: 12px; }
+  .team-columns { grid-template-columns: 1fr; gap: 8px; }
+  .team-col-header { padding-bottom: 6px; margin-bottom: 2px; }
+  .team-col-name { font-size: 13px; }
+  .team-col-win { font-size: 10px; padding: 1px 4px; }
+  .player-card { padding: 8px 10px; }
+  .player-header { gap: 6px; margin-bottom: 4px; }
+  .hero-img { width: 24px; height: 24px; }
+  .player-header b { font-size: 12px; }
+  .player-header small { font-size: 10px; }
+  .player-stats { gap: 6px; font-size: 11px; margin-bottom: 3px; overflow-x: auto; flex-wrap: nowrap; }
+  .equip-list { overflow-x: auto; flex-wrap: nowrap; gap: 4px; }
+  .equip-chip { font-size: 10px; padding: 2px 5px; }
+  .equip-mini-icon { width: 14px; height: 14px; }
+  :deep(.el-dialog) { width: calc(100vw - 16px) !important; margin: 8px auto !important; }
+  :deep(.el-dialog__header) { padding: 10px 12px; }
+  :deep(.el-dialog__title) { font-size: 14px !important; }
   :deep(.el-dialog__body) {
     height: auto;
-    max-height: calc(86dvh - 60px);
+    max-height: calc(90dvh - 50px);
     min-height: 0;
-    padding: 12px;
+    padding: 10px;
   }
 }
 </style>
