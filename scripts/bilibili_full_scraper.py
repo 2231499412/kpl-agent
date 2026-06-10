@@ -120,14 +120,16 @@ class BilibiliScraper:
                 if 'bvid' not in item:
                     logger.warning(f"跳过无效条目（索引{i}）: 缺少bvid字段")
                     continue
+                if 'title' not in item:
+                    logger.warning(f"跳过无效条目（索引{i}）: 缺少title字段")
+                    continue
                 valid_videos.append(item)
 
             if not valid_videos:
                 logger.warning(f"视频列表文件为空或所有条目无效: {videos_file}")
                 return []
 
-            videos = valid_videos
-            logger.info(f"从文件加载了 {len(videos)} 个视频")
+            logger.info(f"从文件加载了 {len(valid_videos)} 个视频")
 
         except json.JSONDecodeError as e:
             logger.error(f"视频列表文件JSON格式错误: {videos_file}")
@@ -137,7 +139,7 @@ class BilibiliScraper:
             logger.error(f"读取视频列表文件失败: {videos_file}, {e}")
             return []
 
-        return videos
+        return valid_videos
 
     def fetch_video_info(self, bvid):
         """获取单个视频的详细信息"""
