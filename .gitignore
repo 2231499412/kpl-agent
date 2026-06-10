@@ -47,9 +47,27 @@ docker-compose.override.yml
 .env
 *.env
 !.env.example
+auth/
 .gstack/
 init-data-baota.sql
 
 ### Root images (reference only) ###
 /loading-bg.jpg
 /主页.jpg
+*.png
+
+### Data / SQL dumps ###
+*.sql
+*.sql.gz
+*.csv
+/data.txt
+/2020data.txt
+/export_data.py
+/scripts/
+/sql_chunks/
+
+### Audio ###
+*.mp3
+
+### Misc ###
+/原皮与23-24.txt

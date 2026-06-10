@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -88,6 +89,54 @@ public class HeroStatsTool {
         result.put("count", players.size());
         result.put("data", players);
         return result;
+    }
+
+    /** Aggregates the data blocks used by the hero detail page. */
+    public Map<String, Object> queryHeroDetail(Integer heroId, String heroName, String leagueId, int limit) {
+        HeroStats hero = findHero(heroId, heroName, leagueId);
+        if (hero == null) {
+            return Map.of(
+                    "type", "hero_detail",
+                    "keyword", heroName != null ? heroName : String.valueOf(heroId),
+                    "error", "hero not found"
+            );
+        }
+
+        int rowLimit = Math.max(1, Math.min(limit, 20));
+        int minGames = 3;
+        Integer resolvedHeroId = hero.getHeroId();
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("type", "hero_detail");
+        result.put("keyword", hero.getHeroName());
+        result.put("hero", hero);
+        result.put("userCount", nullToZero(battlePlayerMapper.countHeroUsers(resolvedHeroId, leagueId)));
+        result.put("topPlayers", battlePlayerMapper.heroPlayerLeaderboard(resolvedHeroId, leagueId, minGames, rowLimit));
+        result.put("featuredBattles", battlePlayerMapper.heroFeaturedBattles(resolvedHeroId, leagueId, rowLimit));
+        result.put("synergyHeroes", battlePlayerMapper.heroSynergy(resolvedHeroId, leagueId, 2, rowLimit));
+        result.put("favoredCounters", battlePlayerMapper.heroFavoredCounters(resolvedHeroId, leagueId, 2, rowLimit));
+        result.put("toughCounters", battlePlayerMapper.heroToughCounters(resolvedHeroId, leagueId, 2, rowLimit));
+        return result;
+    }
+
+    private HeroStats findHero(Integer heroId, String heroName, String leagueId) {
+        LambdaQueryWrapper<HeroStats> wrapper = new LambdaQueryWrapper<HeroStats>()
+                .eq(HeroStats::getLeagueId, leagueId);
+        if (heroId != null) {
+            wrapper.eq(HeroStats::getHeroId, heroId);
+        } else if (heroName != null && !heroName.isBlank()) {
+            wrapper.like(HeroStats::getHeroName, heroName);
+        } else {
+            return null;
+        }
+        return heroStatsMapper.selectList(wrapper.orderByDesc(HeroStats::getPickRate).last("LIMIT 1"))
+                .stream()
+                .findFirst()
+                .orElse(null);
+    }
+
+    private int nullToZero(Integer value) {
+        return value == null ? 0 : value;
     }
 
     private Map<String, Object> buildResult(String type, String keyword, List<HeroStats> list) {

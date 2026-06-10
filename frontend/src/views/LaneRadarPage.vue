@@ -1015,7 +1015,7 @@ onUnmounted(() => {
   height: calc(100dvh - 98px);
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(168px, 252px) minmax(560px, 1fr) minmax(168px, 252px);
+  grid-template-columns: 240px 1fr 240px;
   gap: 8px;
   margin: 0 auto;
   overflow: hidden;
@@ -1045,6 +1045,7 @@ onUnmounted(() => {
 .hero-panel,
 .radar-poster {
   min-height: 0;
+  min-width: 0;
   height: 100%;
   overflow: hidden;
   border: 1px solid var(--mono-line);
@@ -1299,6 +1300,9 @@ onUnmounted(() => {
 .radar-arena {
   position: relative;
   min-height: 0;
+  display: grid;
+  grid-template-columns: 132px 1fr 132px;
+  align-items: center;
 }
 
 .radar-svg {
@@ -1309,6 +1313,7 @@ onUnmounted(() => {
   max-width: 100%;
   transform: translate(-50%, -48%);
   overflow: visible;
+  pointer-events: none;
 }
 
 .summary-hero-orbit {
@@ -1395,18 +1400,14 @@ onUnmounted(() => {
 }
 
 .radar-highlights {
-  position: absolute;
-  z-index: 2;
-  inset: 96px 56px 118px;
-  display: grid;
-  grid-template-columns: 132px 1fr 132px;
-  align-items: center;
-  pointer-events: none;
+  display: contents;
 }
 
 .highlight-column {
   display: grid;
   gap: 10px;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .highlight-column.left { grid-column: 1; }
@@ -2034,7 +2035,7 @@ onUnmounted(() => {
 
 @media (max-width: 1280px) {
   .poster-shell {
-    grid-template-columns: minmax(160px, 220px) minmax(520px, 1fr) minmax(160px, 220px);
+    grid-template-columns: 220px 1fr 220px;
   }
   .scoreboard {
     min-height: 66px;
@@ -2757,12 +2758,11 @@ onUnmounted(() => {
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
   }
-  .radar-highlights {
-    inset: 74px 10px 54px !important;
-    display: grid !important;
+  .radar-arena {
     grid-template-columns: 86px 1fr 86px !important;
-    align-items: center !important;
-    pointer-events: none !important;
+  }
+  .radar-highlights {
+    display: contents !important;
   }
   .highlight-column {
     gap: 6px !important;

@@ -50,6 +50,18 @@ const routes = [
     meta: { title: 'KPL - 英雄原画画廊', showSidebar: true }
   },
   {
+    path: '/hero-insights',
+    name: 'hero-insights',
+    component: () => import('../views/HeroInsightsPage.vue'),
+    meta: { title: 'KPL - 英雄数据详情', showSidebar: true }
+  },
+  {
+    path: '/player-insights',
+    name: 'player-insights',
+    component: () => import('../views/PlayerInsightsPage.vue'),
+    meta: { title: 'KPL - 选手数据详情', showSidebar: true }
+  },
+  {
     path: '/bp-simulator',
     name: 'bp-simulator',
     component: () => import('../views/BpSimulatorPage.vue'),

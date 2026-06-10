@@ -50,6 +50,8 @@ const navItems = [
   { id: 'bp-analysis', label: 'BP分析', icon: 'DataAnalysis', route: '/bp-analysis' },
   { id: 'equipment', label: '装备分析', icon: 'Box', route: '/equipment' },
   { id: 'tier-list', label: '梯度榜', icon: 'Histogram', route: '/tier-list' },
+  { id: 'hero-insights', label: '英雄详情', icon: 'DataLine', route: '/hero-insights' },
+  { id: 'player-insights', label: '选手详情', icon: 'User', route: '/player-insights' },
   { id: 'hero-gallery', label: '原画画廊', icon: 'Picture', route: '/hero-gallery' },
   { id: 'lane-radar', label: '对位雷达', icon: 'Aim', route: '/lane-radar' },
   { id: 'bp-simulator', label: 'BP模拟器', icon: 'Operation', route: '/bp-simulator' },
@@ -234,7 +236,7 @@ const activeNav = computed(() => {
 
   .sidebar-nav {
     display: grid;
-    grid-template-columns: repeat(9, minmax(0, 1fr));
+    grid-template-columns: repeat(11, minmax(0, 1fr));
     width: 100%;
     padding: 0;
     overflow: visible;
