@@ -1043,6 +1043,25 @@ h1 {
   color: rgba(0, 0, 0, 0.35);
 }
 
+/* ─── 梯度榜/装备弹窗亮色覆盖 ─── */
+.tier-console.theme-light .detail-dialog .el-dialog,
+.equip-tier-console.theme-light .detail-dialog .el-dialog {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+}
+.tier-console.theme-light .detail-dialog .el-dialog__title,
+.equip-tier-console.theme-light .detail-dialog .el-dialog__title {
+  color: #1a1a1a !important;
+}
+.tier-console.theme-light .detail-dialog .el-dialog__headerbtn .el-dialog__close,
+.equip-tier-console.theme-light .detail-dialog .el-dialog__headerbtn .el-dialog__close {
+  color: rgba(0, 0, 0, 0.45) !important;
+}
+.tier-console.theme-light .detail-dialog .el-dialog__header,
+.equip-tier-console.theme-light .detail-dialog .el-dialog__header {
+  border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+}
+
 /* ─── 装备详情 ─── */
 .equip-section {
   margin-bottom: 16px;
