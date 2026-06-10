@@ -46,8 +46,12 @@ class BilibiliScraper:
 
     def connect_db(self):
         """连接数据库"""
-        self.conn = pymysql.connect(**DB_CONFIG)
-        logger.info("数据库连接成功")
+        try:
+            self.conn = pymysql.connect(**DB_CONFIG)
+            logger.info("数据库连接成功")
+        except pymysql.Error as e:
+            logger.error(f"数据库连接失败: {e}")
+            raise
 
     def close_db(self):
         """关闭数据库连接"""
@@ -57,25 +61,32 @@ class BilibiliScraper:
 
     def load_progress(self):
         """加载进度"""
-        if Path(PROGRESS_FILE).exists():
-            with open(PROGRESS_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        return {
+        default_progress = {
             'last_processed_league_id': None,
             'last_processed_match_id': None,
             'total_processed': 0,
             'total_matched': 0
         }
+        try:
+            if Path(PROGRESS_FILE).exists():
+                with open(PROGRESS_FILE, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning(f"加载进度文件失败，使用默认进度: {e}")
+        return default_progress
 
     def save_progress(self):
         """保存进度"""
-        with open(PROGRESS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(self.progress, f, ensure_ascii=False, indent=2)
+        try:
+            with open(PROGRESS_FILE, 'w', encoding='utf-8') as f:
+                json.dump(self.progress, f, ensure_ascii=False, indent=2)
+        except IOError as e:
+            logger.error(f"保存进度文件失败: {e}")
 
-    def fetch_video_list_from_browser(self, league_keyword):
+    def load_video_list(self, league_keyword):
         """
-        使用浏览器获取B站视频列表
-        返回: [{'bvid': 'BV1xxx', 'title': '标题', 'date': '日期'}, ...]
+        从本地文件加载B站视频列表
+        返回: [{'bvid': 'BV1xxx', 'title': '标题'}, ...]
         """
         videos = []
         page = 1
@@ -299,7 +310,7 @@ class BilibiliScraper:
             self.connect_db()
 
             # 获取视频列表
-            videos = self.fetch_video_list_from_browser("KPL")
+            videos = self.load_video_list("KPL")
 
             logger.info(f"获取到 {len(videos)} 个视频")
 
