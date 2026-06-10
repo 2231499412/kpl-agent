@@ -158,8 +158,8 @@ class BilibiliScraper:
 
     def extract_teams_from_title(self, title):
         """从视频标题提取队伍名称"""
-        # 匹配模式：【赛事】日期 队伍1 VS 队伍2
-        pattern = r'【.+?】(\d+月\d+日)\s+(.+?)\s+VS\s+(.+)'
+        # 匹配模式：【赛事】日期 [可选文字] 队伍1 VS/vs 队伍2
+        pattern = r'【.+?】(\d+月\d+日)\s+.*?(.+?)\s+[Vv][Ss]\s+(.+)'
         match = re.search(pattern, title)
         if match:
             date_str = match.group(1)
