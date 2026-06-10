@@ -627,28 +627,28 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 }
 
 /* 英雄详情弹窗 */
-.detail-dialog :deep(.el-dialog) {
-  border: 1px solid var(--c-line); border-radius: 0; background: var(--c-panel);
+:global(.detail-dialog .el-dialog) {
+  border: 1px solid var(--mono-line); border-radius: 0; background: var(--mono-panel);
 }
-.detail-dialog :deep(.el-dialog__header) {
-  border-bottom: 1px solid var(--c-line); padding: 14px 20px; margin: 0;
+:global(.detail-dialog .el-dialog__header) {
+  border-bottom: 1px solid var(--mono-line); padding: 14px 20px; margin: 0;
 }
-.detail-dialog :deep(.el-dialog__body) { padding: 20px; }
-.detail-dialog :deep(.el-dialog__title) { color: var(--c-ink); font-weight: 900; }
-.detail-dialog :deep(.el-dialog__headerbtn .el-dialog__close) { color: var(--c-soft); }
+:global(.detail-dialog .el-dialog__body) { padding: 20px; }
+:global(.detail-dialog .el-dialog__title) { color: var(--mono-ink); font-weight: 900; }
+:global(.detail-dialog .el-dialog__headerbtn .el-dialog__close) { color: var(--mono-soft); }
 .detail-profile { margin-bottom: 16px; }
-.profile-card { padding: 16px; border: 1px solid var(--c-line); background: var(--c-card); }
+.profile-card { padding: 16px; border: 1px solid var(--mono-line); background: var(--stat-bg); }
 .profile-header { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
-.profile-avatar { width: 48px; height: 48px; border: 1px solid var(--c-line); object-fit: cover; }
-.profile-header b { font-size: 16px; display: block; color: var(--c-ink); }
-.profile-header small { color: var(--c-dim); font-size: 12px; }
+.profile-avatar { width: 48px; height: 48px; border: 1px solid var(--mono-line); object-fit: cover; }
+.profile-header b { font-size: 16px; display: block; color: var(--mono-ink); }
+.profile-header small { color: var(--mono-dim); font-size: 12px; }
 .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .stat-item {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: 8px; border: 1px solid var(--c-line); background: var(--c-card);
+  padding: 8px; border: 1px solid var(--mono-line); background: var(--card-bg);
 }
-.sv { font-size: 16px; font-weight: 800; color: var(--c-ink); }
-.sl { font-size: 10px; color: var(--c-dim); font-weight: 600; }
+.sv { font-size: 16px; font-weight: 800; color: var(--mono-ink); }
+.sl { font-size: 10px; color: var(--mono-dim); font-weight: 600; }
 .tier-badge {
   padding: 2px 8px; border-radius: 3px; color: #fff; font-size: 11px; font-weight: 900;
 }
@@ -660,7 +660,7 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 .tier-badge.tier-t4 { background: #95a5a6; }
 .role-tag {
   padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700;
-  background: var(--c-card); color: var(--c-soft);
+  background: var(--card-bg); color: var(--mono-soft);
 }
 .equip-section { margin-top: 16px; }
 .equip-section h4 { font-size: 12px; font-weight: 800; color: var(--c-dim); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 10px; }
@@ -668,11 +668,11 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 .player-chip {
   display: grid; grid-template-columns: 1fr 1fr 60px 60px;
   align-items: center; gap: 8px; padding: 8px 10px;
-  border: 1px solid var(--c-line); background: var(--c-card);
+  border: 1px solid var(--mono-line); background: var(--card-bg);
   font-size: 12px;
 }
-.p-name { font-weight: 700; color: var(--c-ink); }
-.p-team { color: var(--c-soft); }
+.p-name { font-weight: 700; color: var(--mono-ink); }
+.p-team { color: var(--mono-soft); }
 .p-wr { font-weight: 700; text-align: center; color: var(--c-ink); }
 .p-wr.wr-high { color: #27ae60; }
 .p-wr.wr-low { color: #e74c3c; }
