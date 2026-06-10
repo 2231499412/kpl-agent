@@ -12,9 +12,6 @@
         </div>
       </div>
       <div class="status-line">
-        <el-select v-model="selectedLeagueId" class="league-select" placeholder="选择赛事" @change="onLeagueChange">
-          <el-option v-for="l in leagues" :key="l.leagueId" :label="l.leagueName" :value="l.leagueId" />
-        </el-select>
         <button class="theme-toggle" :title="theme === 'light' ? '切换暗色' : '切换亮色'" @click="theme = theme === 'light' ? 'dark' : 'light'">
           <span class="toggle-track" :class="{ on: theme === 'dark' }"><span class="toggle-thumb" /></span>
           <small>{{ theme === 'light' ? 'LIGHT' : 'DARK' }}</small>
@@ -137,8 +134,7 @@ import { getTheme, setTheme } from '../utils/theme'
 const theme = ref(getTheme())
 watch(theme, (v) => setTheme(v))
 
-const leagues = ref([])
-const selectedLeagueId = ref('')
+const selectedLeagueId = ref('20260002')
 const equipList = ref([])
 const loading = ref(false)
 const activeRole = ref('all')
@@ -265,19 +261,10 @@ const flatEquips = computed(() => {
 const detailTitle = computed(() => detailData.value?.equipName || '装备详情')
 
 async function init() {
-  try {
-    const res = await fetch('/api/leagues?limit=50')
-    const data = await res.json()
-    leagues.value = data?.data || []
-    if (leagues.value.length) {
-      selectedLeagueId.value = leagues.value[0].leagueId
-      await loadEquipRanking()
-    }
-  } catch { /* ignore */ }
+  await loadEquipRanking()
 }
 
 async function loadEquipRanking() {
-  if (!selectedLeagueId.value) return
   loading.value = true
   try {
     const res = await fetch(`/api/query/equip/top?leagueId=${selectedLeagueId.value}&limit=100`)
@@ -285,10 +272,6 @@ async function loadEquipRanking() {
     equipList.value = data?.data?.data || []
   } catch { equipList.value = [] }
   loading.value = false
-}
-
-function onLeagueChange() {
-  loadEquipRanking()
 }
 
 async function openDetail(item) {
@@ -391,7 +374,6 @@ onUnmounted(() => {
 .eyebrow { margin: 0; color: var(--c-dim); font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
 h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 .status-line { display: flex; align-items: center; gap: 12px; }
-.league-select { width: 220px; }
 .theme-toggle {
   display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; background: none; cursor: pointer;
   color: var(--c-dim); font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
@@ -640,7 +622,6 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
   }
   .brand-mark { width: 34px; height: 34px; font-size: 16px; }
   h1 { font-size: 17px; }
-  .league-select { width: 132px; }
   .theme-toggle small { display: none; }
 
   .role-tabs { gap: 4px; padding: 3px; }
