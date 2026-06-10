@@ -627,15 +627,22 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 }
 
 /* 英雄详情弹窗 */
-.detail-dialog :deep(.el-dialog) {
-  border: 1px solid var(--c-line); border-radius: 0; background: var(--c-panel);
+.tier-console :deep(.detail-dialog.el-dialog) {
+  border: 1px solid var(--c-line) !important;
+  border-radius: 0 !important;
+  background: #fff !important;
 }
-.detail-dialog :deep(.el-dialog__header) {
-  border-bottom: 1px solid var(--c-line); padding: 14px 20px; margin: 0;
+.tier-console.theme-dark :deep(.detail-dialog.el-dialog) {
+  background: rgba(18, 18, 18, 0.95) !important;
 }
-.detail-dialog :deep(.el-dialog__body) { padding: 20px; }
-.detail-dialog :deep(.el-dialog__title) { color: var(--c-ink); font-weight: 900; }
-.detail-dialog :deep(.el-dialog__headerbtn .el-dialog__close) { color: var(--c-soft); }
+.tier-console :deep(.detail-dialog .el-dialog__header) {
+  border-bottom: 1px solid var(--c-line);
+  padding: 14px 20px;
+  margin: 0;
+}
+.tier-console :deep(.detail-dialog .el-dialog__body) { padding: 20px; }
+.tier-console :deep(.detail-dialog .el-dialog__title) { color: var(--c-ink); font-weight: 900; }
+.tier-console :deep(.detail-dialog .el-dialog__headerbtn .el-dialog__close) { color: var(--c-soft); }
 .detail-profile { margin-bottom: 16px; }
 .profile-card { padding: 16px; border: 1px solid var(--c-line); background: var(--c-card); }
 .profile-header { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
