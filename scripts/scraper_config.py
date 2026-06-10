@@ -17,7 +17,7 @@ BILIBILI_API_BASE = "https://api.bilibili.com"
 
 # 请求频率控制
 REQUEST_DELAY = 0.5  # 每次请求间隔（秒）
-BATCH休息 = 5  # 每100次请求休息时间（秒）
+BATCH_REST_SECONDS = 5  # 每100次请求休息时间（秒）
 REQUESTS_PER_BATCH = 100  # 每批请求数量
 
 # 匹配规则
