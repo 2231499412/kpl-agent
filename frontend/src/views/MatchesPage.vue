@@ -562,7 +562,7 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
-.team-col { display: flex; flex-direction: column; gap: 6px; }
+.team-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .team-col-header {
   display: flex;
   align-items: center;
@@ -588,6 +588,8 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
   padding: 10px 12px;
   border: 1px solid var(--mono-line);
   background: var(--card-bg);
+  overflow: hidden;
+  min-width: 0;
 }
 .player-card.camp-blue { border-left: 3px solid var(--mono-ink); }
 .player-card.camp-red { border-left: 3px solid var(--mono-dim); }
@@ -704,15 +706,15 @@ h1 { margin: 0; color: var(--mono-ink); font-size: 20px; font-weight: 900; }
   .team-col-header { padding-bottom: 6px; margin-bottom: 2px; }
   .team-col-name { font-size: 13px; }
   .team-col-win { font-size: 10px; padding: 1px 4px; }
-  .player-card { padding: 8px 10px; }
-  .player-header { gap: 6px; margin-bottom: 4px; }
-  .hero-img { width: 24px; height: 24px; }
-  .player-header b { font-size: 12px; }
-  .player-header small { font-size: 10px; }
-  .player-stats { gap: 6px; font-size: 11px; margin-bottom: 3px; overflow-x: auto; flex-wrap: nowrap; }
-  .equip-list { overflow-x: auto; flex-wrap: nowrap; gap: 4px; }
-  .equip-chip { font-size: 10px; padding: 2px 5px; }
-  .equip-mini-icon { width: 14px; height: 14px; }
+  .player-card { padding: 8px 10px; overflow: hidden; }
+  .player-header { gap: 6px; margin-bottom: 4px; min-width: 0; }
+  .hero-img { width: 24px; height: 24px; flex-shrink: 0; }
+  .player-header b { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .player-header small { font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .player-stats { gap: 4px; font-size: 11px; margin-bottom: 3px; overflow-x: auto; flex-wrap: nowrap; min-width: 0; -webkit-overflow-scrolling: touch; }
+  .equip-list { overflow-x: auto; flex-wrap: nowrap; gap: 4px; min-width: 0; -webkit-overflow-scrolling: touch; }
+  .equip-chip { font-size: 10px; padding: 2px 5px; white-space: nowrap; flex-shrink: 0; }
+  .equip-mini-icon { width: 14px; height: 14px; flex-shrink: 0; }
   :deep(.el-dialog) { width: calc(100vw - 16px) !important; margin: 8px auto !important; }
   :deep(.el-dialog__header) { padding: 10px 12px; }
   :deep(.el-dialog__title) { font-size: 14px !important; }
