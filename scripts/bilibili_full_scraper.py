@@ -88,28 +88,54 @@ class BilibiliScraper:
         从本地文件加载B站视频列表
         返回: [{'bvid': 'BV1xxx', 'title': '标题'}, ...]
         """
-        videos = []
-        page = 1
-        max_pages = 50
+        videos_file = Path(f"videos_{league_keyword}.json")
+        logger.info(f"尝试加载视频列表文件: {videos_file}")
 
-        while page <= max_pages:
-            url = f"https://space.bilibili.com/{BILIBILI_UID}/video?keyword={league_keyword}&pn={page}"
-            logger.info(f"获取视频列表第{page}页: {url}")
+        # 检查文件是否存在
+        if not videos_file.exists():
+            logger.warning(f"视频列表文件不存在: {videos_file}")
+            logger.warning(f"请按以下步骤创建视频列表文件:")
+            logger.warning(f"  1. 访问 B站空间页面: https://space.bilibili.com/{BILIBILI_UID}/video")
+            logger.warning(f"  2. 搜索关键词: {league_keyword}")
+            logger.warning(f"  3. 提取视频列表，格式: [{{'bvid': 'BV1xxx', 'title': '标题'}}, ...]")
+            logger.warning(f"  4. 保存到文件: {videos_file}")
+            return []
 
-            # 尝试从本地文件读取视频列表
-            videos_file = Path(f"videos_{league_keyword}.json")
-            if videos_file.exists():
-                with open(videos_file, 'r', encoding='utf-8') as f:
-                    saved_videos = json.load(f)
-                    videos.extend(saved_videos)
-                    logger.info(f"从文件加载了 {len(saved_videos)} 个视频")
-                break
+        # 读取并验证文件
+        try:
+            with open(videos_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
 
-            logger.warning(f"浏览器爬取需要手动实现，请使用以下方式获取视频列表:")
-            logger.warning(f"1. 访问 {url}")
-            logger.warning(f"2. 提取视频列表")
-            logger.warning(f"3. 保存到 videos_{{keyword}}.json 文件")
-            break
+            # 验证数据格式
+            if not isinstance(data, list):
+                logger.error(f"视频列表文件格式错误: {videos_file}，期望JSON数组格式")
+                return []
+
+            # 验证每个视频条目
+            valid_videos = []
+            for i, item in enumerate(data):
+                if not isinstance(item, dict):
+                    logger.warning(f"跳过无效条目（索引{i}）: 非字典类型")
+                    continue
+                if 'bvid' not in item:
+                    logger.warning(f"跳过无效条目（索引{i}）: 缺少bvid字段")
+                    continue
+                valid_videos.append(item)
+
+            if not valid_videos:
+                logger.warning(f"视频列表文件为空或所有条目无效: {videos_file}")
+                return []
+
+            videos = valid_videos
+            logger.info(f"从文件加载了 {len(videos)} 个视频")
+
+        except json.JSONDecodeError as e:
+            logger.error(f"视频列表文件JSON格式错误: {videos_file}")
+            logger.error(f"错误详情: {e}")
+            return []
+        except IOError as e:
+            logger.error(f"读取视频列表文件失败: {videos_file}, {e}")
+            return []
 
         return videos
 
