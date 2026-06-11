@@ -18,6 +18,9 @@ public class Battle {
     /** 第几局 */
     private Integer battleSeq;
 
+    /** B站视频BV号 */
+    private String bvid;
+
     /** 获胜方：1/2 */
     private Integer winCamp;
 

@@ -49,7 +49,7 @@ public class QueryController {
             @RequestParam(required = false) String leagueId,
             @RequestParam(defaultValue = "8") int limit) {
         String lid = leagueQueryService.requireLeagueId(leagueId);
-        return ApiResponse.ok(cached("playerDetail",
+        return ApiResponse.ok(cached("playerDetailV2",
                 () -> playerStatsTool.queryPlayerDetail(name, lid, limit),
                 lid, name, limit));
     }

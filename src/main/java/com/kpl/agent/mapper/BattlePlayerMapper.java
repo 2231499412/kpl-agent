@@ -127,6 +127,64 @@ public interface BattlePlayerMapper extends BaseMapper<BattlePlayer> {
                                                 @Param("leagueId") String leagueId);
 
     @Select("""
+            SELECT m.league_id AS leagueId,
+                   MAX(l.league_name) AS leagueName,
+                   MAX(l.year) AS year,
+                   MAX(l.season) AS season,
+                   MIN(COALESCE(l.start_time, m.start_time)) AS startTime,
+                   COUNT(*) AS games,
+                   SUM(CASE WHEN bp.camp = b.win_camp THEN 1 ELSE 0 END) AS wins,
+                   ROUND(SUM(CASE WHEN bp.camp = b.win_camp THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS winRate,
+                   ROUND(AVG(bp.kda), 2) AS avgKda,
+                   ROUND(AVG(bp.kill_num), 2) AS avgKill,
+                   ROUND(AVG(bp.death_num), 2) AS avgDeath,
+                   ROUND(AVG(bp.assist_num), 2) AS avgAssist,
+                   ROUND(AVG(bp.gold), 2) AS avgGold,
+                   ROUND(AVG(bp.participation_rate), 4) AS avgParticipationRate,
+                   COUNT(DISTINCT bp.hero_id) AS heroCount
+            FROM battle_player bp
+            JOIN battle b ON bp.battle_id = b.battle_id
+            JOIN `match` m ON b.match_id = m.match_id
+            LEFT JOIN league l ON l.league_id = m.league_id
+            WHERE (bp.player_name LIKE CONCAT('%', #{playerName}, '%')
+                OR SUBSTRING_INDEX(bp.player_name, '.', -1) = #{playerName})
+            GROUP BY m.league_id
+            HAVING games >= 1
+            ORDER BY startTime DESC
+            LIMIT #{limit}
+            """)
+    List<Map<String, Object>> playerLeagueTimeline(@Param("playerName") String playerName,
+                                                    @Param("limit") int limit);
+
+    @Select("""
+            SELECT m.league_id AS leagueId,
+                   MAX(l.league_name) AS leagueName,
+                   bp.hero_id AS heroId,
+                   MAX(bp.hero_name) AS heroName,
+                   COUNT(*) AS games,
+                   SUM(CASE WHEN bp.camp = b.win_camp THEN 1 ELSE 0 END) AS wins,
+                   ROUND(SUM(CASE WHEN bp.camp = b.win_camp THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS winRate,
+                   ROUND(AVG(bp.kda), 2) AS avgKda,
+                   ROUND(AVG(bp.kill_num), 2) AS avgKill,
+                   ROUND(AVG(bp.death_num), 2) AS avgDeath,
+                   ROUND(AVG(bp.assist_num), 2) AS avgAssist,
+                   MIN(COALESCE(l.start_time, m.start_time)) AS startTime
+            FROM battle_player bp
+            JOIN battle b ON bp.battle_id = b.battle_id
+            JOIN `match` m ON b.match_id = m.match_id
+            LEFT JOIN league l ON l.league_id = m.league_id
+            WHERE (bp.player_name LIKE CONCAT('%', #{playerName}, '%')
+                OR SUBSTRING_INDEX(bp.player_name, '.', -1) = #{playerName})
+            GROUP BY m.league_id, bp.hero_id
+            HAVING games >= #{minGames}
+            ORDER BY startTime DESC, games DESC, winRate DESC
+            LIMIT #{limit}
+            """)
+    List<Map<String, Object>> playerLeagueHeroMatrix(@Param("playerName") String playerName,
+                                                      @Param("minGames") int minGames,
+                                                      @Param("limit") int limit);
+
+    @Select("""
             SELECT bp.battle_id AS battleId,
                    b.match_id AS matchId,
                    b.battle_seq AS battleSeq,
@@ -245,6 +303,8 @@ public interface BattlePlayerMapper extends BaseMapper<BattlePlayer> {
             SELECT bp.battle_id AS battleId,
                    b.match_id AS matchId,
                    b.battle_seq AS battleSeq,
+                   b.bvid AS bvid,
+                   b.page_num AS pageNum,
                    b.game_duration AS gameDuration,
                    m.match_stage AS matchStage,
                    m.match_stage_desc AS matchStageDesc,

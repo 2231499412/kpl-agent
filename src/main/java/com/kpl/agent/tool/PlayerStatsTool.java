@@ -124,6 +124,8 @@ public class PlayerStatsTool {
         result.put("recentGames", battlePlayerMapper.playerRecentGames(resolvedName, leagueId, 10));
         result.put("heroPool", battlePlayerMapper.playerHeroStats(resolvedName, leagueId, rowLimit));
         result.put("stageStats", battlePlayerMapper.playerStageStats(resolvedName, leagueId));
+        result.put("leagueTimeline", battlePlayerMapper.playerLeagueTimeline(resolvedName, 12));
+        result.put("leagueHeroMatrix", battlePlayerMapper.playerLeagueHeroMatrix(resolvedName, 1, 120));
         result.put("featuredBattles", battlePlayerMapper.playerFeaturedBattles(resolvedName, leagueId, rowLimit));
         result.put("positionComparison", buildPositionComparison(player, leagueId));
         return result;

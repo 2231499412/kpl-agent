@@ -86,7 +86,7 @@ class BilibiliScraper:
     def load_video_list(self, league_keyword):
         """
         从本地文件加载B站视频列表
-        返回: [{'bvid': 'BV1xxx', 'title': '标题'}, ...]
+        返回: [{'bvid': 'BV1xxx', 'title': '标题'}, ...] 或 [{'av': '123456', 'title': '标题'}, ...]
         """
         videos_file = Path(f"videos_{league_keyword}.json")
         logger.info(f"尝试加载视频列表文件: {videos_file}")
@@ -97,7 +97,7 @@ class BilibiliScraper:
             logger.warning(f"请按以下步骤创建视频列表文件:")
             logger.warning(f"  1. 访问 B站空间页面: https://space.bilibili.com/{BILIBILI_UID}/video")
             logger.warning(f"  2. 搜索关键词: {league_keyword}")
-            logger.warning(f"  3. 提取视频列表，格式: [{{'bvid': 'BV1xxx', 'title': '标题'}}, ...]")
+            logger.warning(f"  3. 提取视频列表，格式: [{{'bvid': 'BV1xxx', 'title': '标题'}}] 或 [{{'av': '123456', 'title': '标题'}}]")
             logger.warning(f"  4. 保存到文件: {videos_file}")
             return []
 
@@ -117,11 +117,12 @@ class BilibiliScraper:
                 if not isinstance(item, dict):
                     logger.warning(f"跳过无效条目（索引{i}）: 非字典类型")
                     continue
-                if 'bvid' not in item:
-                    logger.warning(f"跳过无效条目（索引{i}）: 缺少bvid字段")
-                    continue
                 if 'title' not in item:
                     logger.warning(f"跳过无效条目（索引{i}）: 缺少title字段")
+                    continue
+                # 支持bvid或av字段
+                if 'bvid' not in item and 'av' not in item:
+                    logger.warning(f"跳过无效条目（索引{i}）: 缺少bvid或av字段")
                     continue
                 valid_videos.append(item)
 
@@ -141,19 +142,28 @@ class BilibiliScraper:
 
         return valid_videos
 
-    def fetch_video_info(self, bvid):
-        """获取单个视频的详细信息"""
-        url = f"{BILIBILI_API_BASE}/x/web-interface/view?bvid={bvid}"
+    def fetch_video_info(self, bvid=None, av=None):
+        """获取单个视频的详细信息，支持bvid或av参数"""
+        if bvid:
+            url = f"{BILIBILI_API_BASE}/x/web-interface/view?bvid={bvid}"
+        elif av:
+            url = f"{BILIBILI_API_BASE}/x/web-interface/view?aid={av}"
+        else:
+            logger.error("fetch_video_info: 必须提供bvid或av参数")
+            return None
+
         try:
             response = self.session.get(url, timeout=10)
             data = response.json()
             if data.get('code') == 0:
                 return data['data']
             else:
-                logger.warning(f"获取视频信息失败: {bvid}, {data.get('message')}")
+                identifier = bvid or av
+                logger.warning(f"获取视频信息失败: {identifier}, {data.get('message')}")
                 return None
         except Exception as e:
-            logger.error(f"请求失败: {bvid}, {e}")
+            identifier = bvid or av
+            logger.error(f"请求失败: {identifier}, {e}")
             return None
 
     def extract_teams_from_title(self, title):
@@ -179,13 +189,22 @@ class BilibiliScraper:
             day = int(match.group(3))
             return datetime(year, month, day).date()
 
+        # 从括号中提取年份（如【2025KPL春季赛】）
+        year_from_bracket = None
+        bracket_pattern = r'【(\d{4})[^】]*】'
+        bracket_match = re.search(bracket_pattern, title)
+        if bracket_match:
+            year_from_bracket = int(bracket_match.group(1))
+
         # 匹配 M月D日
         pattern = r'(\d{1,2})月(\d{1,2})日'
         match = re.search(pattern, title)
         if match:
             month = int(match.group(1))
             day = int(match.group(2))
-            return datetime(datetime.now().year, month, day).date()
+            # 优先使用括号中的年份，否则使用当前年份
+            year = year_from_bracket if year_from_bracket else datetime.now().year
+            return datetime(year, month, day).date()
 
         return None
 
@@ -272,8 +291,8 @@ class BilibiliScraper:
 
         return game_pages
 
-    def update_battle_page_num(self, match_id, battle_seq, page_num):
-        """更新比赛的page_num"""
+    def update_battle_page_num(self, match_id, battle_seq, page_num, bvid=None):
+        """更新比赛的page_num和bvid"""
         if not self.conn:
             return False
 
@@ -287,9 +306,14 @@ class BilibiliScraper:
             result = cursor.fetchone()
             if result:
                 battle_id = result[0]
-                cursor.execute("""
-                    UPDATE battle SET page_num = %s WHERE battle_id = %s
-                """, (page_num, battle_id))
+                if bvid:
+                    cursor.execute("""
+                        UPDATE battle SET page_num = %s, bvid = %s WHERE battle_id = %s
+                    """, (page_num, bvid, battle_id))
+                else:
+                    cursor.execute("""
+                        UPDATE battle SET page_num = %s WHERE battle_id = %s
+                    """, (page_num, battle_id))
                 self.conn.commit()
                 return True
 
@@ -298,6 +322,7 @@ class BilibiliScraper:
     def process_video(self, video_info):
         """处理单个视频"""
         bvid = video_info.get('bvid')
+        av = video_info.get('av')
         title = video_info.get('title', '')
 
         # 提取日期和队伍
@@ -315,7 +340,7 @@ class BilibiliScraper:
             return False
 
         # 获取视频分P信息
-        video_data = self.fetch_video_info(bvid)
+        video_data = self.fetch_video_info(bvid=bvid, av=av)
         if not video_data:
             return False
 
@@ -326,8 +351,11 @@ class BilibiliScraper:
         match_id = match['match_id']
         updated_count = 0
 
+        # 获取实际的bvid（从API返回的数据中）
+        actual_bvid = video_data.get('bvid', bvid)
+
         for battle_seq, page_num in game_pages.items():
-            if self.update_battle_page_num(match_id, battle_seq, page_num):
+            if self.update_battle_page_num(match_id, battle_seq, page_num, actual_bvid):
                 updated_count += 1
 
         logger.info(f"匹配成功: {title} -> {match_id}, 更新{updated_count}条记录")

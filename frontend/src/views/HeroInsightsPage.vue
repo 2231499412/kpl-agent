@@ -7,7 +7,7 @@
       </div>
 
       <div class="controls">
-        <el-select v-model="selectedLeagueId" filterable placeholder="选择赛事" @change="onLeagueChange">
+        <el-select v-model="selectedLeagueId" filterable placeholder="选择赛事" :suffix-icon="ArrowDown" @change="onLeagueChange">
           <el-option v-for="league in leagues" :key="league.leagueId" :label="league.leagueName" :value="league.leagueId" />
         </el-select>
         <el-select
@@ -18,6 +18,7 @@
           :remote-method="filterHero"
           :loading="heroLoading"
           placeholder="搜索英雄"
+          :suffix-icon="ArrowDown"
           @change="loadDetail"
         >
           <el-option v-for="hero in visibleHeroes" :key="hero.heroId" :label="hero.heroName" :value="hero.heroId">
@@ -28,7 +29,7 @@
             </div>
           </el-option>
         </el-select>
-        <el-button :icon="Refresh" class="refresh-btn" :loading="loading" @click="refreshPage">刷新</el-button>
+
         <button class="theme-toggle" :title="theme === 'light' ? '切换暗色' : '切换亮色'" @click="theme = theme === 'light' ? 'dark' : 'light'">
           <span class="toggle-track" :class="{ on: theme === 'dark' }"><span class="toggle-thumb" /></span>
           <small>{{ theme === 'light' ? 'LIGHT' : 'DARK' }}</small>
@@ -64,7 +65,7 @@
             <strong>{{ detail.userCount || 0 }}</strong>
             <em>按选手去重</em>
           </div>
-          <div class="metric-card">
+          <div class="metric-card accent">
             <span>出场次数</span>
             <strong>{{ metricBattleCount }}</strong>
             <em>Pick {{ formatPercent(activeHero?.pickRate) }}</em>
@@ -79,7 +80,7 @@
             <strong>{{ formatPercent(activeHero?.banRate) }}</strong>
             <em>Ban {{ activeHero?.banNum || 0 }} 次</em>
           </div>
-          <div class="metric-card">
+          <div class="metric-card light">
             <span>场均 KDA</span>
             <strong>{{ fixed(activeHero?.avgKda, 2) }}</strong>
             <em>{{ fixed(activeHero?.avgKill, 1) }}/{{ fixed(activeHero?.avgDeath, 1) }}/{{ fixed(activeHero?.avgAssist, 1) }}</em>
@@ -97,7 +98,7 @@
           <div class="section-title">
             <div>
               <span>PLAYER LEADERBOARD</span>
-              <h3>谁用它胜率最高</h3>
+              <h3>高胜率选手</h3>
             </div>
             <small>至少 3 局</small>
           </div>
@@ -226,7 +227,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Refresh } from '@element-plus/icons-vue'
+import { ArrowDown } from '@element-plus/icons-vue'
 import { getTheme, setTheme } from '../utils/theme'
 
 const leagues = ref(JSON.parse(localStorage.getItem('kpl_leagues') || '[]'))
@@ -315,12 +316,6 @@ async function loadDetail() {
 async function onLeagueChange() {
   selectedHeroId.value = null
   detail.value = null
-  await loadHeroes()
-  await loadDetail()
-}
-
-async function refreshPage() {
-  await loadLeagues()
   await loadHeroes()
   await loadDetail()
 }
@@ -477,6 +472,13 @@ onMounted(async () => {
   border-radius: 6px !important;
   background: rgba(255, 255, 255, .06) !important;
   box-shadow: 0 0 0 1px var(--line) inset !important;
+}
+
+.controls :deep(.el-select__suffix) {
+  color: var(--soft);
+}
+.controls :deep(.el-select__caret) {
+  color: var(--soft);
 }
 
 .refresh-btn {
@@ -699,10 +701,15 @@ onMounted(async () => {
   font-weight: 800;
 }
 
+.metric-card.primary { border-left-color: var(--blue); }
 .metric-card.primary strong { color: var(--blue); }
+.metric-card.win { border-left-color: var(--green); }
 .metric-card.win strong { color: var(--green); }
+.metric-card.danger { border-left-color: var(--red); }
 .metric-card.danger strong { color: var(--red); }
+.metric-card.accent { border-left-color: var(--gold); }
 .metric-card.accent strong { color: var(--gold); }
+.metric-card.light { border-left-color: #fff; }
 
 .content-grid {
   display: grid;
@@ -1244,6 +1251,13 @@ onMounted(async () => {
 .hero-insights.theme-light .controls :deep(.el-button) {
   background: #FFFFFF !important;
   box-shadow: 0 0 0 1px #8A9097 inset !important;
+}
+
+.hero-insights.theme-light .controls :deep(.el-select__suffix) {
+  color: #4B5563;
+}
+.hero-insights.theme-light .controls :deep(.el-select__caret) {
+  color: #4B5563;
 }
 
 @media (max-width: 1180px) {
