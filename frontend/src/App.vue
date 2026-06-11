@@ -112,6 +112,15 @@ onMounted(() => {
   window.addEventListener('orientationchange', () => setTimeout(checkMobileLandscape, 100))
   const observer = new MutationObserver(detectTheme)
   observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] })
+
+  // 输入框聚焦时光标移到末尾
+  document.addEventListener('focus', (e) => {
+    const el = e.target
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') && el.value) {
+      const len = el.value.length
+      requestAnimationFrame(() => el.setSelectionRange(len, len))
+    }
+  }, true)
 })
 
 function onPageEnter(el) {

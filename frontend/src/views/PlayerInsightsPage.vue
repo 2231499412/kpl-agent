@@ -24,6 +24,7 @@
               <img v-if="player.playerIcon || player.teamIcon" :src="player.playerIcon || player.teamIcon" :alt="player.playerName">
               <span>{{ player.playerName }}</span>
               <em>{{ player.teamName }} · {{ player.positionDesc || '-' }}</em>
+              <b>{{ formatPercent(player.winRate) }}</b>
             </div>
           </el-option>
         </el-select>
@@ -56,18 +57,31 @@
             <p>{{ player.teamName || '-' }} · {{ player.positionDesc || '-' }}</p>
           </div>
           <div class="status-score">
-            <strong>{{ statusScore }}</strong>
+            <strong>{{ statusScore }}<el-popover placement="bottom" :width="260" trigger="click">
+                <template #reference>
+                  <i class="score-hint">?</i>
+                </template>
+                <div class="score-breakdown">
+                  <b>综合状态分怎么算？</b>
+                  <div class="score-row"><span>胜率表现</span><span>35%</span></div>
+                  <div class="score-row"><span>KDA表现</span><span>25%</span></div>
+                  <div class="score-row"><span>参团表现</span><span>20%</span></div>
+                  <div class="score-row"><span>近期状态</span><span>10%</span></div>
+                  <div class="score-row"><span>出场样本</span><span>10%</span></div>
+                  <p class="score-note">系统会对小样本数据进行修正，避免少量比赛导致分数虚高。</p>
+                </div>
+              </el-popover></strong>
             <span>综合状态分</span>
           </div>
         </article>
 
         <aside class="metric-grid">
-          <div class="metric-card"><span>本赛季场次</span><strong>{{ player.battleCount || 0 }}</strong><em>同位置 #{{ rankOf('avgKda') || '-' }}</em></div>
+          <div class="metric-card primary"><span>本赛季场次</span><strong>{{ player.battleCount || 0 }}</strong><em>同位置 #{{ rankOf('avgKda') || '-' }}</em></div>
           <div class="metric-card win"><span>胜率</span><strong>{{ formatPercent(player.winRate) }}</strong><em>排名 #{{ rankOf('winRate') || '-' }}</em></div>
-          <div class="metric-card"><span>KDA</span><strong>{{ fixed(player.avgKda, 2) }}</strong><em>{{ fixed(player.avgKill, 1) }}/{{ fixed(player.avgDeath, 1) }}/{{ fixed(player.avgAssist, 1) }}</em></div>
+          <div class="metric-card light"><span>KDA</span><strong>{{ fixed(player.avgKda, 2) }}</strong><em>{{ fixed(player.avgKill, 1) }}/{{ fixed(player.avgDeath, 1) }}/{{ fixed(player.avgAssist, 1) }}</em></div>
           <div class="metric-card accent"><span>场均经济</span><strong>{{ formatCompact(player.avgGold) }}</strong><em>排名 #{{ rankOf('avgGold') || '-' }}</em></div>
-          <div class="metric-card"><span>参团率</span><strong>{{ formatPercent(player.avgParticipationRate) }}</strong><em>排名 #{{ rankOf('avgParticipationRate') || '-' }}</em></div>
-          <div class="metric-card danger"><span>近期 5 场</span><strong>{{ formatPercent(recent5.winRate) }}</strong><em>KDA {{ fixed(recent5.avgKda, 2) }}</em></div>
+          <div class="metric-card primary"><span>参团率</span><strong>{{ formatPercent(player.avgParticipationRate) }}</strong><em>排名 #{{ rankOf('avgParticipationRate') || '-' }}</em></div>
+          <div class="metric-card danger"><span>近期 5 场胜率</span><strong>{{ formatPercent(recent5.winRate) }}</strong><em>KDA {{ fixed(recent5.avgKda, 2) }}</em></div>
         </aside>
       </section>
 
@@ -117,28 +131,11 @@
         <article class="panel stage-panel">
           <div class="section-title stage-title">
             <div>
-              <span>PATCH / STAGE</span>
-              <h3>版本 / 阶段变化</h3>
-            </div>
-            <div class="mode-switch" role="tablist" aria-label="版本变化维度">
-              <button :class="{ active: stageMode === 'stage' }" @click="stageMode = 'stage'">赛段</button>
-              <button :class="{ active: stageMode === 'league' }" @click="stageMode = 'league'">历史赛事</button>
+              <span>LEAGUE HISTORY</span>
+              <h3>历史赛事</h3>
             </div>
           </div>
 
-          <template v-if="stageMode === 'stage'">
-            <div class="stage-list">
-              <div v-for="stage in stageStats" :key="stage.stage || stage.stageDesc" class="stage-row">
-                <strong>{{ stage.stageDesc || stage.stage || '未知赛段' }}</strong>
-                <span>{{ stage.games }} 局</span>
-                <b>{{ formatPercent(stage.winRate) }}</b>
-                <em>KDA {{ fixed(stage.avgKda, 2) }}</em>
-                <small>{{ stage.mainHero || '-' }}</small>
-              </div>
-            </div>
-          </template>
-
-          <template v-else>
             <div class="history-mode">
               <div class="league-trend">
                 <div class="league-summary" v-if="activeTrendLeague">
@@ -191,7 +188,6 @@
                 </div>
               </div>
             </div>
-          </template>
         </article>
 
         <article class="panel featured-panel">
@@ -266,11 +262,38 @@ const activeLeagueHeroes = computed(() => {
 const recent5 = computed(() => summarizeRecent(recentGames.value.slice(0, 5)))
 const recent10 = computed(() => summarizeRecent(recentGames.value.slice(0, 10)))
 const statusScore = computed(() => {
-  const score = percentNumber(player.value.winRate) * 0.35
-    + num(player.value.avgKda) * 7
-    + percentNumber(player.value.avgParticipationRate) * 0.18
-    + recent5.value.avgKda * 3
-  return Math.max(0, Math.min(100, Math.round(score)))
+  const games = num(player.value.battleCount)
+  const wins = Math.round(percentNumber(player.value.winRate) / 100 * games)
+  const avgKda = num(player.value.avgKda)
+  const participation = percentNumber(player.value.avgParticipationRate)
+  const r5Kda = recent5.value.avgKda
+
+  // 1. 修正胜率（贝叶斯平滑，先验 10 场 50%）
+  const adjustedWinRate = (wins + 0.5 * 10) / (games + 10)
+  const winRateScore = adjustedWinRate * 100
+
+  // 2. KDA 得分（上限 8 归一化）
+  const kdaScore = Math.min(avgKda / 8, 1) * 100
+
+  // 3. 参团率得分（已是百分比）
+  const participationScore = participation
+
+  // 4. 近期状态得分（相对赛季偏差）
+  const recentFormScore = Math.max(0, Math.min(100, 50 + (r5Kda - avgKda) * 8))
+
+  // 5. 样本量得分（30 场满分）
+  const sampleSizeScore = Math.min(games / 30, 1) * 100
+
+  // 综合状态分（用于排名）
+  const rankScore = winRateScore * 0.35
+    + kdaScore * 0.25
+    + participationScore * 0.20
+    + recentFormScore * 0.10
+    + sampleSizeScore * 0.10
+
+  // 展示分（居中到 50 附近，范围更柔和）
+  const displayScore = 50 + rankScore * 0.5
+  return Math.max(0, Math.min(100, Math.round(displayScore)))
 })
 const trendDots = computed(() => {
   const rows = [...recentGames.value].reverse()
@@ -346,10 +369,10 @@ async function loadPlayers() {
   if (!selectedLeagueId.value) return
   playerLoading.value = true
   try {
-    const res = await request(`/api/query/player/top?sort=kda&leagueId=${selectedLeagueId.value}`)
+    const res = await request(`/api/query/player/top?sort=win&leagueId=${selectedLeagueId.value}`)
     const rows = Array.isArray(res?.data) ? res.data : Array.isArray(res?.data?.data) ? res.data.data : []
     players.value = rows.filter(item => item.playerName)
-    visiblePlayers.value = players.value.slice(0, 80)
+    visiblePlayers.value = players.value
     if (!selectedPlayer.value && players.value.length) selectedPlayer.value = players.value[0].playerName
   } catch (error) {
     ElMessage.error('选手列表加载失败: ' + error.message)
@@ -391,8 +414,8 @@ async function refreshPage() {
 function filterPlayers(keyword) {
   const key = String(keyword || '').trim().toLowerCase()
   visiblePlayers.value = !key
-    ? players.value.slice(0, 80)
-    : players.value.filter(item => `${item.playerName}${item.teamName || ''}`.toLowerCase().includes(key)).slice(0, 80)
+    ? players.value
+    : players.value.filter(item => `${item.playerName}${item.teamName || ''}`.toLowerCase().includes(key))
 }
 
 function summarizeRecent(rows) {
@@ -612,6 +635,14 @@ onMounted(async () => {
   color: var(--dim);
   font-style: normal;
   font-size: 12px;
+  flex: 1;
+}
+.player-option b {
+  color: #111827;
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 900;
+  margin-left: auto;
 }
 
 .theme-toggle {
@@ -728,18 +759,33 @@ onMounted(async () => {
   color: var(--soft);
   font-size: 13px;
 }
-.status-score {
-  text-align: right;
-}
-.status-score strong {
+.status-score{text-align:left;align-self:center;margin-top:-2px}
+.status-score strong{display:block;position:relative;color:var(--green);font-size:36px;line-height:1;padding-right:30px;margin-top:20px}
+.status-score span{display:block;color:var(--dim);font-size:11px;margin-top:2px}
+.score-hint{position:absolute;top:-10px;right:9px;display:flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.1);color:var(--dim);font-size:9px;font-style:normal;font-weight:700;cursor:pointer;transition:background .2s}
+.score-hint:hover{background:rgba(255,255,255,.2);color:var(--text)}
+.score-breakdown b {
   display: block;
-  color: var(--green);
-  font-size: 36px;
-  line-height: 1;
+  font-size: 13px;
+  color: #1a1a1a;
+  margin-bottom: 10px;
 }
-.status-score span {
-  color: var(--dim);
+.score-breakdown .score-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 12px;
+  color: #374151;
+  border-bottom: 1px solid #f3f4f6;
+}
+.score-breakdown .score-row:last-of-type {
+  border-bottom: 0;
+}
+.score-breakdown .score-note {
+  margin: 10px 0 0;
   font-size: 11px;
+  color: #9ca3af;
+  line-height: 1.5;
 }
 
 .metric-grid {
@@ -781,8 +827,14 @@ onMounted(async () => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, .06);
   transform: translateY(-3px);
 }
+.metric-card.primary { border-left-color: var(--blue); }
+.metric-card.primary strong { color: var(--blue); }
+.metric-card.light { border-left-color: #fff; }
+.metric-card.win { border-left-color: var(--green); }
 .metric-card.win strong { color: var(--green); }
+.metric-card.accent { border-left-color: var(--gold); }
 .metric-card.accent strong { color: var(--gold); }
+.metric-card.danger { border-left-color: var(--red); }
 .metric-card.danger strong { color: var(--red); }
 
 .analysis-grid {
@@ -793,7 +845,7 @@ onMounted(async () => {
 }
 .bottom-grid {
   display: grid;
-  grid-template-columns: .82fr 1.18fr;
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
   margin-top: 16px;
 }
@@ -1129,8 +1181,9 @@ onMounted(async () => {
 
 .compare-bars {
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  gap: 24px;
+  padding: 20px 20px;
+  align-content: start;
 }
 .compare-row {
   display: grid;
@@ -1159,25 +1212,29 @@ onMounted(async () => {
 }
 .compare-track {
   position: relative;
-  height: 12px;
+  height: 20px;
   background: rgba(255, 255, 255, .06);
   overflow: hidden;
+  border-radius: 4px;
 }
 .compare-row :deep(.compare-track) {
   position: relative;
-  height: 12px;
+  height: 20px;
   background: rgba(255, 255, 255, .06);
   overflow: hidden;
+  border-radius: 4px;
 }
 .compare-track i {
   position: absolute;
   left: 0;
-  height: 5px;
+  height: 9px;
+  border-radius: 3px;
 }
 .compare-row :deep(.compare-track i) {
   position: absolute;
   left: 0;
-  height: 5px;
+  height: 9px;
+  border-radius: 3px;
 }
 .compare-track .self {
   top: 1px;
@@ -1409,6 +1466,10 @@ onMounted(async () => {
   color: #9CA3AF;
 }
 
+.player-insights.theme-light .player-option b {
+  color: #16A34A;
+}
+
 .player-insights.theme-light .profile-main span {
   color: #B88A2E;
 }
@@ -1427,6 +1488,16 @@ onMounted(async () => {
 
 .player-insights.theme-light .status-score span {
   color: #9CA3AF;
+}
+
+.player-insights.theme-light .score-hint {
+  background: #F3F4F6;
+  color: #9CA3AF;
+}
+
+.player-insights.theme-light .score-hint:hover {
+  background: #E5E7EB;
+  color: #111827;
 }
 
 .player-insights.theme-light .mini-stat-row div {
@@ -1683,4 +1754,43 @@ onMounted(async () => {
 
 <style>
 @import '../styles/select-dropdown.css';
+
+/* 状态分弹窗 — 与下拉框同风格 */
+.el-popover.el-popper {
+  border: 1px solid rgba(0, 0, 0, .3) !important;
+  border-radius: 0 !important;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, .08) !important;
+  background: #fff !important;
+  padding: 14px 16px !important;
+}
+.el-popover.el-popper .el-popper__arrow::before {
+  background: #fff !important;
+  border: 1px solid rgba(0, 0, 0, .3) !important;
+  border-bottom: 0 !important;
+  border-right: 0 !important;
+}
+.score-breakdown b {
+  display: block;
+  font-size: 13px;
+  font-weight: 800;
+  color: #1a1a1a;
+  margin-bottom: 10px;
+}
+.score-breakdown .score-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  font-size: 12px;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+}
+.score-breakdown .score-row:last-of-type {
+  border-bottom: none;
+}
+.score-breakdown .score-note {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: #9ca3af;
+  line-height: 1.5;
+}
 </style>

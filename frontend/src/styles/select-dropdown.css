@@ -114,6 +114,18 @@
   flex-shrink: 0;
 }
 
+/* ── 选手胜率 ── */
+.player-option b {
+  color: #111827 !important;
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 900;
+  margin-left: auto;
+}
+.theme-dark .player-option b {
+  color: #e8e8e8 !important;
+}
+
 /* ── 暗色主题 ── */
 .theme-dark .el-select__popper.el-popper {
   border-color: rgba(255, 255, 255, .25) !important;

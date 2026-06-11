@@ -288,7 +288,7 @@ async function loadHeroes() {
     const res = await request(`/api/query/hero/top?sort=pick&leagueId=${selectedLeagueId.value}`)
     const rows = Array.isArray(res?.data) ? res.data : Array.isArray(res?.data?.data) ? res.data.data : []
     heroes.value = rows.filter(hero => hero.heroId && hero.heroName)
-    visibleHeroes.value = heroes.value.slice(0, 80)
+    visibleHeroes.value = heroes.value
     if (!selectedHeroId.value && heroes.value.length) selectedHeroId.value = heroes.value[0].heroId
   } catch (error) {
     ElMessage.error('英雄列表加载失败: ' + error.message)
@@ -323,8 +323,8 @@ async function onLeagueChange() {
 function filterHero(keyword) {
   const key = String(keyword || '').trim().toLowerCase()
   visibleHeroes.value = !key
-    ? heroes.value.slice(0, 80)
-    : heroes.value.filter(hero => String(hero.heroName || '').toLowerCase().includes(key)).slice(0, 80)
+    ? heroes.value
+    : heroes.value.filter(hero => String(hero.heroName || '').toLowerCase().includes(key))
 }
 
 function heroIcon(hero) {
@@ -1018,7 +1018,7 @@ onMounted(async () => {
 }
 
 .hero-insights.theme-light {
-  --page-bg: #F6F7F9;
+  --page-bg: #f8f5ec;
   --panel-bg: #FFFFFF;
   --panel-strong: #FFFFFF;
   --line: #8A9097;
@@ -1030,7 +1030,7 @@ onMounted(async () => {
   --red: #EF4444;
   --gold: #B88A2E;
   --blue: #2563EB;
-  background: #F6F7F9;
+  background: #f8f5ec;
 }
 
 .hero-insights.theme-light .topbar {
@@ -1170,7 +1170,7 @@ onMounted(async () => {
 }
 
 .hero-insights.theme-light .battle-rank {
-  background: #F6F7F9;
+  background: #f8f5ec;
   border-color: #8A9097;
   color: #B88A2E;
 }
@@ -1193,7 +1193,7 @@ onMounted(async () => {
 
 .hero-insights.theme-light .battle-meta span {
   color: #4B5563;
-  background: #F6F7F9;
+  background: #f8f5ec;
   border-color: #8A9097;
 }
 
@@ -1240,11 +1240,11 @@ onMounted(async () => {
 }
 
 .hero-insights.theme-light .hero-chip:hover {
-  background: #F6F7F9;
+  background: #f8f5ec;
 }
 
 .hero-insights.theme-light .player-row:hover {
-  background: #F6F7F9;
+  background: #f8f5ec;
 }
 
 .hero-insights.theme-light .controls :deep(.el-select__wrapper),
