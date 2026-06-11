@@ -188,6 +188,8 @@ public interface BattlePlayerMapper extends BaseMapper<BattlePlayer> {
             SELECT bp.battle_id AS battleId,
                    b.match_id AS matchId,
                    b.battle_seq AS battleSeq,
+                   b.bvid AS bvid,
+                   b.page_num AS pageNum,
                    m.match_stage_desc AS matchStageDesc,
                    m.start_time AS startTime,
                    m.camp1_team_name AS camp1TeamName,
