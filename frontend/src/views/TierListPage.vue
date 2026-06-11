@@ -12,6 +12,9 @@
         </div>
       </div>
       <div class="status-line">
+        <el-select v-model="selectedLeagueId" class="league-select" filterable placeholder="选择赛事" @change="loadData">
+          <el-option v-for="league in leagues" :key="league.leagueId" :label="league.leagueName" :value="league.leagueId" />
+        </el-select>
         <span class="algo-badge">算法测试中</span>
         <span class="date-tag">{{ currentDate }}</span>
         <button class="theme-toggle" :title="theme === 'light' ? '切换暗色' : '切换亮色'" @click="theme = theme === 'light' ? 'dark' : 'light'">
@@ -33,6 +36,12 @@
 
     <!-- 图例 + 评分说明 -->
     <div class="info-bar" v-if="!loading && filteredHeroes.length">
+      <div class="sample-stats">
+        <div v-for="item in summaryItems" :key="item.label" class="sample-stat">
+          <span>{{ item.label }}</span>
+          <b>{{ item.value }}</b>
+        </div>
+      </div>
       <div class="legend-items">
         <div class="legend-item">
           <span class="legend-dot high-ban"></span>
@@ -77,6 +86,11 @@
             />
             <span class="hero-score">{{ item._score }}</span>
             <span class="hero-name">{{ item.heroName }}</span>
+            <div class="hero-card-metrics">
+              <span>P {{ pct(item.pickRate) }}%</span>
+              <span>B {{ pct(item.banRate) }}%</span>
+              <span>W {{ pct(item.winRate) }}%</span>
+            </div>
           </div>
         </template>
       </TransitionGroup>
@@ -135,6 +149,8 @@ import { getTheme, setTheme } from '../utils/theme'
 const theme = ref(getTheme())
 watch(theme, (v) => setTheme(v))
 
+const leagues = ref(JSON.parse(localStorage.getItem('kpl_leagues') || '[]'))
+const selectedLeagueId = ref('')
 const loading = ref(false)
 const heroList = ref([])
 const activeRole = ref('all')
@@ -285,6 +301,13 @@ const visibleTiers = computed(() => {
   }))
 })
 
+const activeRoleLabel = computed(() => roleOptions.find(item => item.value === activeRole.value)?.label || '全部分路')
+const summaryItems = computed(() => [
+  { label: '样本', value: filteredHeroes.value.length },
+  { label: 'T0', value: visibleTiers.value.find(item => item.key === 't0')?.heroes.length || 0 },
+  { label: '分路', value: activeRoleLabel.value },
+])
+
 const flatHeroes = computed(() => {
   const result = []
   for (const tier of visibleTiers.value) {
@@ -297,10 +320,27 @@ const flatHeroes = computed(() => {
   return result
 })
 
+async function loadLeagues() {
+  try {
+    const res = await fetch('/api/leagues?limit=30')
+    const data = await res.json()
+    const rows = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : []
+    if (rows.length) {
+      leagues.value = rows
+      localStorage.setItem('kpl_leagues', JSON.stringify(rows))
+    }
+  } catch {
+    // keep cached leagues
+  }
+  if (!selectedLeagueId.value && leagues.value.length) selectedLeagueId.value = leagues.value[0].leagueId
+}
+
 async function loadData() {
   loading.value = true
   try {
-    const res = await fetch('/api/query/hero/top?sort=pick&limit=200')
+    const params = new URLSearchParams({ sort: 'pick', limit: '200' })
+    if (selectedLeagueId.value) params.set('leagueId', selectedLeagueId.value)
+    const res = await fetch(`/api/query/hero/top?${params.toString()}`)
     const body = await res.json()
     const data = body?.data
     heroList.value = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : []
@@ -311,8 +351,9 @@ async function loadData() {
   }
 }
 
-onMounted(() => {
-  loadData()
+onMounted(async () => {
+  await loadLeagues()
+  await loadData()
 })
 onUnmounted(() => {
 })
@@ -399,6 +440,24 @@ onUnmounted(() => {
 .eyebrow { margin: 0; color: var(--c-dim); font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
 h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 .status-line { display: flex; align-items: center; gap: 12px; }
+.league-select {
+  width: 220px;
+}
+.tier-console :deep(.league-select .el-select__wrapper) {
+  min-height: 34px;
+  border-radius: 0 !important;
+  background: var(--c-card) !important;
+  box-shadow: 0 0 0 1px var(--c-line) inset !important;
+}
+.tier-console :deep(.league-select .el-select__placeholder),
+.tier-console :deep(.league-select .el-select__selected-item) {
+  color: var(--c-ink) !important;
+  font-size: 12px;
+  font-weight: 800;
+}
+.tier-console :deep(.league-select .el-select__caret) {
+  color: var(--c-soft) !important;
+}
 .algo-badge {
   padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: 1px;
   border: 1px solid rgba(243, 156, 18, 0.4); color: #f39c12; background: rgba(243, 156, 18, 0.08);
@@ -425,6 +484,12 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
   display: flex;
   gap: 5px;
   padding: 4px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.role-tabs::-webkit-scrollbar {
+  display: none;
 }
 .role-tabs button {
   flex: 1 1 0;
@@ -450,7 +515,7 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 /* 扁平网格 + 排序动画 */
 .hero-flat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
   gap: 10px;
 }
 .tier-header-row {
@@ -529,23 +594,38 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 }
 
 .hero-card {
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  padding: 10px 6px 8px; background: var(--c-card); border: 1px solid var(--c-line);
-  transition: all 0.15s; position: relative; cursor: pointer;
+  min-height: 126px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 11px 7px 9px; background: var(--c-card); border: 1px solid var(--c-line);
+  border-radius: 8px;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s, box-shadow 0.15s;
+  position: relative; cursor: pointer;
 }
 .hero-card:hover {
   background: var(--c-hover); border-color: var(--c-ink);
   transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
 }
 .hero-card.high-ban { border-color: #e74c3c; border-width: 2px; box-shadow: 0 0 8px rgba(231, 76, 60, 0.25); }
 .hero-card.low-pick { border-color: #3498db; border-width: 2px; border-style: dashed; box-shadow: 0 0 8px rgba(52, 152, 219, 0.2); }
 
 .hero-avatar {
-  width: 48px; height: 48px; border-radius: 4px; object-fit: cover;
+  width: 52px; height: 52px; border-radius: 8px; object-fit: cover;
   border: 1px solid var(--c-line);
   opacity: 0; transition: opacity .15s ease;
 }
 .hero-score {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-width: 28px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding: 0 6px;
+  border: 1px solid var(--c-line);
+  border-radius: 999px;
+  background: var(--c-panel);
   font-size: 18px; font-weight: 900; color: var(--c-ink);
   line-height: 1;
 }
@@ -554,12 +634,59 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
   text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   max-width: 100%;
 }
+.hero-card-metrics {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+}
+.hero-card-metrics span {
+  min-width: 0;
+  padding: 2px 3px;
+  border: 1px solid var(--c-line);
+  color: var(--c-dim);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
 
 /* 图例 + 评分说明 */
 .info-bar {
   display: flex; flex-wrap: wrap; align-items: center; gap: 16px;
   padding: 12px 16px; margin-bottom: 16px;
   border: 1px solid var(--c-line); background: var(--c-panel);
+}
+.sample-stats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.sample-stat {
+  min-width: 72px;
+  padding: 7px 10px;
+  border: 1px solid var(--c-line);
+  background: var(--c-card);
+}
+.sample-stat span,
+.sample-stat b {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sample-stat span {
+  color: var(--c-dim);
+  font-size: 10px;
+  font-weight: 800;
+}
+.sample-stat b {
+  margin-top: 2px;
+  color: var(--c-ink);
+  font-size: 15px;
+  font-weight: 900;
 }
 .legend-items { display: flex; gap: 16px; }
 .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--c-soft); }
@@ -577,6 +704,7 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 .formula-note {
   font-size: 11px; color: var(--c-dim); line-height: 1.5;
   flex-basis: 100%;
+  max-width: 980px;
 }
 
 /* 移动端 */
@@ -591,6 +719,7 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
   .brand-mark { width: 34px; height: 34px; font-size: 16px; }
   h1 { font-size: 17px; }
   .algo-badge { font-size: 10px; padding: 3px 8px; }
+  .league-select { width: min(44vw, 180px); }
   .date-tag { display: none; }
 
   .role-tabs { gap: 4px; padding: 3px; }
@@ -616,10 +745,13 @@ h1 { margin: 0; color: var(--c-ink); font-size: 20px; font-weight: 900; }
 
   .hero-card { padding: 8px 4px 6px; }
   .hero-avatar { width: 40px; height: 40px; }
-  .hero-score { font-size: 15px; }
+  .hero-score { top: 5px; right: 5px; min-width: 24px; height: 19px; font-size: 13px; }
   .hero-name { font-size: 10px; }
+  .hero-card-metrics { display: none; }
 
   .info-bar { flex-direction: column; align-items: flex-start; gap: 10px; padding: 10px 12px; }
+  .sample-stats { width: 100%; }
+  .sample-stat { flex: 1 1 0; min-width: 0; }
   .legend-items { gap: 12px; }
   .legend-item { font-size: 11px; }
   .score-formula { margin-left: 0; }

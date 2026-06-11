@@ -19,7 +19,7 @@
           :loading="heroLoading"
           placeholder="搜索英雄"
           :suffix-icon="ArrowDown"
-          @change="loadDetail"
+          @change="onHeroChange"
         >
           <el-option v-for="hero in visibleHeroes" :key="hero.heroId" :label="hero.heroName" :value="hero.heroId">
             <div class="hero-option">
@@ -29,6 +29,10 @@
             </div>
           </el-option>
         </el-select>
+
+        <el-button v-if="returnPlayerTarget" :icon="Back" class="back-btn" @click="returnToPlayer">返回选手</el-button>
+        <el-button v-if="heroTrail.length" :icon="Back" class="back-btn" @click="goBackHero">返回</el-button>
+        <el-button :icon="Refresh" class="refresh-btn" :loading="loading" @click="refreshPage">刷新</el-button>
 
         <button class="theme-toggle" :title="theme === 'light' ? '切换暗色' : '切换亮色'" @click="theme = theme === 'light' ? 'dark' : 'light'">
           <span class="toggle-track" :class="{ on: theme === 'dark' }"><span class="toggle-thumb" /></span>
@@ -104,7 +108,7 @@
           </div>
 
           <div class="player-list" v-if="topPlayers.length">
-            <div v-for="(player, index) in topPlayers" :key="player.playerName" class="player-row" :class="{ leader: index === 0 }">
+            <div v-for="(player, index) in topPlayers" :key="player.playerName" class="player-row" :class="{ leader: index === 0 }" @click="openPlayer(player)">
               <b class="rank">{{ index + 1 }}</b>
               <img v-if="player.playerIcon || player.teamIcon" :src="player.playerIcon || player.teamIcon" :alt="player.playerName">
               <div class="player-main">
@@ -168,7 +172,7 @@
             </div>
           </div>
           <div class="hero-chip-list" v-if="synergyHeroes.length">
-            <div v-for="hero in synergyHeroes" :key="hero.heroId" class="hero-chip good">
+            <div v-for="hero in synergyHeroes" :key="hero.heroId" class="hero-chip good" @click="openRelatedHero(hero)">
               <img :src="heroIcon(hero)" :alt="hero.heroName" @error="hideBroken">
               <div class="hero-chip-main">
                 <strong>{{ hero.heroName || '-' }}</strong>
@@ -188,7 +192,7 @@
             </div>
           </div>
           <div class="hero-chip-list" v-if="favoredCounters.length">
-            <div v-for="hero in favoredCounters" :key="hero.heroId" class="hero-chip good">
+            <div v-for="hero in favoredCounters" :key="hero.heroId" class="hero-chip good" @click="openRelatedHero(hero)">
               <img :src="heroIcon(hero)" :alt="hero.heroName" @error="hideBroken">
               <div class="hero-chip-main">
                 <strong>{{ hero.heroName || '-' }}</strong>
@@ -208,7 +212,7 @@
             </div>
           </div>
           <div class="hero-chip-list" v-if="toughCounters.length">
-            <div v-for="hero in toughCounters" :key="hero.heroId" class="hero-chip warn">
+            <div v-for="hero in toughCounters" :key="hero.heroId" class="hero-chip warn" @click="openRelatedHero(hero)">
               <img :src="heroIcon(hero)" :alt="hero.heroName" @error="hideBroken">
               <div class="hero-chip-main">
                 <strong>{{ hero.heroName || '-' }}</strong>
@@ -226,10 +230,14 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowDown } from '@element-plus/icons-vue'
+import { ArrowDown, Back, Refresh } from '@element-plus/icons-vue'
 import { getTheme, setTheme } from '../utils/theme'
 
+const HERO_TRAIL_KEY = 'kpl_hero_insights_trail'
+const route = useRoute()
+const router = useRouter()
 const leagues = ref(JSON.parse(localStorage.getItem('kpl_leagues') || '[]'))
 const heroes = ref([])
 const visibleHeroes = ref([])
@@ -240,6 +248,8 @@ const loading = ref(false)
 const heroLoading = ref(false)
 const errorText = ref('')
 const theme = ref(getTheme())
+const routeReady = ref(false)
+const heroTrail = ref([])
 watch(theme, (value) => setTheme(value))
 
 const activeHero = computed(() => detail.value?.hero || heroes.value.find(hero => Number(hero.heroId) === Number(selectedHeroId.value)))
@@ -249,6 +259,13 @@ const synergyHeroes = computed(() => detail.value?.synergyHeroes || [])
 const favoredCounters = computed(() => detail.value?.favoredCounters || [])
 const toughCounters = computed(() => detail.value?.toughCounters || [])
 const currentLeagueName = computed(() => leagues.value.find(item => item.leagueId === selectedLeagueId.value)?.leagueName || '当前赛事')
+const returnPlayerTarget = computed(() => {
+  if (!route.query.returnPlayer) return null
+  return {
+    leagueId: String(route.query.returnLeagueId || selectedLeagueId.value),
+    player: String(route.query.returnPlayer),
+  }
+})
 const metricBattleCount = computed(() => activeHero.value?.battleCount || activeHero.value?.pickNum || 0)
 const winRankHint = computed(() => {
   const value = percentNumber(activeHero.value?.winRate)
@@ -317,8 +334,156 @@ async function onLeagueChange() {
   selectedHeroId.value = null
   detail.value = null
   await loadHeroes()
+  await pushHeroRoute(true)
+}
+
+async function onHeroChange() {
+  await pushHeroRoute()
+}
+
+async function refreshPage() {
+  await loadLeagues()
+  await loadHeroes()
   await loadDetail()
 }
+
+function normalizeQueryId(value) {
+  if (value == null || value === '') return null
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : value
+}
+
+async function pushHeroRoute(replace = false) {
+  if (!selectedLeagueId.value || !selectedHeroId.value) return
+  const target = {
+    path: '/hero-insights',
+    query: {
+      leagueId: selectedLeagueId.value,
+      heroId: selectedHeroId.value,
+      ...returnPlayerQuery(),
+    },
+  }
+  if (replace) await router.replace(target)
+  else await router.push(target)
+}
+
+function openPlayer(player) {
+  if (!player?.playerName) return
+  router.push({
+    path: '/player-insights',
+    query: {
+      leagueId: selectedLeagueId.value,
+      player: player.playerName,
+      returnLeagueId: selectedLeagueId.value,
+      returnHeroId: selectedHeroId.value,
+    },
+  })
+}
+
+function openRelatedHero(hero) {
+  if (!hero?.heroId) return
+  pushHeroTrail()
+  router.push({
+    path: '/hero-insights',
+    query: {
+      leagueId: selectedLeagueId.value,
+      heroId: hero.heroId,
+      ...returnPlayerQuery(),
+    },
+  })
+}
+
+function returnPlayerQuery() {
+  if (!route.query.returnPlayer) return {}
+  return {
+    returnLeagueId: route.query.returnLeagueId || selectedLeagueId.value,
+    returnPlayer: route.query.returnPlayer,
+    ...(route.query.playerReturnHeroId
+      ? {
+          playerReturnLeagueId: route.query.playerReturnLeagueId || route.query.returnLeagueId || selectedLeagueId.value,
+          playerReturnHeroId: route.query.playerReturnHeroId,
+        }
+      : {}),
+  }
+}
+
+function returnToPlayer() {
+  if (!returnPlayerTarget.value) return
+  router.push({
+    path: '/player-insights',
+    query: {
+      leagueId: returnPlayerTarget.value.leagueId,
+      player: returnPlayerTarget.value.player,
+      ...(route.query.playerReturnHeroId
+        ? {
+            returnLeagueId: route.query.playerReturnLeagueId || returnPlayerTarget.value.leagueId,
+            returnHeroId: route.query.playerReturnHeroId,
+          }
+        : {}),
+    },
+  })
+}
+
+function loadHeroTrail() {
+  try {
+    const rows = JSON.parse(sessionStorage.getItem(HERO_TRAIL_KEY) || '[]')
+    heroTrail.value = Array.isArray(rows) ? rows : []
+  } catch {
+    heroTrail.value = []
+  }
+}
+
+function saveHeroTrail() {
+  sessionStorage.setItem(HERO_TRAIL_KEY, JSON.stringify(heroTrail.value.slice(-10)))
+}
+
+function pushHeroTrail() {
+  if (!selectedLeagueId.value || !selectedHeroId.value) return
+  const item = {
+    leagueId: selectedLeagueId.value,
+    heroId: selectedHeroId.value,
+    heroName: activeHero.value?.heroName || '',
+  }
+  const last = heroTrail.value[heroTrail.value.length - 1]
+  if (last && String(last.heroId) === String(item.heroId) && String(last.leagueId) === String(item.leagueId)) return
+  heroTrail.value = [...heroTrail.value, item].slice(-10)
+  saveHeroTrail()
+}
+
+function goBackHero() {
+  const previous = heroTrail.value.pop()
+  saveHeroTrail()
+  if (!previous) return
+  router.push({
+    path: '/hero-insights',
+    query: {
+      leagueId: previous.leagueId,
+      heroId: previous.heroId,
+      ...returnPlayerQuery(),
+    },
+  })
+}
+
+watch(
+  () => [route.query.leagueId, route.query.heroId],
+  async ([leagueId, heroId]) => {
+    if (!routeReady.value || route.name !== 'hero-insights') return
+    const nextLeagueId = leagueId ? String(leagueId) : selectedLeagueId.value
+    const nextHeroId = normalizeQueryId(heroId)
+    const leagueChanged = nextLeagueId && nextLeagueId !== selectedLeagueId.value
+
+    if (leagueChanged) {
+      selectedLeagueId.value = nextLeagueId
+      selectedHeroId.value = nextHeroId
+      detail.value = null
+      await loadHeroes()
+    } else if (nextHeroId && Number(nextHeroId) !== Number(selectedHeroId.value)) {
+      selectedHeroId.value = nextHeroId
+    }
+
+    await loadDetail()
+  }
+)
 
 function filterHero(keyword) {
   const key = String(keyword || '').trim().toLowerCase()
@@ -375,9 +540,14 @@ function bilibiliUrl(battle) {
 }
 
 onMounted(async () => {
+  loadHeroTrail()
   await loadLeagues()
+  if (route.query.leagueId) selectedLeagueId.value = String(route.query.leagueId)
+  if (route.query.heroId) selectedHeroId.value = normalizeQueryId(route.query.heroId)
   await loadHeroes()
+  if (route.query.heroId) selectedHeroId.value = normalizeQueryId(route.query.heroId)
   await loadDetail()
+  routeReady.value = true
 })
 </script>
 
@@ -398,7 +568,7 @@ onMounted(async () => {
   --violet: #b783ff;
   min-height: 100vh;
   margin-left: 67.5px;
-  padding: 10px 14px 24px;
+  padding: 14px 18px 28px;
   color: var(--text);
   background:
     linear-gradient(180deg, rgba(16, 17, 19, .96), rgba(10, 11, 12, .98)),
@@ -421,12 +591,12 @@ onMounted(async () => {
 }
 
 .topbar {
-  min-height: 58px;
+  min-height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 12px;
+  padding: 10px 18px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--panel-strong);
@@ -481,7 +651,8 @@ onMounted(async () => {
   color: var(--soft);
 }
 
-.refresh-btn {
+.refresh-btn,
+.back-btn {
   --el-button-text-color: var(--text);
   --el-button-hover-text-color: #101113;
   --el-button-hover-bg-color: var(--gold);
@@ -585,14 +756,14 @@ onMounted(async () => {
 
 .hero-stage {
   display: grid;
-  grid-template-columns: minmax(420px, .82fr) minmax(0, 1fr);
+  grid-template-columns: minmax(440px, .84fr) minmax(0, 1fr);
   gap: 16px;
   margin-top: 16px;
 }
 
 .hero-visual {
   position: relative;
-  min-height: 220px;
+  min-height: 246px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -660,11 +831,11 @@ onMounted(async () => {
 }
 
 .metric-card {
-  min-height: 106px;
+  min-height: 119px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid var(--line);
   border-left: 3px solid transparent;
   border-radius: 12px;
@@ -760,12 +931,12 @@ onMounted(async () => {
 .player-list,
 .featured-list,
 .hero-chip-list {
-  padding: 8px;
+  padding: 10px;
 }
 
 .player-list,
 .featured-list {
-  max-height: 224px;
+  max-height: 244px;
   overflow-y: auto;
 }
 
@@ -1018,11 +1189,11 @@ onMounted(async () => {
 }
 
 .hero-insights.theme-light {
-  --page-bg: #f8f5ec;
+  --page-bg: #F6F7F9;
   --panel-bg: #FFFFFF;
   --panel-strong: #FFFFFF;
-  --line: #8A9097;
-  --line-strong: #72787E;
+  --line: #D1D5DB;
+  --line-strong: #9CA3AF;
   --text: #111827;
   --soft: #4B5563;
   --dim: #9CA3AF;
@@ -1030,36 +1201,36 @@ onMounted(async () => {
   --red: #EF4444;
   --gold: #B88A2E;
   --blue: #2563EB;
-  background: #f8f5ec;
+  background: #F6F7F9;
 }
 
 .hero-insights.theme-light .topbar {
   background: #FFFFFF;
-  border-color: #8A9097;
-  box-shadow: 0 1px 4px rgba(15, 23, 42, .06);
+  border-color: #D1D5DB;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
   border-radius: 12px;
   padding: 10px 18px;
 }
 
 .hero-insights.theme-light .panel {
   background: #FFFFFF;
-  border-color: #8A9097;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  border-color: #D1D5DB;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .045);
   border-radius: 12px;
 }
 
 .hero-insights.theme-light .metric-card {
   background: #FFFFFF;
-  border-color: #8A9097;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  border-color: #D1D5DB;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .045);
   border-radius: 12px;
   padding: 14px 18px;
 }
 
 .hero-insights.theme-light .state-panel {
   background: #FFFFFF;
-  border-color: #8A9097;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  border-color: #D1D5DB;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .045);
   border-radius: 12px;
 }
 
@@ -1081,7 +1252,7 @@ onMounted(async () => {
 .hero-insights.theme-light .metric-card.accent strong { color: #D97706; }
 
 .hero-insights.theme-light .section-title {
-  border-bottom-color: #8A9097;
+  border-bottom-color: #D1D5DB;
   padding: 10px 18px 10px;
 }
 
@@ -1103,7 +1274,7 @@ onMounted(async () => {
 }
 
 .hero-insights.theme-light .toggle-track {
-  background: #8A9097;
+  background: #D1D5DB;
 }
 
 .hero-insights.theme-light .toggle-track.on {
@@ -1118,7 +1289,8 @@ onMounted(async () => {
   color: #6B7280;
 }
 
-.hero-insights.theme-light .refresh-btn {
+.hero-insights.theme-light .refresh-btn,
+.hero-insights.theme-light .back-btn {
   --el-button-text-color: #4B5563;
   --el-button-hover-text-color: #FFFFFF;
   --el-button-hover-bg-color: #B88A2E;
@@ -1164,14 +1336,14 @@ onMounted(async () => {
 
 .hero-insights.theme-light .battle-card {
   background: #FFFFFF;
-  border-color: #8A9097;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  border-color: #D1D5DB;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, .04);
   border-radius: 10px;
 }
 
 .hero-insights.theme-light .battle-rank {
-  background: #f8f5ec;
-  border-color: #8A9097;
+  background: #F6F7F9;
+  border-color: #D1D5DB;
   color: #B88A2E;
 }
 
@@ -1193,8 +1365,8 @@ onMounted(async () => {
 
 .hero-insights.theme-light .battle-meta span {
   color: #4B5563;
-  background: #f8f5ec;
-  border-color: #8A9097;
+  background: #F6F7F9;
+  border-color: #D1D5DB;
 }
 
 .hero-insights.theme-light .hero-chip {
@@ -1223,14 +1395,14 @@ onMounted(async () => {
 }
 
 .hero-insights.theme-light .metric-card:hover {
-  border-color: #8A9097;
+  border-color: #9CA3AF;
   border-left-color: #B88A2E;
   background: #F3F4F6;
   box-shadow: 0 2px 12px rgba(15, 23, 42, .08);
 }
 
 .hero-insights.theme-light .battle-card:hover {
-  border-color: #8A9097;
+  border-color: #9CA3AF;
   background: #F3F4F6;
 }
 
@@ -1240,17 +1412,17 @@ onMounted(async () => {
 }
 
 .hero-insights.theme-light .hero-chip:hover {
-  background: #f8f5ec;
+  background: #F6F7F9;
 }
 
 .hero-insights.theme-light .player-row:hover {
-  background: #f8f5ec;
+  background: #F6F7F9;
 }
 
 .hero-insights.theme-light .controls :deep(.el-select__wrapper),
 .hero-insights.theme-light .controls :deep(.el-button) {
   background: #FFFFFF !important;
-  box-shadow: 0 0 0 1px #8A9097 inset !important;
+  box-shadow: 0 0 0 1px #D1D5DB inset !important;
 }
 
 .hero-insights.theme-light .controls :deep(.el-select__suffix) {
@@ -1293,7 +1465,7 @@ onMounted(async () => {
 
   .controls {
     display: grid;
-    grid-template-columns: 1fr 1fr auto auto;
+    grid-template-columns: 1fr 1fr repeat(4, auto);
     gap: 6px;
   }
 
@@ -1301,7 +1473,8 @@ onMounted(async () => {
     width: 100%;
   }
 
-  .refresh-btn :deep(span) {
+  .refresh-btn :deep(span),
+  .back-btn :deep(span) {
     display: none;
   }
 

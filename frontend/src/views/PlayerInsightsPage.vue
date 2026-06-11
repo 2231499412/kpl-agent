@@ -17,7 +17,7 @@
           :remote-method="filterPlayers"
           :loading="playerLoading"
           placeholder="搜索选手"
-          @change="loadDetail"
+          @change="onPlayerChange"
         >
           <el-option v-for="player in visiblePlayers" :key="playerKey(player)" :label="player.playerName" :value="player.playerName">
             <div class="player-option">
@@ -28,6 +28,7 @@
             </div>
           </el-option>
         </el-select>
+        <el-button v-if="returnTarget" :icon="Back" class="refresh-btn back-btn" @click="returnToHero">返回英雄</el-button>
         <el-button :icon="Refresh" class="refresh-btn" :loading="loading" @click="refreshPage">刷新</el-button>
         <button class="theme-toggle" :title="theme === 'light' ? '切换暗色' : '切换亮色'" @click="theme = theme === 'light' ? 'dark' : 'light'">
           <span class="toggle-track" :class="{ on: theme === 'dark' }"><span class="toggle-thumb" /></span>
@@ -86,7 +87,7 @@
       </section>
 
       <section class="analysis-grid">
-        <article class="panel trend-panel">
+        <article class="panel trend-panel" :key="`trend-${chartRenderKey}`">
           <PanelTitle tag="FORM" title="近期状态趋势" note="最近 5 / 10 / 赛季" />
           <div class="mini-stat-row">
             <div><span>最近5场</span><strong>{{ formatPercent(recent5.winRate) }}</strong><em>KDA {{ fixed(recent5.avgKda, 2) }}</em></div>
@@ -94,16 +95,34 @@
             <div><span>赛季整体</span><strong>{{ formatPercent(player.winRate) }}</strong><em>KDA {{ fixed(player.avgKda, 2) }}</em></div>
           </div>
           <svg class="trend-chart" viewBox="0 0 420 150" role="img" aria-label="近期KDA趋势">
-            <line v-for="y in [30, 70, 110]" :key="y" x1="10" :y1="y" x2="410" :y2="y" />
-            <polyline :points="trendLine" />
-            <circle v-for="point in trendDots" :key="point.key" :cx="point.x" :cy="point.y" :class="{ win: point.won }" r="4" />
+            <defs>
+              <linearGradient id="trendLineGradient" x1="0" x2="1" y1="0" y2="0">
+                <stop offset="0%" stop-color="#4DD7C8" />
+                <stop offset="100%" stop-color="#E4C46A" />
+              </linearGradient>
+              <linearGradient id="trendAreaGradient" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#4DD7C8" stop-opacity=".2" />
+                <stop offset="100%" stop-color="#4DD7C8" stop-opacity="0" />
+              </linearGradient>
+            </defs>
+            <line class="chart-axis" x1="18" y1="22" x2="18" y2="132" />
+            <line class="chart-axis" x1="18" y1="132" x2="410" y2="132" />
+            <g v-for="tick in trendAxisTicks" :key="tick.label">
+              <line class="chart-grid" x1="18" :y1="tick.y" x2="410" :y2="tick.y" />
+              <text class="chart-y-label" x="3" :y="tick.y + 4">{{ tick.label }}</text>
+            </g>
+            <polygon v-if="trendArea" class="trend-area" :points="trendArea" />
+            <polyline class="trend-line" :points="trendLine" />
+            <text v-for="point in trendDots" :key="`${point.key}-value`" class="chart-point-value" :x="point.x" :y="point.labelY">{{ fixed(point.value, 1) }}</text>
+            <text v-for="point in trendDots" :key="`${point.key}-x`" class="chart-x-label" :x="point.x" y="146">{{ point.label }}</text>
+            <circle v-for="(point, index) in trendDots" :key="point.key" :cx="point.x" :cy="point.y" :class="['trend-dot', { win: point.won }]" :style="{ animationDelay: `${index * 70 + 280}ms` }" r="4" />
           </svg>
         </article>
 
         <article class="panel hero-panel">
           <PanelTitle tag="HERO POOL" title="英雄池分析" note="胜率 / 熟练度 / 标签" />
           <div class="hero-list">
-            <div v-for="hero in heroPool" :key="hero.heroId" class="hero-row" :class="{ signature: isSignatureHero(hero) }">
+            <div v-for="hero in heroPool" :key="hero.heroId" class="hero-row" :class="{ signature: isSignatureHero(hero) }" @click="openHeroInsight(hero)">
               <img :src="heroIcon(hero)" :alt="hero.heroName" @error="hideBroken">
               <div>
                 <strong>{{ hero.heroName }}</strong>
@@ -115,7 +134,7 @@
           </div>
         </article>
 
-        <article class="panel compare-panel">
+        <article class="panel compare-panel" :key="`compare-${chartRenderKey}`">
           <PanelTitle tag="LANE BENCHMARK" title="同位置横向对比" :note="`${player.positionDesc || '-'} · ${comparison.peerCount || 0} 人样本`" />
           <div class="compare-bars">
             <CompareBar label="胜率" :value="percentNumber(player.winRate)" :avg="percentNumber(compareAvg.winRate)" suffix="%" />
@@ -128,7 +147,7 @@
       </section>
 
       <section class="bottom-grid">
-        <article class="panel stage-panel">
+        <article class="panel stage-panel" :key="`history-${chartRenderKey}`">
           <div class="section-title stage-title">
             <div>
               <span>LEAGUE HISTORY</span>
@@ -144,14 +163,32 @@
                   <em>{{ activeTrendLeague.heroCount || 0 }} 个英雄</em>
                 </div>
                 <svg class="history-chart" viewBox="0 0 420 96" role="img" aria-label="历史赛事KDA趋势">
-                  <line v-for="y in [22, 50, 78]" :key="y" x1="10" :y1="y" x2="410" :y2="y" />
-                  <polyline :points="historyTrendLine" />
+                  <defs>
+                    <linearGradient id="historyLineGradient" x1="0" x2="1" y1="0" y2="0">
+                      <stop offset="0%" stop-color="#8BA7FF" />
+                      <stop offset="100%" stop-color="#4DD7C8" />
+                    </linearGradient>
+                    <linearGradient id="historyAreaGradient" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stop-color="#8BA7FF" stop-opacity=".18" />
+                      <stop offset="100%" stop-color="#8BA7FF" stop-opacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <line class="chart-axis" x1="18" y1="16" x2="18" y2="88" />
+                  <line class="chart-axis" x1="18" y1="88" x2="410" y2="88" />
+                  <g v-for="tick in historyAxisTicks" :key="tick.label">
+                    <line class="chart-grid" x1="18" :y1="tick.y" x2="410" :y2="tick.y" />
+                    <text class="chart-y-label compact" x="3" :y="tick.y + 3">{{ tick.label }}</text>
+                  </g>
+                  <polygon v-if="historyArea" class="history-area" :points="historyArea" />
+                  <polyline class="history-line" :points="historyTrendLine" />
+                  <text v-for="point in historyTrendDots" :key="`${point.key}-value`" class="chart-point-value compact" :x="point.x" :y="point.labelY">{{ fixed(point.value, 1) }}</text>
                   <circle
-                    v-for="point in historyTrendDots"
+                    v-for="(point, index) in historyTrendDots"
                     :key="point.key"
                     :cx="point.x"
                     :cy="point.y"
-                    :class="{ active: point.leagueId === selectedLeagueTrendId }"
+                    :class="['history-dot', { active: point.leagueId === selectedLeagueTrendId }]"
+                    :style="{ animationDelay: `${index * 55 + 240}ms` }"
                     r="4"
                     @click="selectedLeagueTrendId = point.leagueId"
                   />
@@ -177,7 +214,7 @@
                 </div>
               </div>
               <div class="hero-list history-hero-list">
-                <div v-for="hero in activeLeagueHeroes" :key="`${hero.leagueId}-${hero.heroId}`" class="hero-row">
+                <div v-for="hero in activeLeagueHeroes" :key="`${hero.leagueId}-${hero.heroId}`" class="hero-row" @click="openHeroInsight(hero)">
                   <img :src="heroIcon(hero)" :alt="hero.heroName" @error="hideBroken">
                   <div>
                     <strong>{{ hero.heroName }}</strong>
@@ -217,10 +254,13 @@
 
 <script setup>
 import { computed, defineComponent, h, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowLeftBold, ArrowRightBold, Refresh } from '@element-plus/icons-vue'
+import { ArrowLeftBold, ArrowRightBold, Back, Refresh } from '@element-plus/icons-vue'
 import { getTheme, setTheme } from '../utils/theme'
 
+const route = useRoute()
+const router = useRouter()
 const leagues = ref(JSON.parse(localStorage.getItem('kpl_leagues') || '[]'))
 const players = ref([])
 const visiblePlayers = ref([])
@@ -234,6 +274,8 @@ const theme = ref(getTheme())
 const stageMode = ref('stage')
 const selectedLeagueTrendId = ref('')
 const leagueTabsRef = ref(null)
+const routeReady = ref(false)
+let detailRequestId = 0
 watch(theme, (value) => setTheme(value))
 
 const player = computed(() => detail.value?.player || {})
@@ -247,6 +289,13 @@ const comparison = computed(() => detail.value?.positionComparison || {})
 const compareAvg = computed(() => comparison.value?.avg || {})
 const compareRank = computed(() => comparison.value?.rank || {})
 const currentLeagueName = computed(() => leagues.value.find(item => item.leagueId === selectedLeagueId.value)?.leagueName || '当前赛事')
+const returnTarget = computed(() => {
+  if (!route.query.returnHeroId) return null
+  return {
+    leagueId: String(route.query.returnLeagueId || selectedLeagueId.value),
+    heroId: route.query.returnHeroId,
+  }
+})
 const activeTrendLeague = computed(() => {
   if (!leagueTimeline.value.length) return null
   return leagueTimeline.value.find(item => item.leagueId === selectedLeagueTrendId.value) || leagueTimeline.value[0]
@@ -261,6 +310,7 @@ const activeLeagueHeroes = computed(() => {
 })
 const recent5 = computed(() => summarizeRecent(recentGames.value.slice(0, 5)))
 const recent10 = computed(() => summarizeRecent(recentGames.value.slice(0, 10)))
+const chartRenderKey = computed(() => `${selectedLeagueId.value || 'auto'}-${selectedPlayer.value || 'player'}`)
 const statusScore = computed(() => {
   const games = num(player.value.battleCount)
   const wins = Math.round(percentNumber(player.value.winRate) / 100 * games)
@@ -297,26 +347,61 @@ const statusScore = computed(() => {
 })
 const trendDots = computed(() => {
   const rows = [...recentGames.value].reverse()
-  const maxKda = Math.max(1, ...rows.map(row => num(row.kda)))
-  return rows.map((row, index) => ({
-    key: `${row.battleId}-${index}`,
-    x: 18 + index * (384 / Math.max(1, rows.length - 1)),
-    y: 126 - (num(row.kda) / maxKda) * 104,
-    won: Number(row.won) === 1,
-  }))
+  const maxKda = trendMaxKda.value
+  return rows.map((row, index) => {
+    const value = num(row.kda)
+    const x = 18 + index * (384 / Math.max(1, rows.length - 1))
+    const y = 126 - (value / maxKda) * 104
+    return {
+      key: `${row.battleId}-${index}`,
+      x,
+      y,
+      labelY: Math.max(12, y - 10),
+      value,
+      label: `${index + 1}`,
+      won: Number(row.won) === 1,
+    }
+  })
 })
+const trendMaxKda = computed(() => Math.max(1, ...recentGames.value.map(row => num(row.kda))))
+const trendAxisTicks = computed(() => [trendMaxKda.value, trendMaxKda.value / 2, 0].map(value => ({
+  value,
+  label: fixed(value, 1),
+  y: 126 - (value / trendMaxKda.value) * 104,
+})))
 const trendLine = computed(() => trendDots.value.map(point => `${point.x},${point.y}`).join(' '))
+const trendArea = computed(() => {
+  if (!trendDots.value.length) return ''
+  return `10,132 ${trendDots.value.map(point => `${point.x},${point.y}`).join(' ')} 410,132`
+})
 const historyTrendDots = computed(() => {
   const rows = [...leagueTimeline.value].reverse()
-  const maxKda = Math.max(1, ...rows.map(row => num(row.avgKda)))
-  return rows.map((row, index) => ({
-    key: row.leagueId || index,
-    leagueId: row.leagueId,
-    x: 18 + index * (384 / Math.max(1, rows.length - 1)),
-    y: 82 - (num(row.avgKda) / maxKda) * 66,
-  }))
+  const maxKda = historyMaxKda.value
+  return rows.map((row, index) => {
+    const value = num(row.avgKda)
+    const x = 18 + index * (384 / Math.max(1, rows.length - 1))
+    const y = 82 - (value / maxKda) * 66
+    return {
+      key: row.leagueId || index,
+      leagueId: row.leagueId,
+      x,
+      y,
+      labelY: Math.max(10, y - 7),
+      value,
+    }
+  })
 })
+const historyMaxKda = computed(() => Math.max(1, ...leagueTimeline.value.map(row => num(row.avgKda))))
+const historyAxisTicks = computed(() => [historyMaxKda.value, historyMaxKda.value / 2, 0].map(value => ({
+  value,
+  label: fixed(value, 1),
+  y: 82 - (value / historyMaxKda.value) * 66,
+})))
 const historyTrendLine = computed(() => historyTrendDots.value.map(point => `${point.x},${point.y}`).join(' '))
+const historyArea = computed(() => {
+  if (!historyTrendDots.value.length) return ''
+  return `10,88 ${historyTrendDots.value.map(point => `${point.x},${point.y}`).join(' ')} 410,88`
+})
 
 const PanelTitle = defineComponent({
   props: { tag: String, title: String, note: String },
@@ -381,20 +466,24 @@ async function loadPlayers() {
   }
 }
 
-async function loadDetail() {
+async function loadDetail(options = {}) {
   if (!selectedLeagueId.value || !selectedPlayer.value) return
+  const requestId = ++detailRequestId
+  if (options.clearCurrent) detail.value = null
   loading.value = true
   errorText.value = ''
   try {
     const data = await request(`/api/query/player/detail?name=${encodeURIComponent(selectedPlayer.value)}&leagueId=${selectedLeagueId.value}&limit=10`)
+    if (requestId !== detailRequestId) return
     if (data?.error) throw new Error('当前赛事没有该选手数据')
     detail.value = data
     syncTrendLeague()
   } catch (error) {
+    if (requestId !== detailRequestId) return
     errorText.value = error.message
     detail.value = null
   } finally {
-    loading.value = false
+    if (requestId === detailRequestId) loading.value = false
   }
 }
 
@@ -402,7 +491,14 @@ async function onLeagueChange() {
   selectedPlayer.value = ''
   detail.value = null
   await loadPlayers()
-  await loadDetail()
+  await pushPlayerRoute(true)
+}
+
+async function onPlayerChange() {
+  detail.value = null
+  errorText.value = ''
+  loading.value = true
+  await pushPlayerRoute()
 }
 
 async function refreshPage() {
@@ -410,6 +506,72 @@ async function refreshPage() {
   await loadPlayers()
   await loadDetail()
 }
+
+function returnToHero() {
+  if (!returnTarget.value) return
+  router.push({
+    path: '/hero-insights',
+    query: {
+      leagueId: returnTarget.value.leagueId,
+      heroId: returnTarget.value.heroId,
+    },
+  })
+}
+
+function openHeroInsight(hero) {
+  if (!hero?.heroId) return
+  router.push({
+    path: '/hero-insights',
+    query: {
+      leagueId: selectedLeagueId.value,
+      heroId: hero.heroId,
+      returnLeagueId: selectedLeagueId.value,
+      returnPlayer: selectedPlayer.value,
+      ...(returnTarget.value
+        ? {
+            playerReturnLeagueId: returnTarget.value.leagueId,
+            playerReturnHeroId: returnTarget.value.heroId,
+          }
+        : {}),
+    },
+  })
+}
+
+async function pushPlayerRoute(replace = false) {
+  if (!selectedLeagueId.value || !selectedPlayer.value) return
+  const target = {
+    path: '/player-insights',
+    query: {
+      leagueId: selectedLeagueId.value,
+      player: selectedPlayer.value,
+    },
+  }
+  if (replace) await router.replace(target)
+  else await router.push(target)
+}
+
+watch(
+  () => [route.query.leagueId, route.query.player],
+  async ([leagueId, playerName]) => {
+    if (!routeReady.value || route.name !== 'player-insights') return
+    const nextLeagueId = leagueId ? String(leagueId) : selectedLeagueId.value
+    const nextPlayer = playerName ? String(playerName) : selectedPlayer.value
+    const leagueChanged = nextLeagueId && nextLeagueId !== selectedLeagueId.value
+    const playerChanged = nextPlayer && nextPlayer !== selectedPlayer.value
+
+    if (leagueChanged) {
+      selectedLeagueId.value = nextLeagueId
+      selectedPlayer.value = nextPlayer
+      detail.value = null
+      await loadPlayers()
+    } else if (playerChanged) {
+      selectedPlayer.value = nextPlayer
+      detail.value = null
+    }
+
+    await loadDetail({ clearCurrent: leagueChanged || playerChanged })
+  }
+)
 
 function filterPlayers(keyword) {
   const key = String(keyword || '').trim().toLowerCase()
@@ -524,8 +686,12 @@ function formatMetric(value, compact = false) {
 
 onMounted(async () => {
   await loadLeagues()
+  if (route.query.leagueId) selectedLeagueId.value = String(route.query.leagueId)
+  if (route.query.player) selectedPlayer.value = String(route.query.player)
   await loadPlayers()
+  if (route.query.player) selectedPlayer.value = String(route.query.player)
   await loadDetail()
+  routeReady.value = true
 })
 </script>
 
@@ -968,6 +1134,7 @@ onMounted(async () => {
   width: 100%;
   height: 60px;
   margin-top: 2px;
+  overflow: visible;
 }
 .history-chart line {
   stroke: var(--line);
@@ -980,11 +1147,31 @@ onMounted(async () => {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+.history-chart .history-area {
+  fill: url(#historyAreaGradient);
+  opacity: 0;
+  animation: chart-area-in .7s ease .16s forwards;
+}
+.history-chart .history-line {
+  stroke: url(#historyLineGradient);
+  stroke-width: 4;
+  stroke-dasharray: 760;
+  stroke-dashoffset: 760;
+  filter: drop-shadow(0 5px 8px rgba(59, 167, 255, .16));
+  animation: chart-line-draw .9s cubic-bezier(.22, 1, .36, 1) forwards;
+}
 .history-chart circle {
   fill: var(--gold);
   stroke: var(--panel-bg);
   stroke-width: 2;
   cursor: pointer;
+}
+.history-chart .history-dot {
+  opacity: 0;
+  transform: scale(.35);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: chart-dot-in .34s cubic-bezier(.2, 1.3, .4, 1) forwards;
 }
 .history-chart circle.active {
   fill: var(--green);
@@ -1083,6 +1270,13 @@ onMounted(async () => {
   padding: 8px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, .035);
+  animation: chart-card-in .46s cubic-bezier(.2, .8, .2, 1) both;
+}
+.mini-stat-row div:nth-child(2) {
+  animation-delay: 80ms;
+}
+.mini-stat-row div:nth-child(3) {
+  animation-delay: 160ms;
 }
 .mini-stat-row span,
 .mini-stat-row em {
@@ -1101,6 +1295,7 @@ onMounted(async () => {
   width: 100%;
   height: 136px;
   padding: 4px 8px 10px;
+  overflow: visible;
 }
 .trend-chart line {
   stroke: var(--line);
@@ -1113,12 +1308,68 @@ onMounted(async () => {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+.trend-chart .trend-area {
+  fill: url(#trendAreaGradient);
+  opacity: 0;
+  animation: chart-area-in .72s ease .18s forwards;
+}
+.trend-chart .trend-line {
+  stroke: url(#trendLineGradient);
+  stroke-width: 4;
+  stroke-dasharray: 760;
+  stroke-dashoffset: 760;
+  filter: drop-shadow(0 6px 10px rgba(215, 180, 90, .18));
+  animation: chart-line-draw .96s cubic-bezier(.22, 1, .36, 1) forwards;
+}
 .trend-chart circle {
   fill: var(--red);
   stroke: var(--panel-bg);
   stroke-width: 2;
 }
+.trend-chart .trend-dot {
+  opacity: 0;
+  transform: scale(.35);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: chart-dot-in .38s cubic-bezier(.2, 1.3, .4, 1) forwards;
+}
 .trend-chart circle.win { fill: var(--green); }
+
+.trend-chart .chart-axis,
+.history-chart .chart-axis {
+  stroke: rgba(232, 232, 232, .32);
+  stroke-width: 1.2;
+}
+.trend-chart .chart-grid,
+.history-chart .chart-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 4 6;
+}
+.chart-y-label,
+.chart-x-label,
+.chart-point-value {
+  fill: var(--dim);
+  font-size: 9px;
+  font-weight: 800;
+  text-anchor: middle;
+  pointer-events: none;
+}
+.chart-y-label {
+  text-anchor: start;
+}
+.chart-y-label.compact,
+.chart-point-value.compact {
+  font-size: 8px;
+}
+.chart-point-value {
+  fill: var(--text);
+  opacity: 0;
+  animation: chart-label-in .36s ease .42s forwards;
+}
+.chart-x-label {
+  fill: var(--dim);
+}
 
 .hero-list,
 .stage-list,
@@ -1229,28 +1480,108 @@ onMounted(async () => {
   left: 0;
   height: 9px;
   border-radius: 3px;
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: compare-bar-in .72s cubic-bezier(.22, 1, .36, 1) forwards;
 }
 .compare-row :deep(.compare-track i) {
   position: absolute;
   left: 0;
   height: 9px;
   border-radius: 3px;
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: compare-bar-in .72s cubic-bezier(.22, 1, .36, 1) forwards;
 }
 .compare-track .self {
   top: 1px;
   background: var(--gold);
+  box-shadow: 0 0 14px rgba(215, 180, 90, .18);
 }
 .compare-row :deep(.compare-track .self) {
   top: 1px;
   background: var(--gold);
+  box-shadow: 0 0 14px rgba(215, 180, 90, .18);
 }
 .compare-track .avg {
   bottom: 1px;
   background: rgba(59, 167, 255, .6);
+  animation-delay: 120ms;
 }
 .compare-row :deep(.compare-track .avg) {
   bottom: 1px;
   background: rgba(59, 167, 255, .6);
+  animation-delay: 120ms;
+}
+
+@keyframes chart-line-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes chart-area-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes chart-dot-in {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes chart-label-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: .86;
+    transform: translateY(0);
+  }
+}
+
+@keyframes compare-bar-in {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes chart-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trend-chart .trend-area,
+  .trend-chart .trend-line,
+  .trend-chart .trend-dot,
+  .trend-chart .chart-point-value,
+  .history-chart .history-area,
+  .history-chart .history-line,
+  .history-chart .history-dot,
+  .history-chart .chart-point-value,
+  .compare-track i,
+  .mini-stat-row div {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    stroke-dashoffset: 0 !important;
+  }
 }
 
 .stage-row {
@@ -1523,6 +1854,14 @@ onMounted(async () => {
   stroke: #C9972F;
 }
 
+.player-insights.theme-light .trend-chart .trend-line {
+  stroke: url(#trendLineGradient);
+}
+
+.player-insights.theme-light .trend-chart .trend-area {
+  fill: url(#trendAreaGradient);
+}
+
 .player-insights.theme-light .trend-chart circle {
   fill: #EF4444;
   stroke: #FFFFFF;
@@ -1534,6 +1873,33 @@ onMounted(async () => {
 
 .player-insights.theme-light .history-chart polyline {
   stroke: #C9972F;
+}
+
+.player-insights.theme-light .history-chart .history-line {
+  stroke: url(#historyLineGradient);
+}
+
+.player-insights.theme-light .history-chart .history-area {
+  fill: url(#historyAreaGradient);
+}
+
+.player-insights.theme-light .trend-chart .chart-axis,
+.player-insights.theme-light .history-chart .chart-axis {
+  stroke: #9CA3AF;
+}
+
+.player-insights.theme-light .trend-chart .chart-grid,
+.player-insights.theme-light .history-chart .chart-grid {
+  stroke: #E5E7EB;
+}
+
+.player-insights.theme-light .chart-y-label,
+.player-insights.theme-light .chart-x-label {
+  fill: #6B7280;
+}
+
+.player-insights.theme-light .chart-point-value {
+  fill: #111827;
 }
 
 .player-insights.theme-light .history-chart circle {
@@ -1721,7 +2087,7 @@ onMounted(async () => {
   }
   .controls {
     display: grid;
-    grid-template-columns: 1fr 1fr auto auto;
+    grid-template-columns: 1fr 1fr auto auto auto;
     gap: 6px;
   }
   .controls :deep(.el-select) {
