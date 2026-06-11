@@ -97,12 +97,12 @@
           <svg class="trend-chart" viewBox="0 0 420 150" role="img" aria-label="近期KDA趋势">
             <defs>
               <linearGradient id="trendLineGradient" x1="0" x2="1" y1="0" y2="0">
-                <stop offset="0%" stop-color="#4DD7C8" />
-                <stop offset="100%" stop-color="#E4C46A" />
+                <stop offset="0%" stop-color="#6752D7" />
+                <stop offset="100%" stop-color="#4DE0D4" />
               </linearGradient>
               <linearGradient id="trendAreaGradient" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stop-color="#4DD7C8" stop-opacity=".2" />
-                <stop offset="100%" stop-color="#4DD7C8" stop-opacity="0" />
+                <stop offset="0%" stop-color="#6752D7" stop-opacity=".24" />
+                <stop offset="100%" stop-color="#4DE0D4" stop-opacity="0" />
               </linearGradient>
             </defs>
             <line class="chart-axis" x1="18" y1="22" x2="18" y2="132" />
@@ -165,12 +165,12 @@
                 <svg class="history-chart" viewBox="0 0 420 96" role="img" aria-label="历史赛事KDA趋势">
                   <defs>
                     <linearGradient id="historyLineGradient" x1="0" x2="1" y1="0" y2="0">
-                      <stop offset="0%" stop-color="#8BA7FF" />
-                      <stop offset="100%" stop-color="#4DD7C8" />
+                      <stop offset="0%" stop-color="#D25A78" />
+                      <stop offset="100%" stop-color="#6752D7" />
                     </linearGradient>
                     <linearGradient id="historyAreaGradient" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="0%" stop-color="#8BA7FF" stop-opacity=".18" />
-                      <stop offset="100%" stop-color="#8BA7FF" stop-opacity="0" />
+                      <stop offset="0%" stop-color="#D25A78" stop-opacity=".20" />
+                      <stop offset="100%" stop-color="#6752D7" stop-opacity="0" />
                     </linearGradient>
                   </defs>
                   <line class="chart-axis" x1="18" y1="16" x2="18" y2="88" />
@@ -697,28 +697,68 @@ onMounted(async () => {
 
 <style scoped>
 .player-insights {
-  --page-bg: #101113;
-  --panel-bg: rgba(24, 25, 27, .92);
-  --panel-strong: rgba(15, 16, 18, .96);
-  --line: rgba(255, 255, 255, .34);
-  --line-strong: rgba(255, 255, 255, .45);
-  --text: #e8e8e8;
-  --soft: rgba(232, 232, 232, .65);
-  --dim: rgba(232, 232, 232, .4);
-  --blue: #3ba7ff;
-  --green: #87df55;
-  --red: #ff5e57;
-  --gold: #d7b45a;
+  --page-bg: #dce6f4;
+  --panel-bg: rgba(238, 245, 252, .70);
+  --panel-strong: rgba(248, 251, 255, .82);
+  --line: rgba(255, 255, 255, .62);
+  --line-strong: rgba(255, 255, 255, .82);
+  --text: #16202c;
+  --soft: rgba(22, 32, 44, .64);
+  --dim: rgba(22, 32, 44, .44);
+  --blue: #6752d7;
+  --green: #249e8f;
+  --red: #d25a78;
+  --gold: #b88a2e;
   min-height: 100vh;
   margin-left: 67.5px;
   padding: 10px 14px 24px;
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
   color: var(--text);
-  background: linear-gradient(180deg, rgba(16, 17, 19, .96), rgba(10, 11, 12, .98)), var(--page-bg);
+  background:
+    radial-gradient(ellipse at 10% 82%, rgba(138, 101, 236, .34), transparent 34%),
+    radial-gradient(ellipse at 90% 12%, rgba(77, 224, 212, .34), transparent 30%),
+    linear-gradient(120deg, rgba(133, 110, 255, .18), transparent 28%),
+    linear-gradient(240deg, rgba(53, 225, 211, .22), transparent 30%),
+    linear-gradient(180deg, #dce6f4 0%, #f4f0fa 58%, #d5c7ee 100%);
   font-family: "Microsoft YaHei UI", "PingFang SC", sans-serif;
 }
 
 .player-insights,
 .player-insights * { box-sizing: border-box; }
+
+.player-insights::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 159px, rgba(73, 89, 121, .11) 160px),
+    linear-gradient(180deg, rgba(255, 255, 255, .56), transparent 28%);
+  mix-blend-mode: multiply;
+}
+
+.player-insights::after {
+  content: "";
+  position: fixed;
+  inset: auto -12vw 6vh -12vw;
+  z-index: -1;
+  height: 28vw;
+  min-height: 260px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 60%, rgba(138, 101, 236, .38), transparent 28%),
+    radial-gradient(circle at 82% 34%, rgba(77, 224, 212, .36), transparent 30%);
+  filter: blur(64px);
+  opacity: .62;
+}
+
+.player-insights > * {
+  position: relative;
+  z-index: 1;
+}
 
 .topbar,
 .profile-strip,
@@ -739,7 +779,8 @@ onMounted(async () => {
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--panel-strong);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 18px 55px rgba(49, 57, 92, .14), inset 0 0 46px rgba(255, 255, 255, .32);
 }
 
 .title-block span,
@@ -774,7 +815,7 @@ onMounted(async () => {
 .controls :deep(.el-button) {
   min-height: 34px;
   border-radius: 6px !important;
-  background: rgba(255, 255, 255, .06) !important;
+  background: rgba(255, 255, 255, .58) !important;
   box-shadow: 0 0 0 1px var(--line) inset !important;
 }
 
@@ -879,7 +920,8 @@ onMounted(async () => {
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--panel-bg);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 18px 55px rgba(49, 57, 92, .14), inset 0 0 46px rgba(255, 255, 255, .30);
 }
 
 .profile-card {
@@ -966,6 +1008,7 @@ onMounted(async () => {
   justify-content: center;
   padding: 12px;
   border-left: 3px solid transparent;
+  box-shadow: 0 14px 36px rgba(49, 57, 92, .12), inset 0 1px 0 rgba(255, 255, 255, .72);
   transition: border-color .25s ease, background .25s ease, box-shadow .25s ease;
 }
 .metric-card span,
@@ -1671,56 +1714,65 @@ onMounted(async () => {
 }
 
 .player-insights.theme-light {
-  --page-bg: #F6F7F9;
-  --panel-bg: #FFFFFF;
-  --panel-strong: #FFFFFF;
-  --line: #8A9097;
-  --line-strong: #72787E;
-  --text: #111827;
-  --soft: #4B5563;
-  --dim: #9CA3AF;
-  --green: #16A34A;
-  --red: #EF4444;
-  --gold: #B88A2E;
-  --blue: #2563EB;
-  background: #F6F7F9;
+  --page-bg: #dce6f4;
+  --panel-bg: rgba(238, 245, 252, .70);
+  --panel-strong: rgba(248, 251, 255, .82);
+  --line: rgba(255, 255, 255, .62);
+  --line-strong: rgba(255, 255, 255, .82);
+  --text: #16202c;
+  --soft: rgba(22, 32, 44, .64);
+  --dim: rgba(22, 32, 44, .44);
+  --green: #249e8f;
+  --red: #d25a78;
+  --gold: #b88a2e;
+  --blue: #6752d7;
+  background:
+    radial-gradient(ellipse at 10% 82%, rgba(138, 101, 236, .34), transparent 34%),
+    radial-gradient(ellipse at 90% 12%, rgba(77, 224, 212, .34), transparent 30%),
+    linear-gradient(120deg, rgba(133, 110, 255, .18), transparent 28%),
+    linear-gradient(240deg, rgba(53, 225, 211, .22), transparent 30%),
+    linear-gradient(180deg, #dce6f4 0%, #f4f0fa 58%, #d5c7ee 100%);
 }
 
 .player-insights.theme-light .topbar {
-  background: #FFFFFF;
-  border-color: #8A9097;
-  box-shadow: 0 1px 4px rgba(15, 23, 42, .06);
+  background: var(--panel-strong);
+  border-color: var(--line);
+  box-shadow: 0 18px 55px rgba(49, 57, 92, .14), inset 0 0 46px rgba(255, 255, 255, .32);
   border-radius: 12px;
   padding: 10px 18px;
 }
 
 .player-insights.theme-light .panel {
-  background: #FFFFFF;
-  border-color: #8A9097;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  background: var(--panel-bg);
+  border-color: var(--line);
+  box-shadow: 0 18px 55px rgba(49, 57, 92, .14), inset 0 0 46px rgba(255, 255, 255, .30);
   border-radius: 12px;
 }
 
 .player-insights.theme-light .metric-card {
-  background: #FFFFFF;
-  border-color: #8A9097;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, .70), rgba(235, 242, 252, .50)),
+    var(--panel-bg);
+  border-color: var(--line);
+  box-shadow: 0 14px 36px rgba(49, 57, 92, .12), inset 0 1px 0 rgba(255, 255, 255, .72);
   border-radius: 12px;
   padding: 14px 18px;
 }
 
 .player-insights.theme-light .profile-card {
-  background: #FFFFFF;
-  border-color: #8A9097;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, .72), rgba(238, 245, 252, .52)),
+    var(--panel-bg);
+  border-color: var(--line);
+  box-shadow: 0 18px 55px rgba(49, 57, 92, .14), inset 0 0 46px rgba(255, 255, 255, .30);
   border-radius: 12px;
   padding: 16px 18px;
 }
 
 .player-insights.theme-light .state-panel {
-  background: #FFFFFF;
-  border-color: #8A9097;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  background: var(--panel-bg);
+  border-color: var(--line);
+  box-shadow: 0 18px 55px rgba(49, 57, 92, .14), inset 0 0 46px rgba(255, 255, 255, .30);
   border-radius: 12px;
 }
 
@@ -2057,6 +2109,161 @@ onMounted(async () => {
 .player-insights.theme-light .stage-row:hover,
 .player-insights.theme-light .battle-row:hover {
   background: #F3F4F6;
+}
+
+.player-insights.theme-light .title-block span,
+.player-insights.theme-light .section-title :deep(span) {
+  color: var(--blue);
+}
+
+.player-insights.theme-light .section-title {
+  border-bottom-color: rgba(255, 255, 255, .56);
+}
+
+.player-insights.theme-light .metric-card.primary {
+  background:
+    linear-gradient(145deg, rgba(103, 82, 215, .14), rgba(255, 255, 255, .58)),
+    var(--panel-bg);
+}
+
+.player-insights.theme-light .metric-card.win {
+  background:
+    linear-gradient(145deg, rgba(36, 158, 143, .14), rgba(255, 255, 255, .58)),
+    var(--panel-bg);
+}
+
+.player-insights.theme-light .metric-card.danger {
+  background:
+    linear-gradient(145deg, rgba(210, 90, 120, .15), rgba(255, 255, 255, .58)),
+    var(--panel-bg);
+}
+
+.player-insights.theme-light .metric-card.accent,
+.player-insights.theme-light .metric-card.light {
+  background:
+    linear-gradient(145deg, rgba(184, 138, 46, .14), rgba(255, 255, 255, .58)),
+    var(--panel-bg);
+}
+
+.player-insights.theme-light .metric-card:hover {
+  border-color: var(--line-strong);
+  border-left-color: var(--blue);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, .78), rgba(234, 241, 253, .62)),
+    var(--panel-strong);
+  box-shadow: 0 20px 48px rgba(49, 57, 92, .16), inset 0 1px 0 rgba(255, 255, 255, .84);
+}
+
+.player-insights.theme-light .metric-card.primary strong { color: var(--blue); }
+.player-insights.theme-light .metric-card.win strong { color: var(--green); }
+.player-insights.theme-light .metric-card.danger strong { color: var(--red); }
+.player-insights.theme-light .metric-card.accent strong,
+.player-insights.theme-light .metric-card.light strong { color: var(--gold); }
+
+.player-insights.theme-light .mini-stat-row div,
+.player-insights.theme-light .league-tabs button,
+.player-insights.theme-light .league-scroll-btn {
+  background: rgba(255, 255, 255, .42);
+  border-color: rgba(255, 255, 255, .62);
+  box-shadow: 0 8px 18px rgba(49, 57, 92, .07);
+}
+
+.player-insights.theme-light .league-tabs button.active {
+  border-color: rgba(103, 82, 215, .42);
+  background: linear-gradient(135deg, rgba(103, 82, 215, .16), rgba(77, 224, 212, .12));
+}
+
+.player-insights.theme-light .league-scroll-btn:hover {
+  border-color: rgba(103, 82, 215, .42);
+  color: var(--blue);
+  background: rgba(255, 255, 255, .62);
+}
+
+.player-insights.theme-light .hero-row,
+.player-insights.theme-light .stage-row,
+.player-insights.theme-light .battle-row {
+  border-bottom-color: rgba(255, 255, 255, .52);
+}
+
+.player-insights.theme-light .hero-row:hover,
+.player-insights.theme-light .stage-row:hover,
+.player-insights.theme-light .battle-row:hover {
+  background: rgba(255, 255, 255, .48);
+}
+
+.player-insights.theme-light .compare-track,
+.player-insights.theme-light .compare-row :deep(.compare-track) {
+  background: rgba(255, 255, 255, .46);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .58);
+}
+
+.player-insights.theme-light .compare-track .self,
+.player-insights.theme-light .compare-row :deep(.compare-track .self) {
+  background: linear-gradient(90deg, #6752d7, #8e7cf3);
+  box-shadow: 0 0 16px rgba(103, 82, 215, .22);
+}
+
+.player-insights.theme-light .compare-track .avg,
+.player-insights.theme-light .compare-row :deep(.compare-track .avg) {
+  background: linear-gradient(90deg, rgba(77, 224, 212, .70), rgba(36, 158, 143, .70));
+}
+
+.player-insights.theme-light .trend-chart .chart-axis,
+.player-insights.theme-light .history-chart .chart-axis {
+  stroke: rgba(22, 32, 44, .38);
+}
+
+.player-insights.theme-light .trend-chart .chart-grid,
+.player-insights.theme-light .history-chart .chart-grid {
+  stroke: rgba(22, 32, 44, .14);
+}
+
+.player-insights.theme-light .trend-chart circle,
+.player-insights.theme-light .history-chart circle {
+  stroke: rgba(255, 255, 255, .86);
+}
+
+.player-insights.theme-light .history-chart circle {
+  fill: var(--blue);
+}
+
+.player-insights.theme-light .history-chart circle.active {
+  fill: var(--red);
+}
+
+.player-insights.theme-light .status-score strong,
+.player-insights.theme-light .mini-stat-row strong,
+.player-insights.theme-light .hero-row b,
+.player-insights.theme-light .stage-row b,
+.player-insights.theme-light .battle-score span.won {
+  color: var(--green);
+}
+
+.player-insights.theme-light .battle-score span {
+  color: var(--red);
+}
+
+.player-insights.theme-light .battle-score strong,
+.player-insights.theme-light .hero-row em,
+.player-insights.theme-light .league-summary em {
+  color: var(--gold);
+}
+
+.player-insights.theme-light .avatar-fallback {
+  background: linear-gradient(135deg, rgba(103, 82, 215, .16), rgba(77, 224, 212, .14));
+  color: var(--blue);
+}
+
+.player-insights.theme-light .profile-card img,
+.player-insights.theme-light .avatar-fallback {
+  border-color: rgba(255, 255, 255, .78);
+  box-shadow: 0 12px 26px rgba(49, 57, 92, .15);
+}
+
+.player-insights.theme-light .controls :deep(.el-select__wrapper),
+.player-insights.theme-light .controls :deep(.el-button) {
+  background: rgba(255, 255, 255, .62) !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .74) inset, 0 10px 24px rgba(49, 57, 92, .08) !important;
 }
 
 @media (max-width: 1180px) {

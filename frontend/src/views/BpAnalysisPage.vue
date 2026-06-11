@@ -279,6 +279,11 @@ onMounted(async () => {
   --tier-c: #7f8c8d;
   --pick-color: #27ae60;
   --ban-color: #c0392b;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   height: 100vh;
