@@ -135,7 +135,14 @@
               <div class="battle-body">
                 <div class="battle-head">
                   <span>{{ battle.matchStageDesc || '赛段' }} · 第{{ battle.battleSeq || '-' }}局</span>
-                  <b :class="{ won: Number(battle.won) === 1 }">{{ Number(battle.won) === 1 ? '胜利' : '失利' }}</b>
+                  <div class="battle-head-right">
+                    <a v-if="bilibiliUrl(battle)" :href="bilibiliUrl(battle)" target="_blank" rel="noopener" class="bilibili-link" title="在B站观看">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <path d="M17.813 4.653h.854c1.51.054 2.769.578 3.773 1.574 1.004.995 1.524 2.249 1.56 3.76v7.36c-.036 1.51-.556 2.769-1.56 3.773s-2.262 1.524-3.773 1.56H5.333c-1.51-.036-2.769-.556-3.773-1.56S.036 18.858 0 17.347v-7.36c.036-1.511.556-2.765 1.56-3.76 1.004-.996 2.262-1.52 3.773-1.574h.774l-1.174-1.12a1.234 1.234 0 0 1-.373-.906c0-.356.124-.658.373-.907l.027-.027c.267-.249.573-.373.92-.373.347 0 .653.124.92.373L9.653 4.44c.071.071.134.142.187.213h4.267a.836.836 0 0 1 .16-.213l2.853-2.747c.267-.249.573-.373.92-.373.347 0 .662.151.929.4.267.249.391.551.391.907 0 .355-.124.657-.373.906zM5.333 7.24c-.746.018-1.373.276-1.88.773-.506.498-.769 1.13-.786 1.894v7.52c.017.764.28 1.395.786 1.893.507.498 1.134.756 1.88.773h13.334c.746-.017 1.373-.275 1.88-.773.506-.498.769-1.129.786-1.893v-7.52c-.017-.765-.28-1.396-.786-1.894-.507-.497-1.134-.755-1.88-.773zM8 11.107c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c0-.373.129-.689.386-.947.258-.257.574-.386.947-.386zm8 0c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c.017-.391.15-.711.4-.96.249-.249.56-.373.933-.373z"/>
+                      </svg>
+                    </a>
+                    <b :class="{ won: Number(battle.won) === 1 }">{{ Number(battle.won) === 1 ? '胜利' : '失利' }}</b>
+                  </div>
                 </div>
                 <strong>{{ battle.camp1TeamName }} {{ battle.camp1Score ?? '-' }} : {{ battle.camp2Score ?? '-' }} {{ battle.camp2TeamName }}</strong>
                 <div class="battle-meta">
@@ -365,6 +372,13 @@ function shortName(value) {
   return String(value || '-').split('.').pop()
 }
 
+function bilibiliUrl(battle) {
+  if (!battle.bvid) return null
+  const base = `https://www.bilibili.com/video/${battle.bvid}`
+  // 使用存储的实际分P编号
+  return battle.pageNum ? `${base}?p=${battle.pageNum}` : base
+}
+
 onMounted(async () => {
   await loadLeagues()
   await loadHeroes()
@@ -377,11 +391,11 @@ onMounted(async () => {
   --page-bg: #101113;
   --panel-bg: rgba(24, 25, 27, .92);
   --panel-strong: rgba(15, 16, 18, .96);
-  --line: rgba(255, 255, 255, .1);
-  --line-strong: rgba(255, 255, 255, .2);
-  --text: #f1f0e8;
-  --soft: rgba(241, 240, 232, .68);
-  --dim: rgba(241, 240, 232, .42);
+  --line: rgba(255, 255, 255, .34);
+  --line-strong: rgba(255, 255, 255, .45);
+  --text: #e8e8e8;
+  --soft: rgba(232, 232, 232, .65);
+  --dim: rgba(232, 232, 232, .4);
   --blue: #3ba7ff;
   --green: #87df55;
   --red: #ff5e57;
@@ -419,7 +433,9 @@ onMounted(async () => {
   gap: 12px;
   padding: 8px 12px;
   border: 1px solid var(--line);
+  border-radius: 12px;
   background: var(--panel-strong);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
 }
 
 .title-block span,
@@ -568,8 +584,8 @@ onMounted(async () => {
 .hero-stage {
   display: grid;
   grid-template-columns: minmax(420px, .82fr) minmax(0, 1fr);
-  gap: 8px;
-  margin-top: 8px;
+  gap: 16px;
+  margin-top: 16px;
 }
 
 .hero-visual {
@@ -577,6 +593,7 @@ onMounted(async () => {
   min-height: 220px;
   overflow: hidden;
   border: 1px solid var(--line);
+  border-radius: 12px;
   background: #08090a;
 }
 
@@ -588,6 +605,11 @@ onMounted(async () => {
   object-fit: cover;
   object-position: 58% 16%;
   filter: saturate(1.05) contrast(1.05);
+  transition: transform .4s ease;
+}
+
+.hero-visual:hover .hero-bg {
+  transform: scale(1.06);
 }
 
 .visual-shade {
@@ -642,15 +664,11 @@ onMounted(async () => {
   justify-content: center;
   padding: 12px;
   border: 1px solid var(--line);
+  border-left: 3px solid transparent;
+  border-radius: 12px;
   background: var(--panel-bg);
-}
-
-.metric-card span,
-.metric-card em {
-  color: var(--dim);
-  font-size: 12px;
-  font-style: normal;
-  font-weight: 800;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
+  transition: border-color .25s ease, background .25s ease, box-shadow .25s ease;
 }
 
 .metric-card strong {
@@ -661,6 +679,26 @@ onMounted(async () => {
   font-weight: 950;
 }
 
+.metric-card {
+  transition: border-color .2s ease, background .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+
+.metric-card:hover {
+  border-color: var(--line-strong);
+  border-left-color: var(--gold);
+  background: var(--panel-strong);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .06);
+  transform: translateY(-3px);
+}
+
+.metric-card span,
+.metric-card em {
+  color: var(--dim);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
 .metric-card.primary strong { color: var(--blue); }
 .metric-card.win strong { color: var(--green); }
 .metric-card.danger strong { color: var(--red); }
@@ -669,21 +707,23 @@ onMounted(async () => {
 .content-grid {
   display: grid;
   grid-template-columns: minmax(460px, .82fr) minmax(0, 1fr);
-  gap: 8px;
-  margin-top: 8px;
+  gap: 16px;
+  margin-top: 16px;
 }
 
 .relationship-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 8px;
+  gap: 16px;
+  margin-top: 16px;
 }
 
 .panel {
   min-width: 0;
   border: 1px solid var(--line);
+  border-radius: 12px;
   background: var(--panel-bg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
 }
 
 .section-title {
@@ -736,6 +776,13 @@ onMounted(async () => {
   min-height: 46px;
   padding: 6px 8px;
   border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: background .2s ease, padding-left .2s ease;
+}
+
+.player-row:hover {
+  background: rgba(255, 255, 255, .06);
+  padding-left: 12px;
 }
 
 .player-row:last-child {
@@ -801,6 +848,13 @@ onMounted(async () => {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, .045);
+  cursor: pointer;
+  transition: border-color .2s ease, background .2s ease;
+}
+
+.battle-card:hover {
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, .08);
 }
 
 .battle-card:last-child {
@@ -835,6 +889,24 @@ onMounted(async () => {
 
 .battle-head b.won {
   color: var(--green);
+}
+
+.battle-head-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bilibili-link {
+  display: inline-flex;
+  align-items: center;
+  color: #00a1d6;
+  transition: color .2s, transform .2s;
+}
+
+.bilibili-link:hover {
+  color: #23c9ed;
+  transform: scale(1.15);
 }
 
 .battle-body > strong {
@@ -878,6 +950,13 @@ onMounted(async () => {
   min-height: 42px;
   padding: 6px 8px;
   border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: background .2s ease, padding-left .2s ease;
+}
+
+.hero-chip:hover {
+  background: rgba(255, 255, 255, .06);
+  padding-left: 12px;
 }
 
 .hero-chip:last-child {
@@ -932,42 +1011,239 @@ onMounted(async () => {
 }
 
 .hero-insights.theme-light {
-  --page-bg: #f5f1e7;
-  --panel-bg: rgba(255, 255, 255, .92);
-  --panel-strong: rgba(255, 255, 255, .96);
-  --line: rgba(20, 20, 20, .14);
-  --line-strong: rgba(20, 20, 20, .24);
-  --text: #18191b;
-  --soft: rgba(24, 25, 27, .68);
-  --dim: rgba(24, 25, 27, .42);
-  background: linear-gradient(180deg, #f5f1e7, #eee8dc);
+  --page-bg: #F6F7F9;
+  --panel-bg: #FFFFFF;
+  --panel-strong: #FFFFFF;
+  --line: #8A9097;
+  --line-strong: #72787E;
+  --text: #111827;
+  --soft: #4B5563;
+  --dim: #9CA3AF;
+  --green: #16A34A;
+  --red: #EF4444;
+  --gold: #B88A2E;
+  --blue: #2563EB;
+  background: #F6F7F9;
+}
+
+.hero-insights.theme-light .topbar {
+  background: #FFFFFF;
+  border-color: #8A9097;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, .06);
+  border-radius: 12px;
+  padding: 10px 18px;
+}
+
+.hero-insights.theme-light .panel {
+  background: #FFFFFF;
+  border-color: #8A9097;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  border-radius: 12px;
+}
+
+.hero-insights.theme-light .metric-card {
+  background: #FFFFFF;
+  border-color: #8A9097;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  border-radius: 12px;
+  padding: 14px 18px;
+}
+
+.hero-insights.theme-light .state-panel {
+  background: #FFFFFF;
+  border-color: #8A9097;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  border-radius: 12px;
+}
+
+.hero-insights.theme-light .metric-card span {
+  color: #6B7280;
+}
+
+.hero-insights.theme-light .metric-card em {
+  color: #9CA3AF;
+}
+
+.hero-insights.theme-light .metric-card strong {
+  color: #111827;
+}
+
+.hero-insights.theme-light .metric-card.primary strong { color: #2563EB; }
+.hero-insights.theme-light .metric-card.win strong { color: #16A34A; }
+.hero-insights.theme-light .metric-card.danger strong { color: #EF4444; }
+.hero-insights.theme-light .metric-card.accent strong { color: #D97706; }
+
+.hero-insights.theme-light .section-title {
+  border-bottom-color: #8A9097;
+  padding: 10px 18px 10px;
+}
+
+.hero-insights.theme-light .section-title small {
+  color: #4B5563;
+}
+
+.hero-insights.theme-light .empty-line {
+  color: #4B5563;
+}
+
+.hero-insights.theme-light .section-title h3 {
+  color: #111827;
+}
+
+.hero-insights.theme-light .title-block span,
+.hero-insights.theme-light .section-title span {
+  color: #B88A2E;
+}
+
+.hero-insights.theme-light .toggle-track {
+  background: #8A9097;
+}
+
+.hero-insights.theme-light .toggle-track.on {
+  background: #111827;
+}
+
+.hero-insights.theme-light .toggle-thumb {
+  background: #FFFFFF;
+}
+
+.hero-insights.theme-light .theme-toggle small {
+  color: #6B7280;
+}
+
+.hero-insights.theme-light .refresh-btn {
+  --el-button-text-color: #4B5563;
+  --el-button-hover-text-color: #FFFFFF;
+  --el-button-hover-bg-color: #B88A2E;
+  --el-button-hover-border-color: #B88A2E;
+}
+
+.hero-insights.theme-light .player-list,
+.hero-insights.theme-light .featured-list,
+.hero-insights.theme-light .hero-chip-list {
+  padding: 10px 14px;
+}
+
+.hero-insights.theme-light .hero-option em {
+  color: #9CA3AF;
+}
+
+.hero-insights.theme-light .hero-visual {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.hero-insights.theme-light .player-row.leader {
+  background: linear-gradient(90deg, rgba(184, 138, 46, .1), transparent);
+}
+
+.hero-insights.theme-light .rank {
+  color: #B88A2E;
+}
+
+.hero-insights.theme-light .player-main strong {
+  color: #111827;
+}
+
+.hero-insights.theme-light .player-main span,
+.hero-insights.theme-light .player-metrics span,
+.hero-insights.theme-light .mini-kda {
+  color: #6B7280;
+}
+
+.hero-insights.theme-light .player-metrics strong {
+  color: #16A34A;
 }
 
 .hero-insights.theme-light .battle-card {
-  background: #fff;
-  box-shadow: 0 8px 22px rgba(24, 25, 27, .04);
+  background: #FFFFFF;
+  border-color: #8A9097;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  border-radius: 10px;
 }
 
 .hero-insights.theme-light .battle-rank {
-  background: #f6f1e6;
+  background: #F6F7F9;
+  border-color: #8A9097;
+  color: #B88A2E;
+}
+
+.hero-insights.theme-light .battle-head {
+  color: #6B7280;
+}
+
+.hero-insights.theme-light .battle-head b {
+  color: #EF4444;
+}
+
+.hero-insights.theme-light .battle-head b.won {
+  color: #16A34A;
+}
+
+.hero-insights.theme-light .battle-body > strong {
+  color: #111827;
 }
 
 .hero-insights.theme-light .battle-meta span {
-  color: rgba(24, 25, 27, .68);
-  background: #f7f7f5;
+  color: #4B5563;
+  background: #F6F7F9;
+  border-color: #8A9097;
 }
 
 .hero-insights.theme-light .hero-chip {
-  background: #fff;
+  background: #FFFFFF;
+}
+
+.hero-insights.theme-light .hero-chip-main strong {
+  color: #111827;
+}
+
+.hero-insights.theme-light .hero-chip-main span {
+  color: #6B7280;
+}
+
+.hero-insights.theme-light .hero-chip b {
+  color: #16A34A;
+}
+
+.hero-insights.theme-light .hero-chip.warn b {
+  color: #EF4444;
 }
 
 .hero-insights.theme-light .hero-visual {
   background: #18191b;
+  border-radius: 12px;
+}
+
+.hero-insights.theme-light .metric-card:hover {
+  border-color: #8A9097;
+  border-left-color: #B88A2E;
+  background: #F3F4F6;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, .08);
+}
+
+.hero-insights.theme-light .battle-card:hover {
+  border-color: #8A9097;
+  background: #F3F4F6;
+}
+
+.hero-insights.theme-light .player-row:hover,
+.hero-insights.theme-light .hero-chip:hover {
+  background: #F3F4F6;
+}
+
+.hero-insights.theme-light .hero-chip:hover {
+  background: #F6F7F9;
+}
+
+.hero-insights.theme-light .player-row:hover {
+  background: #F6F7F9;
 }
 
 .hero-insights.theme-light .controls :deep(.el-select__wrapper),
 .hero-insights.theme-light .controls :deep(.el-button) {
-  background: rgba(255, 255, 255, .72) !important;
+  background: #FFFFFF !important;
+  box-shadow: 0 0 0 1px #8A9097 inset !important;
 }
 
 @media (max-width: 1180px) {
@@ -1059,4 +1335,8 @@ onMounted(async () => {
     grid-template-columns: 34px minmax(0, 1fr);
   }
 }
+</style>
+
+<style>
+@import '../styles/select-dropdown.css';
 </style>

@@ -1,0 +1,165 @@
+/* ── Element Plus Select 下拉面板 ── */
+
+/* 浮层面板 — 旧版直角风格 */
+.el-select__popper.el-popper {
+  border: 1px solid rgba(0, 0, 0, .3) !important;
+  border-radius: 0 !important;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, .08) !important;
+  background: #fff !important;
+}
+
+/* 顶部菱形箭头 */
+.el-select__popper .el-popper__arrow {
+  display: block !important;
+}
+
+.el-select__popper .el-popper__arrow::before {
+  background: #1a1a1a !important;
+  border: none !important;
+  width: 8px !important;
+  height: 8px !important;
+  transform: rotate(45deg) !important;
+}
+
+/* 列表容器 */
+.el-select-dropdown {
+  padding: 4px 0 !important;
+}
+
+.el-select-dropdown__list {
+  padding: 0 !important;
+}
+
+/* 搜索框区域 */
+.el-select-dropdown .el-select-filter-wrapper,
+.el-select__popper .el-select-filter-wrapper {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 8px 10px;
+  background: #fff;
+  border-bottom: 1px solid rgba(0, 0, 0, .12);
+}
+
+.el-select-dropdown .el-select-filter-wrapper .el-input__wrapper,
+.el-select__popper .el-select-filter-wrapper .el-input__wrapper {
+  border-radius: 0 !important;
+  background: rgba(0, 0, 0, .04) !important;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .12) inset !important;
+  min-height: 34px;
+}
+
+.el-select-dropdown .el-select-filter-wrapper .el-input__wrapper.is-focus,
+.el-select__popper .el-select-filter-wrapper .el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px #1a1a1a inset, 0 0 0 3px rgba(0, 0, 0, .06) inset !important;
+}
+
+/* 列表项 */
+.el-select-dropdown__item {
+  padding: 8px 16px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #1a1a1a !important;
+  border-radius: 0 !important;
+  transition: background .1s, padding-left .15s;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+}
+
+/* hover 高亮 — 左移感 */
+.el-select-dropdown__item.is-hovering {
+  background: rgba(0, 0, 0, .04) !important;
+  padding-left: 20px !important;
+}
+
+/* 选中项 — 左侧菱形标记 */
+.el-select-dropdown__item.is-selected {
+  font-weight: 800 !important;
+  color: #1a1a1a !important;
+  position: relative;
+}
+
+.el-select-dropdown__item.is-selected::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+  width: 7px;
+  height: 7px;
+  background: #1a1a1a;
+}
+
+/* 禁用项 */
+.el-select-dropdown__item.is-disabled {
+  color: #999 !important;
+}
+
+/* 无匹配结果 */
+.el-select-dropdown .el-select-dropdown__empty,
+.el-select__popper .el-select-dropdown__empty {
+  padding: 20px 0;
+  color: #999;
+  font-size: 13px;
+}
+
+/* ── 选项中的图片 ── */
+.hero-option img,
+.player-option img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+/* ── 暗色主题 ── */
+.theme-dark .el-select__popper.el-popper {
+  border-color: rgba(255, 255, 255, .25) !important;
+  background: #1a1a1a !important;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, .3) !important;
+}
+
+.theme-dark .el-select-dropdown .el-select-filter-wrapper,
+.theme-dark .el-select__popper .el-select-filter-wrapper {
+  background: #1a1a1a;
+  border-bottom-color: rgba(255, 255, 255, .15);
+}
+
+.theme-dark .el-select-dropdown .el-select-filter-wrapper .el-input__wrapper,
+.theme-dark .el-select__popper .el-select-filter-wrapper .el-input__wrapper {
+  background: rgba(255, 255, 255, .06) !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .2) inset !important;
+}
+
+.theme-dark .el-select-dropdown .el-select-filter-wrapper .el-input__wrapper.is-focus,
+.theme-dark .el-select__popper .el-select-filter-wrapper .el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px #e8e8e8 inset, 0 0 0 3px rgba(232, 232, 232, .1) inset !important;
+}
+
+.theme-dark .el-select-dropdown__item {
+  color: #e8e8e8 !important;
+}
+
+.theme-dark .el-select-dropdown__item.is-hovering {
+  background: rgba(255, 255, 255, .06) !important;
+}
+
+.theme-dark .el-select-dropdown__item.is-selected {
+  color: #e8e8e8 !important;
+}
+
+.theme-dark .el-select-dropdown__item.is-selected::after {
+  background: #e8e8e8;
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.theme-dark .el-select-dropdown__item.is-disabled {
+  color: rgba(255, 255, 255, .35) !important;
+}
+
+.theme-dark .el-select-dropdown .el-select-dropdown__empty,
+.theme-dark .el-select__popper .el-select-dropdown__empty {
+  color: rgba(255, 255, 255, .4);
+}
