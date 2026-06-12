@@ -78,8 +78,7 @@ function checkMobileLandscape() {
 }
 
 function onBgmError() {
-  if (!bgmAudio.value || bgmAudio.value.src.includes('/bgm.mp3')) return
-  bgmAudio.value.src = '/bgm.mp3'
+  isPlaying.value = false
 }
 
 function tryPlayBgm() {
