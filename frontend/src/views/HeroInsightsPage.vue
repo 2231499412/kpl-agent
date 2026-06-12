@@ -52,46 +52,74 @@
     </section>
 
     <template v-else-if="detail">
-      <section class="hero-stage">
+      <section class="hero-stage" :class="{ switching: isSwitchingHero }">
         <article class="hero-visual">
-          <img class="hero-bg" :src="heroPoster(activeHero)" :alt="activeHero?.heroName" @error="hideBroken">
+          <img :key="`poster-${heroViewKey}`" class="hero-bg" :src="heroPoster(activeHero)" :alt="activeHero?.heroName" @error="hideBroken">
           <div class="visual-shade" />
-          <div class="hero-copy">
+          <div :key="`copy-${heroViewKey}`" class="hero-copy">
             <span>{{ currentLeagueName }}</span>
             <h2>{{ activeHero?.heroName || '-' }}</h2>
             <p>本赛季出场 {{ metricBattleCount }} 局，{{ detail.userCount || 0 }} 位选手使用，胜率 {{ formatPercent(activeHero?.winRate) }}。</p>
+          </div>
+          <div v-if="isSwitchingHero" class="hero-switch-mask">
+            <div class="switch-spinner" />
+            <span>正在加载新英雄档案</span>
           </div>
         </article>
 
         <aside class="metric-grid">
           <div class="metric-card primary">
             <span>本赛季使用人数</span>
-            <strong>{{ detail.userCount || 0 }}</strong>
+            <div class="metric-value-wrap">
+              <Transition name="metric-value">
+                <strong :key="metricKeys.userCount">{{ detail.userCount || 0 }}</strong>
+              </Transition>
+            </div>
             <em>按选手去重</em>
           </div>
           <div class="metric-card accent">
             <span>出场次数</span>
-            <strong>{{ metricBattleCount }}</strong>
+            <div class="metric-value-wrap">
+              <Transition name="metric-value">
+                <strong :key="metricKeys.battleCount">{{ metricBattleCount }}</strong>
+              </Transition>
+            </div>
             <em>Pick {{ formatPercent(activeHero?.pickRate) }}</em>
           </div>
           <div class="metric-card win">
             <span>胜率</span>
-            <strong>{{ formatPercent(activeHero?.winRate) }}</strong>
+            <div class="metric-value-wrap">
+              <Transition name="metric-value">
+                <strong :key="metricKeys.winRate">{{ formatPercent(activeHero?.winRate) }}</strong>
+              </Transition>
+            </div>
             <em>{{ winRankHint }}</em>
           </div>
           <div class="metric-card danger">
             <span>Ban 率</span>
-            <strong>{{ formatPercent(activeHero?.banRate) }}</strong>
+            <div class="metric-value-wrap">
+              <Transition name="metric-value">
+                <strong :key="metricKeys.banRate">{{ formatPercent(activeHero?.banRate) }}</strong>
+              </Transition>
+            </div>
             <em>Ban {{ activeHero?.banNum || 0 }} 次</em>
           </div>
           <div class="metric-card light">
             <span>场均 KDA</span>
-            <strong>{{ fixed(activeHero?.avgKda, 2) }}</strong>
+            <div class="metric-value-wrap">
+              <Transition name="metric-value">
+                <strong :key="metricKeys.avgKda">{{ fixed(activeHero?.avgKda, 2) }}</strong>
+              </Transition>
+            </div>
             <em>{{ fixed(activeHero?.avgKill, 1) }}/{{ fixed(activeHero?.avgDeath, 1) }}/{{ fixed(activeHero?.avgAssist, 1) }}</em>
           </div>
           <div class="metric-card accent">
             <span>场均经济</span>
-            <strong>{{ formatCompact(activeHero?.avgGold) }}</strong>
+            <div class="metric-value-wrap">
+              <Transition name="metric-value">
+                <strong :key="metricKeys.avgGold">{{ formatCompact(activeHero?.avgGold) }}</strong>
+              </Transition>
+            </div>
             <em>样本 {{ metricBattleCount }} 局</em>
           </div>
         </aside>
@@ -141,10 +169,9 @@
                 <div class="battle-head">
                   <span>{{ battle.matchStageDesc || '赛段' }} · 第{{ battle.battleSeq || '-' }}局</span>
                   <div class="battle-head-right">
-                    <a v-if="bilibiliUrl(battle)" :href="bilibiliUrl(battle)" target="_blank" rel="noopener" class="bilibili-link" title="在B站观看">
-                      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                        <path d="M17.813 4.653h.854c1.51.054 2.769.578 3.773 1.574 1.004.995 1.524 2.249 1.56 3.76v7.36c-.036 1.51-.556 2.769-1.56 3.773s-2.262 1.524-3.773 1.56H5.333c-1.51-.036-2.769-.556-3.773-1.56S.036 18.858 0 17.347v-7.36c.036-1.511.556-2.765 1.56-3.76 1.004-.996 2.262-1.52 3.773-1.574h.774l-1.174-1.12a1.234 1.234 0 0 1-.373-.906c0-.356.124-.658.373-.907l.027-.027c.267-.249.573-.373.92-.373.347 0 .653.124.92.373L9.653 4.44c.071.071.134.142.187.213h4.267a.836.836 0 0 1 .16-.213l2.853-2.747c.267-.249.573-.373.92-.373.347 0 .662.151.929.4.267.249.391.551.391.907 0 .355-.124.657-.373.906zM5.333 7.24c-.746.018-1.373.276-1.88.773-.506.498-.769 1.13-.786 1.894v7.52c.017.764.28 1.395.786 1.893.507.498 1.134.756 1.88.773h13.334c.746-.017 1.373-.275 1.88-.773.506-.498.769-1.129.786-1.893v-7.52c-.017-.765-.28-1.396-.786-1.894-.507-.497-1.134-.755-1.88-.773zM8 11.107c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c0-.373.129-.689.386-.947.258-.257.574-.386.947-.386zm8 0c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c.017-.391.15-.711.4-.96.249-.249.56-.373.933-.373z"/>
-                      </svg>
+                    <a v-if="videoUrl(battle)" :href="videoUrl(battle)" target="_blank" rel="noopener" :class="['video-link', isBilibili(battle) ? 'bilibili' : 'tencent']" :title="isBilibili(battle) ? '在B站观看' : '在腾讯视频观看'">
+                      <svg v-if="isBilibili(battle)" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.813 4.653h.854c1.51.054 2.769.578 3.773 1.574 1.004.995 1.524 2.249 1.56 3.76v7.36c-.036 1.51-.556 2.769-1.56 3.773s-2.262 1.524-3.773 1.56H5.333c-1.51-.036-2.769-.556-3.773-1.56S.036 18.858 0 17.347v-7.36c.036-1.511.556-2.765 1.56-3.76 1.004-.996 2.262-1.52 3.773-1.574h.774l-1.174-1.12a1.234 1.234 0 0 1-.373-.906c0-.356.124-.658.373-.907l.027-.027c.267-.249.573-.373.92-.373.347 0 .653.124.92.373L9.653 4.44c.071.071.134.142.187.213h4.267a.836.836 0 0 1 .16-.213l2.853-2.747c.267-.249.573-.373.92-.373.347 0 .662.151.929.4.267.249.391.551.391.907 0 .355-.124.657-.373.906zM5.333 7.24c-.746.018-1.373.276-1.88.773-.506.498-.769 1.13-.786 1.894v7.52c.017.764.28 1.395.786 1.893.507.498 1.134.756 1.88.773h13.334c.746-.017 1.373-.275 1.88-.773.506-.498.769-1.129.786-1.893v-7.52c-.017-.765-.28-1.396-.786-1.894-.507-.497-1.134-.755-1.88-.773zM8 11.107c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c0-.373.129-.689.386-.947.258-.257.574-.386.947-.386zm8 0c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c.017-.391.15-.711.4-.96.249-.249.56-.373.933-.373z"/></svg>
+                      <svg v-else viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
                     </a>
                     <b :class="{ won: Number(battle.won) === 1 }">{{ Number(battle.won) === 1 ? '胜利' : '失利' }}</b>
                   </div>
@@ -250,6 +277,8 @@ const errorText = ref('')
 const theme = ref(getTheme())
 const routeReady = ref(false)
 const heroTrail = ref([])
+const isSwitchingHero = ref(false)
+let detailRequestId = 0
 watch(theme, (value) => setTheme(value))
 
 const activeHero = computed(() => detail.value?.hero || heroes.value.find(hero => Number(hero.heroId) === Number(selectedHeroId.value)))
@@ -267,6 +296,18 @@ const returnPlayerTarget = computed(() => {
   }
 })
 const metricBattleCount = computed(() => activeHero.value?.battleCount || activeHero.value?.pickNum || 0)
+const heroViewKey = computed(() => {
+  const hero = detail.value?.hero
+  return `${selectedLeagueId.value || 'league'}-${hero?.heroId || selectedHeroId.value || 'hero'}`
+})
+const metricKeys = computed(() => ({
+  userCount: `${heroViewKey.value}-users-${detail.value?.userCount || 0}`,
+  battleCount: `${heroViewKey.value}-battle-${metricBattleCount.value}`,
+  winRate: `${heroViewKey.value}-win-${formatPercent(activeHero.value?.winRate)}`,
+  banRate: `${heroViewKey.value}-ban-${formatPercent(activeHero.value?.banRate)}`,
+  avgKda: `${heroViewKey.value}-kda-${fixed(activeHero.value?.avgKda, 2)}`,
+  avgGold: `${heroViewKey.value}-gold-${formatCompact(activeHero.value?.avgGold)}`,
+}))
 const winRankHint = computed(() => {
   const value = percentNumber(activeHero.value?.winRate)
   if (value >= 60) return '高胜率样本'
@@ -316,17 +357,33 @@ async function loadHeroes() {
 
 async function loadDetail() {
   if (!selectedLeagueId.value || !selectedHeroId.value) return
+  const requestId = ++detailRequestId
+  const leagueId = selectedLeagueId.value
+  const heroId = selectedHeroId.value
+  const hadDetail = Boolean(detail.value)
   loading.value = true
+  isSwitchingHero.value = hadDetail
   errorText.value = ''
   try {
-    const data = await request(`/api/query/hero/detail?heroId=${selectedHeroId.value}&leagueId=${selectedLeagueId.value}&limit=8`)
+    const data = await request(`/api/query/hero/detail?heroId=${heroId}&leagueId=${leagueId}&limit=8`)
     if (data?.error) throw new Error('当前赛事没有该英雄数据')
+    const posterHero = data?.hero || heroes.value.find(hero => Number(hero.heroId) === Number(heroId)) || { heroId }
+    await preloadImage(heroPoster(posterHero))
+    if (requestId !== detailRequestId) return
     detail.value = data
   } catch (error) {
-    errorText.value = error.message
-    detail.value = null
+    if (requestId !== detailRequestId) return
+    if (hadDetail) {
+      ElMessage.error(error.message)
+    } else {
+      errorText.value = error.message
+      detail.value = null
+    }
   } finally {
-    loading.value = false
+    if (requestId === detailRequestId) {
+      loading.value = false
+      isSwitchingHero.value = false
+    }
   }
 }
 
@@ -502,6 +559,16 @@ function heroPoster(hero) {
     : heroIcon(hero)
 }
 
+function preloadImage(src) {
+  if (!src || typeof Image === 'undefined') return Promise.resolve(false)
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => resolve(true)
+    img.onerror = () => resolve(false)
+    img.src = src
+  })
+}
+
 function hideBroken(event) {
   event.target.style.display = 'none'
 }
@@ -532,11 +599,19 @@ function shortName(value) {
   return String(value || '-').split('.').pop()
 }
 
-function bilibiliUrl(battle) {
+function videoUrl(battle) {
   if (!battle.bvid) return null
-  const base = `https://www.bilibili.com/video/${battle.bvid}`
-  // 使用存储的实际分P编号
-  return battle.pageNum ? `${base}?p=${battle.pageNum}` : base
+  if (battle.bvid.startsWith('BV')) {
+    const base = `https://www.bilibili.com/video/${battle.bvid}`
+    const p = battle.pageNum || battle.battleSeq
+    return p && p > 1 ? `${base}?p=${p}` : base
+  }
+  if (battle.bvid.startsWith('http')) return battle.bvid
+  return null
+}
+
+function isBilibili(battle) {
+  return battle.bvid && battle.bvid.startsWith('BV')
 }
 
 onMounted(async () => {
@@ -553,70 +628,32 @@ onMounted(async () => {
 
 <style scoped>
 .hero-insights {
-  --page-bg: #dce6f4;
-  --panel-bg: rgba(238, 245, 252, .70);
-  --panel-strong: rgba(248, 251, 255, .82);
-  --line: rgba(255, 255, 255, .62);
-  --line-strong: rgba(255, 255, 255, .82);
-  --text: #16202c;
-  --soft: rgba(22, 32, 44, .64);
-  --dim: rgba(22, 32, 44, .44);
-  --blue: #6752d7;
-  --green: #249e8f;
-  --red: #d25a78;
-  --gold: #b88a2e;
-  --violet: #8e7cf3;
+  --page-bg: #101113;
+  --panel-bg: rgba(24, 25, 27, .92);
+  --panel-strong: rgba(15, 16, 18, .96);
+  --line: rgba(255, 255, 255, .48);
+  --line-strong: rgba(255, 255, 255, .62);
+  --text: #e8e8e8;
+  --soft: rgba(232, 232, 232, .65);
+  --dim: rgba(232, 232, 232, .4);
+  --blue: #3ba7ff;
+  --green: #87df55;
+  --red: #ff5e57;
+  --gold: #d7b45a;
+  --violet: #b783ff;
   min-height: 100vh;
   margin-left: 67.5px;
   padding: 14px 18px 28px;
-  position: relative;
-  isolation: isolate;
-  overflow-x: hidden;
   color: var(--text);
   background:
-    radial-gradient(ellipse at 10% 82%, rgba(138, 101, 236, .34), transparent 34%),
-    radial-gradient(ellipse at 90% 12%, rgba(77, 224, 212, .34), transparent 30%),
-    linear-gradient(120deg, rgba(133, 110, 255, .18), transparent 28%),
-    linear-gradient(240deg, rgba(53, 225, 211, .22), transparent 30%),
-    linear-gradient(180deg, #dce6f4 0%, #f4f0fa 58%, #d5c7ee 100%);
+    linear-gradient(180deg, rgba(16, 17, 19, .96), rgba(10, 11, 12, .98)),
+    var(--page-bg);
   font-family: "Microsoft YaHei UI", "PingFang SC", sans-serif;
 }
 
 .hero-insights,
 .hero-insights * {
   box-sizing: border-box;
-}
-
-.hero-insights::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-  pointer-events: none;
-  background:
-    repeating-linear-gradient(90deg, transparent 0 159px, rgba(73, 89, 121, .11) 160px),
-    linear-gradient(180deg, rgba(255, 255, 255, .56), transparent 28%);
-  mix-blend-mode: multiply;
-}
-
-.hero-insights::after {
-  content: "";
-  position: fixed;
-  inset: auto -12vw 6vh -12vw;
-  z-index: -1;
-  height: 28vw;
-  min-height: 260px;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 18% 60%, rgba(138, 101, 236, .38), transparent 28%),
-    radial-gradient(circle at 82% 34%, rgba(77, 224, 212, .36), transparent 30%);
-  filter: blur(64px);
-  opacity: .62;
-}
-
-.hero-insights > * {
-  position: relative;
-  z-index: 1;
 }
 
 .topbar,
@@ -638,8 +675,7 @@ onMounted(async () => {
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--panel-strong);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 18px 55px rgba(49, 57, 92, .14), inset 0 0 46px rgba(255, 255, 255, .32);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
 }
 
 .title-block span,
@@ -679,7 +715,7 @@ onMounted(async () => {
 .controls :deep(.el-button) {
   min-height: 34px;
   border-radius: 6px !important;
-  background: rgba(255, 255, 255, .58) !important;
+  background: rgba(255, 255, 255, .06) !important;
   box-shadow: 0 0 0 1px var(--line) inset !important;
 }
 
@@ -693,7 +729,7 @@ onMounted(async () => {
 .refresh-btn,
 .back-btn {
   --el-button-text-color: var(--text);
-  --el-button-hover-text-color: #101113;
+  --el-button-hover-text-color: var(--text);
   --el-button-hover-bg-color: var(--gold);
   --el-button-hover-border-color: var(--gold);
 }
@@ -796,6 +832,7 @@ onMounted(async () => {
 .hero-stage {
   display: grid;
   grid-template-columns: minmax(440px, .84fr) minmax(0, 1fr);
+  grid-auto-rows: 1fr;
   gap: 16px;
   margin-top: 16px;
 }
@@ -803,6 +840,7 @@ onMounted(async () => {
 .hero-visual {
   position: relative;
   min-height: 246px;
+  height: 100%;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -817,7 +855,8 @@ onMounted(async () => {
   object-fit: cover;
   object-position: 58% 16%;
   filter: saturate(1.05) contrast(1.05);
-  transition: transform .4s ease;
+  animation: heroPosterIn .56s cubic-bezier(.2, .72, .18, 1) both;
+  transition: transform .4s ease, filter .4s ease, opacity .4s ease;
 }
 
 .hero-visual:hover .hero-bg {
@@ -837,6 +876,7 @@ onMounted(async () => {
   left: 18px;
   right: 18px;
   bottom: 16px;
+  animation: heroCopyIn .48s cubic-bezier(.2, .72, .18, 1) .04s both;
 }
 
 .hero-copy span {
@@ -863,14 +903,49 @@ onMounted(async () => {
   text-shadow: 0 3px 12px rgba(0, 0, 0, .55);
 }
 
+.hero-switch-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 18px;
+  color: rgba(255, 255, 255, .86);
+  background:
+    linear-gradient(90deg, rgba(8, 9, 10, .12), rgba(8, 9, 10, .38)),
+    linear-gradient(180deg, transparent 38%, rgba(8, 9, 10, .58));
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+  pointer-events: none;
+  animation: switchMaskIn .2s ease both;
+}
+
+.switch-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, .24);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+
+.hero-stage.switching .hero-bg {
+  filter: saturate(.92) contrast(.98) brightness(.84);
+}
+
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
   gap: 8px;
+  height: 100%;
 }
 
 .metric-card {
-  min-height: 119px;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -879,17 +954,48 @@ onMounted(async () => {
   border-left: 3px solid transparent;
   border-radius: 12px;
   background: var(--panel-bg);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 14px 36px rgba(49, 57, 92, .12), inset 0 1px 0 rgba(255, 255, 255, .72);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
   transition: border-color .25s ease, background .25s ease, box-shadow .25s ease;
 }
 
 .metric-card strong {
-  margin: 6px 0 5px;
+  display: block;
+  margin: 0;
   color: var(--text);
   font-size: clamp(26px, 2.6vw, 38px);
   line-height: 1;
   font-weight: 950;
+}
+
+.metric-value-wrap {
+  position: relative;
+  min-height: clamp(26px, 2.6vw, 38px);
+  margin: 6px 0 5px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.metric-value-enter-active,
+.metric-value-leave-active {
+  transition: opacity .24s ease, transform .24s ease, filter .24s ease;
+}
+
+.metric-value-leave-active {
+  position: absolute;
+  inset: 0 auto auto 0;
+}
+
+.metric-value-enter-from {
+  opacity: 0;
+  filter: blur(4px);
+  transform: translateY(10px);
+}
+
+.metric-value-leave-to {
+  opacity: 0;
+  filter: blur(3px);
+  transform: translateY(-8px);
 }
 
 .metric-card {
@@ -922,9 +1028,41 @@ onMounted(async () => {
 .metric-card.accent strong { color: var(--gold); }
 .metric-card.light { border-left-color: #fff; }
 
+@keyframes heroPosterIn {
+  from {
+    opacity: 0;
+    filter: saturate(.9) contrast(.96) blur(8px);
+    transform: scale(1.035) translateX(10px);
+  }
+  to {
+    opacity: 1;
+    filter: saturate(1.05) contrast(1.05) blur(0);
+    transform: scale(1) translateX(0);
+  }
+}
+
+@keyframes heroCopyIn {
+  from {
+    opacity: 0;
+    filter: blur(5px);
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes switchMaskIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .content-grid {
   display: grid;
-  grid-template-columns: minmax(460px, .82fr) minmax(0, 1fr);
+  grid-template-columns: minmax(440px, .84fr) minmax(0, 1fr);
+  grid-auto-rows: 1fr;
   gap: 16px;
   margin-top: 16px;
 }
@@ -938,11 +1076,13 @@ onMounted(async () => {
 
 .panel {
   min-width: 0;
+  height: 100%;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--panel-bg);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 18px 55px rgba(49, 57, 92, .14), inset 0 0 46px rgba(255, 255, 255, .30);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
+  display: flex;
+  flex-direction: column;
 }
 
 .section-title {
@@ -979,6 +1119,8 @@ onMounted(async () => {
 .featured-list {
   max-height: 244px;
   overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .featured-list {
@@ -1116,16 +1258,30 @@ onMounted(async () => {
   gap: 8px;
 }
 
-.bilibili-link {
+.video-link {
   display: inline-flex;
   align-items: center;
-  color: #00a1d6;
-  transition: color .2s, transform .2s;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  transition: background 0.2s;
+  cursor: pointer;
 }
-
-.bilibili-link:hover {
-  color: #23c9ed;
-  transform: scale(1.15);
+.video-link.bilibili {
+  background: rgba(0, 174, 236, 0.12);
+  color: #00aeec;
+}
+.video-link.bilibili:hover {
+  background: rgba(0, 174, 236, 0.25);
+}
+.video-link.tencent {
+  background: rgba(255, 76, 76, 0.1);
+  color: #ff4c4c;
+}
+.video-link.tencent:hover {
+  background: rgba(255, 76, 76, 0.2);
 }
 
 .battle-body > strong {
@@ -1153,12 +1309,15 @@ onMounted(async () => {
 }
 
 .relation-panel {
-  min-height: 214px;
+  min-height: 300px;
+  height: 100%;
 }
 
 .hero-chip-list {
-  max-height: 168px;
+  max-height: 250px;
   overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .hero-chip {
@@ -1233,8 +1392,8 @@ onMounted(async () => {
   --page-bg: #dce6f4;
   --panel-bg: rgba(238, 245, 252, .70);
   --panel-strong: rgba(248, 251, 255, .82);
-  --line: rgba(255, 255, 255, .62);
-  --line-strong: rgba(255, 255, 255, .82);
+  --line: rgba(80, 90, 120, .55);
+  --line-strong: rgba(50, 60, 90, .65);
   --text: #16202c;
   --soft: rgba(22, 32, 44, .64);
   --dim: rgba(22, 32, 44, .44);
@@ -1340,7 +1499,7 @@ onMounted(async () => {
 .hero-insights.theme-light .refresh-btn,
 .hero-insights.theme-light .back-btn {
   --el-button-text-color: #4B5563;
-  --el-button-hover-text-color: #FFFFFF;
+  --el-button-hover-text-color: #4B5563;
   --el-button-hover-bg-color: #B88A2E;
   --el-button-hover-border-color: #B88A2E;
 }
@@ -1591,6 +1750,103 @@ onMounted(async () => {
   color: var(--green);
 }
 
+.hero-insights.theme-light {
+  --page-bg: #F5EFE4;
+  --panel-bg: #FFFBF3;
+  --panel-strong: #FFFBF3;
+  --line: #E3D6C4;
+  --line-strong: #C9B79F;
+  --text: #1F2933;
+  --soft: #5F6670;
+  --dim: #9A8B78;
+  --green: #16A34A;
+  --red: #EF4444;
+  --gold: #B88A2E;
+  --blue: #2563EB;
+  background: #F5EFE4;
+}
+
+.hero-insights.theme-light .topbar,
+.hero-insights.theme-light .panel,
+.hero-insights.theme-light .metric-card,
+.hero-insights.theme-light .state-panel {
+  background: #FFFBF3;
+  border-color: #E3D6C4;
+  backdrop-filter: none;
+  box-shadow: 0 8px 22px rgba(88, 72, 50, .055);
+}
+
+.hero-insights.theme-light .topbar {
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+}
+
+.hero-insights.theme-light .title-block span,
+.hero-insights.theme-light .section-title span {
+  color: #B88A2E;
+}
+
+.hero-insights.theme-light .section-title {
+  border-bottom-color: #E3D6C4;
+}
+
+.hero-insights.theme-light .metric-card.primary,
+.hero-insights.theme-light .metric-card.win,
+.hero-insights.theme-light .metric-card.danger,
+.hero-insights.theme-light .metric-card.accent,
+.hero-insights.theme-light .metric-card.light {
+  background: #FFFBF3;
+}
+
+.hero-insights.theme-light .metric-card.primary strong { color: #2563EB; }
+.hero-insights.theme-light .metric-card.win strong,
+.hero-insights.theme-light .player-metrics strong,
+.hero-insights.theme-light .battle-head b.won,
+.hero-insights.theme-light .hero-chip b { color: #16A34A; }
+.hero-insights.theme-light .metric-card.danger strong,
+.hero-insights.theme-light .battle-head b,
+.hero-insights.theme-light .hero-chip.warn b { color: #EF4444; }
+.hero-insights.theme-light .metric-card.accent strong,
+.hero-insights.theme-light .metric-card.light strong,
+.hero-insights.theme-light .rank,
+.hero-insights.theme-light .battle-rank { color: #B88A2E; }
+
+.hero-insights.theme-light .battle-card,
+.hero-insights.theme-light .hero-chip {
+  background: #FFFBF3;
+  border-color: #E3D6C4;
+  box-shadow: 0 4px 14px rgba(88, 72, 50, .04);
+}
+
+.hero-insights.theme-light .battle-rank,
+.hero-insights.theme-light .battle-meta span {
+  background: #F5EFE4;
+  border-color: #E3D6C4;
+}
+
+.hero-insights.theme-light .player-row.leader {
+  background: linear-gradient(90deg, rgba(184, 138, 46, .1), transparent);
+}
+
+.hero-insights.theme-light .metric-card:hover,
+.hero-insights.theme-light .battle-card:hover,
+.hero-insights.theme-light .player-row:hover,
+.hero-insights.theme-light .hero-chip:hover {
+  background: #F8F1E8;
+  border-color: #C9B79F;
+  box-shadow: 0 2px 12px rgba(88, 72, 50, .08);
+}
+
+.hero-insights.theme-light .controls :deep(.el-select__wrapper),
+.hero-insights.theme-light .controls :deep(.el-button) {
+  background: #FFFBF3 !important;
+  box-shadow: 0 0 0 1px #E3D6C4 inset !important;
+}
+
+.hero-insights.theme-light .hero-chip img {
+  border-color: #E3D6C4;
+  box-shadow: none;
+}
+
 @media (max-width: 1180px) {
   .hero-stage,
   .content-grid,
@@ -1600,6 +1856,19 @@ onMounted(async () => {
 
   .metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-bg,
+  .hero-copy,
+  .hero-switch-mask,
+  .switch-spinner,
+  .spinner,
+  .metric-value-enter-active,
+  .metric-value-leave-active {
+    animation: none !important;
+    transition: none !important;
   }
 }
 

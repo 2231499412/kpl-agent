@@ -9,7 +9,12 @@
         <el-select v-model="selectedLeagueId" filterable placeholder="选择赛事" @change="onLeagueChange">
           <el-option v-for="league in leagues" :key="league.leagueId" :label="league.leagueName" :value="league.leagueId" />
         </el-select>
+        <el-select v-model="selectedPosition" class="lane-select" filterable placeholder="全部分路" @change="onPositionFilterChange">
+          <el-option label="全部分路" value="" />
+          <el-option v-for="position in positionOptions" :key="position" :label="position" :value="position" />
+        </el-select>
         <el-select
+          ref="playerSelectRef"
           v-model="selectedPlayer"
           filterable
           remote
@@ -18,6 +23,7 @@
           :loading="playerLoading"
           placeholder="搜索选手"
           @change="onPlayerChange"
+          @focus="focusSelectedPlayerInput"
         >
           <el-option v-for="player in visiblePlayers" :key="playerKey(player)" :label="player.playerName" :value="player.playerName">
             <div class="player-option">
@@ -88,10 +94,10 @@
 
       <section class="analysis-grid">
         <article class="panel trend-panel" :key="`trend-${chartRenderKey}`">
-          <PanelTitle tag="FORM" title="近期状态趋势" note="最近 5 / 10 / 赛季" />
+          <PanelTitle tag="FORM" title="本赛季状态趋势" note="最近 5 / 10 场比赛" />
           <div class="mini-stat-row">
-            <div><span>最近5场</span><strong>{{ formatPercent(recent5.winRate) }}</strong><em>KDA {{ fixed(recent5.avgKda, 2) }}</em></div>
-            <div><span>最近10场</span><strong>{{ formatPercent(recent10.winRate) }}</strong><em>KDA {{ fixed(recent10.avgKda, 2) }}</em></div>
+            <div><span>最近5场比赛</span><strong>{{ formatPercent(recent5.winRate) }}</strong><em>KDA {{ fixed(recent5.avgKda, 2) }}</em></div>
+            <div><span>最近10场比赛</span><strong>{{ formatPercent(recent10.winRate) }}</strong><em>KDA {{ fixed(recent10.avgKda, 2) }}</em></div>
             <div><span>赛季整体</span><strong>{{ formatPercent(player.winRate) }}</strong><em>KDA {{ fixed(player.avgKda, 2) }}</em></div>
           </div>
           <svg class="trend-chart" viewBox="0 0 420 150" role="img" aria-label="近期KDA趋势">
@@ -159,10 +165,10 @@
               <div class="league-trend">
                 <div class="league-summary" v-if="activeTrendLeague">
                   <strong>{{ trendLeagueLabel(activeTrendLeague) }}</strong>
-                  <span>{{ activeTrendLeague.games }} 局 · 胜率 {{ formatPercent(activeTrendLeague.winRate) }} · KDA {{ fixed(activeTrendLeague.avgKda, 2) }}</span>
-                  <em>{{ activeTrendLeague.heroCount || 0 }} 个英雄</em>
+                  <span>{{ activeTrendLeague.games }} 局 · 表现指数 {{ fixed(historyMetricValue(activeTrendLeague), 1) }} · 大场胜率 {{ formatPercent(activeTrendLeague.winRate) }} · KDA {{ fixed(activeTrendLeague.avgKda, 2) }}</span>
+                  <em>{{ activeTrendLeague.performancePositionDesc || player.positionDesc || '-' }} · {{ performancePeerLabel(activeTrendLeague) }} · {{ activeTrendLeague.heroCount || 0 }} 个英雄</em>
                 </div>
-                <svg class="history-chart" viewBox="0 0 420 96" role="img" aria-label="历史赛事KDA趋势">
+                <svg class="history-chart" viewBox="0 0 420 96" role="img" aria-label="历史赛事表现指数趋势">
                   <defs>
                     <linearGradient id="historyLineGradient" x1="0" x2="1" y1="0" y2="0">
                       <stop offset="0%" stop-color="#D25A78" />
@@ -205,7 +211,7 @@
                       @click="selectedLeagueTrendId = league.leagueId"
                     >
                       <strong>{{ compactLeagueName(league) }}</strong>
-                      <span>{{ league.games }}局 · {{ formatPercent(league.winRate) }}</span>
+                      <span>{{ league.games }}局 · 大场{{ formatPercent(league.winRate) }}</span>
                     </button>
                   </div>
                   <button class="league-scroll-btn" type="button" aria-label="向右切换赛事" @click="scrollLeagueTabs(1)">
@@ -238,11 +244,12 @@
                 <em>{{ battle.heroName }} · {{ battle.killNum }}/{{ battle.deathNum }}/{{ battle.assistNum }} · KDA {{ fixed(battle.kda, 2) }}</em>
               </div>
               <div class="battle-score">
+                <a v-if="videoUrl(battle)" :href="videoUrl(battle)" target="_blank" rel="noopener" :class="['video-link', isBilibili(battle) ? 'bilibili' : 'tencent']" :title="isBilibili(battle) ? '在B站观看' : '在腾讯视频观看'">
+                  <svg v-if="isBilibili(battle)" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.813 4.653h.854c1.51.054 2.769.578 3.773 1.574 1.004.995 1.524 2.249 1.56 3.76v7.36c-.036 1.51-.556 2.769-1.56 3.773s-2.262 1.524-3.773 1.56H5.333c-1.51-.036-2.769-.556-3.773-1.56S.036 18.858 0 17.347v-7.36c.036-1.511.556-2.765 1.56-3.76 1.004-.996 2.262-1.52 3.773-1.574h.774l-1.174-1.12a1.234 1.234 0 0 1-.373-.906c0-.356.124-.658.373-.907l.027-.027c.267-.249.573-.373.92-.373.347 0 .653.124.92.373L9.653 4.44c.071.071.134.142.187.213h4.267a.836.836 0 0 1 .16-.213l2.853-2.747c.267-.249.573-.373.92-.373.347 0 .662.124.929.373.267.249.391.551.391.907 0 .355-.124.657-.373.906zM5.333 7.24c-.746.018-1.373.276-1.88.773-.506.498-.769 1.13-.786 1.894v7.52c.017.764.28 1.395.786 1.893.507.498 1.134.756 1.88.773h13.334c.746-.017 1.373-.275 1.88-.773.506-.498.769-1.129.786-1.893v-7.52c-.017-.765-.28-1.396-.786-1.894-.507-.497-1.134-.755-1.88-.773zM8 11.107c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c0-.373.129-.689.386-.947.258-.257.574-.386.947-.386zm8 0c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c.017-.391.15-.711.4-.96.249-.249.56-.373.933-.373z"/></svg>
+                  <svg v-else viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                </a>
                 <strong>{{ fixed(battle.score, 1) }}</strong>
                 <span :class="{ won: Number(battle.won) === 1 }">{{ Number(battle.won) === 1 ? '胜' : '负' }}</span>
-                <a v-if="bilibiliUrl(battle)" :href="bilibiliUrl(battle)" target="_blank" rel="noopener" class="bilibili-link" title="在B站观看">
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.813 4.653h.854c1.51.054 2.769.578 3.773 1.574 1.004.995 1.524 2.249 1.56 3.76v7.36c-.036 1.51-.556 2.769-1.56 3.773s-2.262 1.524-3.773 1.56H5.333c-1.51-.036-2.769-.556-3.773-1.56S.036 18.858 0 17.347v-7.36c.036-1.511.556-2.765 1.56-3.76 1.004-.996 2.262-1.52 3.773-1.574h.774l-1.174-1.12a1.234 1.234 0 0 1-.373-.906c0-.356.124-.658.373-.907l.027-.027c.267-.249.573-.373.92-.373.347 0 .653.124.92.373L9.653 4.44c.071.071.134.142.187.213h4.267a.836.836 0 0 1 .16-.213l2.853-2.747c.267-.249.573-.373.92-.373.347 0 .662.124.929.373.267.249.391.551.391.907 0 .355-.124.657-.373.906zM5.333 7.24c-.746.018-1.373.276-1.88.773-.506.498-.769 1.13-.786 1.894v7.52c.017.764.28 1.395.786 1.893.507.498 1.134.756 1.88.773h13.334c.746-.017 1.373-.275 1.88-.773.506-.498.769-1.129.786-1.893v-7.52c-.017-.765-.28-1.396-.786-1.894-.507-.497-1.134-.755-1.88-.773zM8 11.107c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c0-.373.129-.689.386-.947.258-.257.574-.386.947-.386zm8 0c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c.017-.391.15-.711.4-.96.249-.249.56-.373.933-.373z"/></svg>
-                </a>
               </div>
             </div>
           </div>
@@ -253,7 +260,7 @@
 </template>
 
 <script setup>
-import { computed, defineComponent, h, onMounted, ref, watch } from 'vue'
+import { computed, defineComponent, h, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeftBold, ArrowRightBold, Back, Refresh } from '@element-plus/icons-vue'
@@ -266,6 +273,9 @@ const players = ref([])
 const visiblePlayers = ref([])
 const selectedLeagueId = ref('')
 const selectedPlayer = ref('')
+const playerSelectRef = ref(null)
+const selectedPosition = ref('')
+const playerSearchKeyword = ref('')
 const detail = ref(null)
 const loading = ref(false)
 const playerLoading = ref(false)
@@ -280,6 +290,7 @@ watch(theme, (value) => setTheme(value))
 
 const player = computed(() => detail.value?.player || {})
 const recentGames = computed(() => detail.value?.recentGames || [])
+const recentGamesByBattle = computed(() => detail.value?.recentGamesByBattle || [])
 const heroPool = computed(() => detail.value?.heroPool || [])
 const stageStats = computed(() => detail.value?.stageStats || [])
 const leagueTimeline = computed(() => detail.value?.leagueTimeline || [])
@@ -311,6 +322,16 @@ const activeLeagueHeroes = computed(() => {
 const recent5 = computed(() => summarizeRecent(recentGames.value.slice(0, 5)))
 const recent10 = computed(() => summarizeRecent(recentGames.value.slice(0, 10)))
 const chartRenderKey = computed(() => `${selectedLeagueId.value || 'auto'}-${selectedPlayer.value || 'player'}`)
+const positionOptions = computed(() => {
+  const order = ['对抗路', '打野', '中路', '发育路', '游走']
+  return Array.from(new Set(players.value.map(item => item.positionDesc).filter(Boolean)))
+    .sort((a, b) => {
+      const ai = order.indexOf(a)
+      const bi = order.indexOf(b)
+      if (ai !== -1 || bi !== -1) return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+      return String(a).localeCompare(String(b), 'zh-Hans-CN')
+    })
+})
 const statusScore = computed(() => {
   const games = num(player.value.battleCount)
   const wins = Math.round(percentNumber(player.value.winRate) / 100 * games)
@@ -346,14 +367,14 @@ const statusScore = computed(() => {
   return Math.max(0, Math.min(100, Math.round(displayScore)))
 })
 const trendDots = computed(() => {
-  const rows = [...recentGames.value].reverse()
+  const rows = [...recentGamesByBattle.value].reverse()
   const maxKda = trendMaxKda.value
   return rows.map((row, index) => {
     const value = num(row.kda)
     const x = 18 + index * (384 / Math.max(1, rows.length - 1))
     const y = 126 - (value / maxKda) * 104
     return {
-      key: `${row.battleId}-${index}`,
+      key: `${row.matchId}-${index}`,
       x,
       y,
       labelY: Math.max(12, y - 10),
@@ -363,7 +384,7 @@ const trendDots = computed(() => {
     }
   })
 })
-const trendMaxKda = computed(() => Math.max(1, ...recentGames.value.map(row => num(row.kda))))
+const trendMaxKda = computed(() => Math.max(1, ...recentGamesByBattle.value.map(row => num(row.kda))))
 const trendAxisTicks = computed(() => [trendMaxKda.value, trendMaxKda.value / 2, 0].map(value => ({
   value,
   label: fixed(value, 1),
@@ -376,11 +397,11 @@ const trendArea = computed(() => {
 })
 const historyTrendDots = computed(() => {
   const rows = [...leagueTimeline.value].reverse()
-  const maxKda = historyMaxKda.value
+  const maxValue = historyMaxValue.value
   return rows.map((row, index) => {
-    const value = num(row.avgKda)
+    const value = historyMetricValue(row)
     const x = 18 + index * (384 / Math.max(1, rows.length - 1))
-    const y = 82 - (value / maxKda) * 66
+    const y = 82 - (value / maxValue) * 66
     return {
       key: row.leagueId || index,
       leagueId: row.leagueId,
@@ -391,11 +412,15 @@ const historyTrendDots = computed(() => {
     }
   })
 })
-const historyMaxKda = computed(() => Math.max(1, ...leagueTimeline.value.map(row => num(row.avgKda))))
-const historyAxisTicks = computed(() => [historyMaxKda.value, historyMaxKda.value / 2, 0].map(value => ({
+const historyUsesPerformanceIndex = computed(() => leagueTimeline.value.some(row => Number.isFinite(Number(row.performanceIndex))))
+const historyMaxValue = computed(() => {
+  if (historyUsesPerformanceIndex.value) return 100
+  return Math.max(1, ...leagueTimeline.value.map(row => num(row.avgKda)))
+})
+const historyAxisTicks = computed(() => [historyMaxValue.value, historyMaxValue.value / 2, 0].map(value => ({
   value,
   label: fixed(value, 1),
-  y: 82 - (value / historyMaxKda.value) * 66,
+  y: 82 - (value / historyMaxValue.value) * 66,
 })))
 const historyTrendLine = computed(() => historyTrendDots.value.map(point => `${point.x},${point.y}`).join(' '))
 const historyArea = computed(() => {
@@ -457,8 +482,9 @@ async function loadPlayers() {
     const res = await request(`/api/query/player/top?sort=win&leagueId=${selectedLeagueId.value}`)
     const rows = Array.isArray(res?.data) ? res.data : Array.isArray(res?.data?.data) ? res.data.data : []
     players.value = rows.filter(item => item.playerName)
-    visiblePlayers.value = players.value
-    if (!selectedPlayer.value && players.value.length) selectedPlayer.value = players.value[0].playerName
+    applyPlayerFilter()
+    const fallbackPlayers = visiblePlayers.value.length ? visiblePlayers.value : players.value
+    if (!selectedPlayer.value && fallbackPlayers.length) selectedPlayer.value = fallbackPlayers[0].playerName
   } catch (error) {
     ElMessage.error('选手列表加载失败: ' + error.message)
   } finally {
@@ -489,6 +515,8 @@ async function loadDetail(options = {}) {
 
 async function onLeagueChange() {
   selectedPlayer.value = ''
+  selectedPosition.value = ''
+  playerSearchKeyword.value = ''
   detail.value = null
   await loadPlayers()
   await pushPlayerRoute(true)
@@ -574,10 +602,33 @@ watch(
 )
 
 function filterPlayers(keyword) {
-  const key = String(keyword || '').trim().toLowerCase()
-  visiblePlayers.value = !key
-    ? players.value
-    : players.value.filter(item => `${item.playerName}${item.teamName || ''}`.toLowerCase().includes(key))
+  playerSearchKeyword.value = String(keyword || '').trim()
+  applyPlayerFilter()
+}
+
+function onPositionFilterChange() {
+  applyPlayerFilter()
+}
+
+function applyPlayerFilter() {
+  const key = playerSearchKeyword.value.toLowerCase()
+  visiblePlayers.value = players.value.filter(item => {
+    const matchesPosition = !selectedPosition.value || item.positionDesc === selectedPosition.value
+    const matchesKeyword = !key || `${item.playerName}${item.teamName || ''}${item.positionDesc || ''}`.toLowerCase().includes(key)
+    return matchesPosition && matchesKeyword
+  })
+}
+
+function focusSelectedPlayerInput() {
+  if (!selectedPlayer.value) return
+  nextTick(() => {
+    window.requestAnimationFrame(() => {
+      const input = playerSelectRef.value?.$el?.querySelector('.el-select__input')
+      if (!input) return
+      input.value = selectedPlayer.value
+      input.setSelectionRange(input.value.length, input.value.length)
+    })
+  })
 }
 
 function summarizeRecent(rows) {
@@ -659,6 +710,16 @@ function percentNumber(value) {
   return Math.abs(n) <= 1 ? n * 100 : n
 }
 
+function historyMetricValue(row) {
+  const score = Number(row?.performanceIndex)
+  return Number.isFinite(score) ? score : num(row?.avgKda)
+}
+
+function performancePeerLabel(row) {
+  const count = Number(row?.performancePeerCount)
+  return Number.isFinite(count) && count > 0 ? `同分路 ${count} 人` : '同分路样本待计算'
+}
+
 function formatPercent(value) {
   return `${percentNumber(value).toFixed(1)}%`
 }
@@ -668,10 +729,20 @@ function fixed(value, digits = 1) {
   return Number.isFinite(num) ? num.toFixed(digits) : '-'
 }
 
-function bilibiliUrl(battle) {
+function videoUrl(battle) {
   if (!battle.bvid) return null
-  const base = `https://www.bilibili.com/video/${battle.bvid}`
-  return battle.pageNum ? `${base}?p=${battle.pageNum}` : base
+  if (battle.bvid.startsWith('BV')) {
+    const base = `https://www.bilibili.com/video/${battle.bvid}`
+    // pageNum 优先，否则用 battleSeq（第几局=分P）
+    const p = battle.pageNum || battle.battleSeq
+    return p && p > 1 ? `${base}?p=${p}` : base
+  }
+  if (battle.bvid.startsWith('http')) return battle.bvid
+  return null
+}
+
+function isBilibili(battle) {
+  return battle.bvid && battle.bvid.startsWith('BV')
 }
 
 function formatCompact(value) {
@@ -697,68 +768,28 @@ onMounted(async () => {
 
 <style scoped>
 .player-insights {
-  --page-bg: #dce6f4;
-  --panel-bg: rgba(238, 245, 252, .70);
-  --panel-strong: rgba(248, 251, 255, .82);
-  --line: rgba(255, 255, 255, .62);
-  --line-strong: rgba(255, 255, 255, .82);
-  --text: #16202c;
-  --soft: rgba(22, 32, 44, .64);
-  --dim: rgba(22, 32, 44, .44);
-  --blue: #6752d7;
-  --green: #249e8f;
-  --red: #d25a78;
-  --gold: #b88a2e;
+  --page-bg: #101113;
+  --panel-bg: rgba(24, 25, 27, .92);
+  --panel-strong: rgba(15, 16, 18, .96);
+  --line: rgba(255, 255, 255, .48);
+  --line-strong: rgba(255, 255, 255, .62);
+  --text: #e8e8e8;
+  --soft: rgba(232, 232, 232, .65);
+  --dim: rgba(232, 232, 232, .4);
+  --blue: #3ba7ff;
+  --green: #87df55;
+  --red: #ff5e57;
+  --gold: #d7b45a;
   min-height: 100vh;
   margin-left: 67.5px;
   padding: 10px 14px 24px;
-  position: relative;
-  isolation: isolate;
-  overflow-x: hidden;
   color: var(--text);
-  background:
-    radial-gradient(ellipse at 10% 82%, rgba(138, 101, 236, .34), transparent 34%),
-    radial-gradient(ellipse at 90% 12%, rgba(77, 224, 212, .34), transparent 30%),
-    linear-gradient(120deg, rgba(133, 110, 255, .18), transparent 28%),
-    linear-gradient(240deg, rgba(53, 225, 211, .22), transparent 30%),
-    linear-gradient(180deg, #dce6f4 0%, #f4f0fa 58%, #d5c7ee 100%);
+  background: linear-gradient(180deg, rgba(16, 17, 19, .96), rgba(10, 11, 12, .98)), var(--page-bg);
   font-family: "Microsoft YaHei UI", "PingFang SC", sans-serif;
 }
 
 .player-insights,
 .player-insights * { box-sizing: border-box; }
-
-.player-insights::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-  pointer-events: none;
-  background:
-    repeating-linear-gradient(90deg, transparent 0 159px, rgba(73, 89, 121, .11) 160px),
-    linear-gradient(180deg, rgba(255, 255, 255, .56), transparent 28%);
-  mix-blend-mode: multiply;
-}
-
-.player-insights::after {
-  content: "";
-  position: fixed;
-  inset: auto -12vw 6vh -12vw;
-  z-index: -1;
-  height: 28vw;
-  min-height: 260px;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 18% 60%, rgba(138, 101, 236, .38), transparent 28%),
-    radial-gradient(circle at 82% 34%, rgba(77, 224, 212, .36), transparent 30%);
-  filter: blur(64px);
-  opacity: .62;
-}
-
-.player-insights > * {
-  position: relative;
-  z-index: 1;
-}
 
 .topbar,
 .profile-strip,
@@ -779,8 +810,7 @@ onMounted(async () => {
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--panel-strong);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 18px 55px rgba(49, 57, 92, .14), inset 0 0 46px rgba(255, 255, 255, .32);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
 }
 
 .title-block span,
@@ -811,17 +841,18 @@ onMounted(async () => {
 }
 
 .controls :deep(.el-select) { width: 190px; }
+.controls :deep(.lane-select) { width: 132px; }
 .controls :deep(.el-select__wrapper),
 .controls :deep(.el-button) {
   min-height: 34px;
   border-radius: 6px !important;
-  background: rgba(255, 255, 255, .58) !important;
+  background: rgba(255, 255, 255, .06) !important;
   box-shadow: 0 0 0 1px var(--line) inset !important;
 }
 
 .refresh-btn {
   --el-button-text-color: var(--text);
-  --el-button-hover-text-color: #101113;
+  --el-button-hover-text-color: var(--text);
   --el-button-hover-bg-color: var(--gold);
   --el-button-hover-border-color: var(--gold);
 }
@@ -888,7 +919,7 @@ onMounted(async () => {
 }
 
 .state-panel {
-  min-height: 420px;
+  min-height: calc(100vh - 120px);
   display: grid;
   place-items: center;
   margin-top: 8px;
@@ -920,8 +951,7 @@ onMounted(async () => {
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--panel-bg);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 18px 55px rgba(49, 57, 92, .14), inset 0 0 46px rgba(255, 255, 255, .30);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
 }
 
 .profile-card {
@@ -1008,7 +1038,6 @@ onMounted(async () => {
   justify-content: center;
   padding: 12px;
   border-left: 3px solid transparent;
-  box-shadow: 0 14px 36px rgba(49, 57, 92, .12), inset 0 1px 0 rgba(255, 255, 255, .72);
   transition: border-color .25s ease, background .25s ease, box-shadow .25s ease;
 }
 .metric-card span,
@@ -1093,7 +1122,7 @@ onMounted(async () => {
 
 .stage-panel,
 .featured-panel {
-  height: 360px;
+  height: 460px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1139,9 +1168,9 @@ onMounted(async () => {
   overflow: hidden;
 }
 .league-trend {
-  flex: 0 0 166px;
+  flex: 0 0 232px;
   min-height: 0;
-  padding: 7px 8px 0;
+  padding: 10px 12px 0;
   border-bottom: 1px solid var(--line);
   overflow: hidden;
 }
@@ -1175,8 +1204,8 @@ onMounted(async () => {
 }
 .history-chart {
   width: 100%;
-  height: 60px;
-  margin-top: 2px;
+  height: 104px;
+  margin-top: 6px;
   overflow: visible;
 }
 .history-chart line {
@@ -1684,11 +1713,14 @@ onMounted(async () => {
   font-size: 13px;
 }
 .battle-score {
-  text-align: right;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
 }
 .battle-score strong {
-  display: block;
   color: var(--gold);
+  font-size: 18px;
 }
 .battle-score span {
   color: var(--red);
@@ -1697,28 +1729,38 @@ onMounted(async () => {
 }
 .battle-score span.won { color: var(--green); }
 
-.bilibili-link {
+.video-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
   border-radius: 4px;
-  background: rgba(0, 174, 236, 0.12);
-  color: #00aeec;
   transition: background 0.2s;
   cursor: pointer;
 }
-.bilibili-link:hover {
+.video-link.bilibili {
+  background: rgba(0, 174, 236, 0.12);
+  color: #00aeec;
+}
+.video-link.bilibili:hover {
   background: rgba(0, 174, 236, 0.25);
+}
+.video-link.tencent {
+  background: rgba(255, 76, 76, 0.1);
+  color: #ff4c4c;
+}
+.video-link.tencent:hover {
+  background: rgba(255, 76, 76, 0.2);
 }
 
 .player-insights.theme-light {
   --page-bg: #dce6f4;
   --panel-bg: rgba(238, 245, 252, .70);
   --panel-strong: rgba(248, 251, 255, .82);
-  --line: rgba(255, 255, 255, .62);
-  --line-strong: rgba(255, 255, 255, .82);
+  --line: rgba(80, 90, 120, .55);
+  --line-strong: rgba(50, 60, 90, .65);
   --text: #16202c;
   --soft: rgba(22, 32, 44, .64);
   --dim: rgba(22, 32, 44, .44);
@@ -2264,6 +2306,197 @@ onMounted(async () => {
 .player-insights.theme-light .controls :deep(.el-button) {
   background: rgba(255, 255, 255, .62) !important;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, .74) inset, 0 10px 24px rgba(49, 57, 92, .08) !important;
+}
+
+.player-insights.theme-light {
+  --page-bg: #F5EFE4;
+  --panel-bg: #FFFBF3;
+  --panel-strong: #FFFBF3;
+  --line: #E3D6C4;
+  --line-strong: #C9B79F;
+  --text: #1F2933;
+  --soft: #5F6670;
+  --dim: #9A8B78;
+  --green: #16A34A;
+  --red: #EF4444;
+  --gold: #B88A2E;
+  --blue: #2563EB;
+  background: #F5EFE4;
+}
+
+.player-insights.theme-light .topbar,
+.player-insights.theme-light .panel,
+.player-insights.theme-light .metric-card,
+.player-insights.theme-light .profile-card,
+.player-insights.theme-light .state-panel {
+  background: #FFFBF3;
+  border-color: #E3D6C4;
+  backdrop-filter: none;
+  box-shadow: 0 8px 22px rgba(88, 72, 50, .055);
+}
+
+.player-insights.theme-light .topbar {
+  box-shadow: 0 1px 4px rgba(15, 23, 42, .06);
+}
+
+.player-insights.theme-light .title-block span,
+.player-insights.theme-light .section-title :deep(span) {
+  color: #B88A2E;
+}
+
+.player-insights.theme-light .section-title {
+  border-bottom-color: #E3D6C4;
+}
+
+.player-insights.theme-light .metric-card.primary,
+.player-insights.theme-light .metric-card.win,
+.player-insights.theme-light .metric-card.danger,
+.player-insights.theme-light .metric-card.accent,
+.player-insights.theme-light .metric-card.light {
+  background: #FFFBF3;
+}
+
+.player-insights.theme-light .metric-card.primary strong { color: #2563EB; }
+.player-insights.theme-light .metric-card.win strong,
+.player-insights.theme-light .status-score strong,
+.player-insights.theme-light .mini-stat-row strong,
+.player-insights.theme-light .hero-row b,
+.player-insights.theme-light .stage-row b,
+.player-insights.theme-light .battle-score span.won { color: #16A34A; }
+.player-insights.theme-light .metric-card.danger strong,
+.player-insights.theme-light .battle-score span { color: #EF4444; }
+.player-insights.theme-light .metric-card.accent strong,
+.player-insights.theme-light .metric-card.light strong,
+.player-insights.theme-light .battle-score strong,
+.player-insights.theme-light .hero-row em,
+.player-insights.theme-light .league-summary em,
+.player-insights.theme-light .battle-row .battle-rank { color: #B88A2E; }
+
+.player-insights.theme-light .mini-stat-row div,
+.player-insights.theme-light .league-tabs button,
+.player-insights.theme-light .league-scroll-btn,
+.player-insights.theme-light .avatar-fallback {
+  background: #F5EFE4;
+  border-color: #E3D6C4;
+  box-shadow: none;
+}
+
+.player-insights.theme-light .league-tabs button.active {
+  border-color: #B88A2E;
+  background: rgba(184, 138, 46, .1);
+}
+
+.player-insights.theme-light .metric-card:hover,
+.player-insights.theme-light .hero-row:hover,
+.player-insights.theme-light .stage-row:hover,
+.player-insights.theme-light .battle-row:hover {
+  background: #F8F1E8;
+  border-color: #C9B79F;
+  box-shadow: 0 2px 12px rgba(88, 72, 50, .08);
+}
+
+.player-insights.theme-light .controls :deep(.el-select__wrapper),
+.player-insights.theme-light .controls :deep(.el-button) {
+  background: #FFFBF3 !important;
+  box-shadow: 0 0 0 1px #E3D6C4 inset !important;
+}
+
+.player-insights.theme-light .trend-chart .trend-line {
+  stroke: url(#trendLineGradient);
+  filter: drop-shadow(0 6px 10px rgba(103, 82, 215, .20));
+}
+
+.player-insights.theme-light .trend-chart .trend-area {
+  fill: url(#trendAreaGradient);
+}
+
+.player-insights.theme-light .history-chart .history-line {
+  stroke: url(#historyLineGradient);
+  filter: drop-shadow(0 5px 8px rgba(210, 90, 120, .18));
+}
+
+.player-insights.theme-light .history-chart .history-area {
+  fill: url(#historyAreaGradient);
+}
+
+.player-insights.theme-light .trend-chart circle {
+  fill: #D25A78;
+  stroke: #FFFBF3;
+}
+
+.player-insights.theme-light .trend-chart circle.win {
+  fill: #249E8F;
+}
+
+.player-insights.theme-light .history-chart circle {
+  fill: #6752D7;
+  stroke: #FFFBF3;
+}
+
+.player-insights.theme-light .history-chart circle.active {
+  fill: #D25A78;
+}
+
+.player-insights.theme-light .compare-track,
+.player-insights.theme-light .compare-row :deep(.compare-track) {
+  background: rgba(255, 251, 243, .76);
+  box-shadow: inset 0 0 0 1px rgba(227, 214, 196, .72);
+}
+
+.player-insights.theme-light .compare-track .self,
+.player-insights.theme-light .compare-row :deep(.compare-track .self) {
+  background: linear-gradient(90deg, #6752D7, #8E7CF3);
+  box-shadow: 0 0 16px rgba(103, 82, 215, .22);
+}
+
+.player-insights.theme-light .compare-track .avg,
+.player-insights.theme-light .compare-row :deep(.compare-track .avg) {
+  background: linear-gradient(90deg, rgba(77, 224, 212, .70), rgba(36, 158, 143, .70));
+}
+
+.player-insights.theme-light .trend-chart .chart-axis,
+.player-insights.theme-light .history-chart .chart-axis {
+  stroke: rgba(22, 32, 44, .38);
+}
+
+.player-insights.theme-light .trend-chart .chart-grid,
+.player-insights.theme-light .history-chart .chart-grid {
+  stroke: rgba(22, 32, 44, .14);
+}
+
+.player-insights.theme-light .profile-card img,
+.player-insights.theme-light .avatar-fallback {
+  border-color: #E3D6C4;
+  box-shadow: none;
+}
+
+.player-insights .trend-chart circle {
+  fill: #D25A78;
+  stroke: var(--panel-bg);
+}
+
+.player-insights .trend-chart circle.win {
+  fill: #249E8F;
+}
+
+.player-insights .history-chart circle {
+  fill: #6752D7;
+  stroke: var(--panel-bg);
+}
+
+.player-insights .history-chart circle.active {
+  fill: #D25A78;
+}
+
+.player-insights .compare-track .self,
+.player-insights .compare-row :deep(.compare-track .self) {
+  background: linear-gradient(90deg, #6752D7, #8E7CF3);
+  box-shadow: 0 0 16px rgba(103, 82, 215, .22);
+}
+
+.player-insights .compare-track .avg,
+.player-insights .compare-row :deep(.compare-track .avg) {
+  background: linear-gradient(90deg, rgba(77, 224, 212, .70), rgba(36, 158, 143, .70));
 }
 
 @media (max-width: 1180px) {
