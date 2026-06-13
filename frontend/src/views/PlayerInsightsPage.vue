@@ -6,10 +6,10 @@
         <h1>选手数据详情</h1>
       </div>
       <div class="controls">
-        <el-select v-model="selectedLeagueId" filterable placeholder="选择赛事" @change="onLeagueChange">
+        <el-select v-model="selectedLeagueId" filterable placeholder="选择赛事" :suffix-icon="ArrowDown" @change="onLeagueChange">
           <el-option v-for="league in leagues" :key="league.leagueId" :label="league.leagueName" :value="league.leagueId" />
         </el-select>
-        <el-select v-model="selectedPosition" class="lane-select" filterable placeholder="全部分路" @change="onPositionFilterChange">
+        <el-select v-model="selectedPosition" class="lane-select" filterable placeholder="全部分路" :suffix-icon="ArrowDown" @change="onPositionFilterChange">
           <el-option label="全部分路" value="" />
           <el-option v-for="position in positionOptions" :key="position" :label="position" :value="position" />
         </el-select>
@@ -22,6 +22,7 @@
           :remote-method="filterPlayers"
           :loading="playerLoading"
           placeholder="搜索选手"
+          :suffix-icon="ArrowDown"
           @change="onPlayerChange"
           @focus="focusSelectedPlayerInput"
         >
@@ -70,12 +71,10 @@
                 </template>
                 <div class="score-breakdown">
                   <b>综合状态分怎么算？</b>
-                  <div class="score-row"><span>胜率表现</span><span>35%</span></div>
-                  <div class="score-row"><span>KDA表现</span><span>25%</span></div>
-                  <div class="score-row"><span>参团表现</span><span>20%</span></div>
-                  <div class="score-row"><span>近期状态</span><span>10%</span></div>
-                  <div class="score-row"><span>出场样本</span><span>10%</span></div>
-                  <p class="score-note">系统会对小样本数据进行修正，避免少量比赛导致分数虚高。</p>
+                  <div class="score-row"><span>赛段进程 + 出场数</span><span>基底分</span></div>
+                  <div class="score-row"><span>个人表现微调</span><span>±8 分</span></div>
+                  <div class="score-row"><span>队伍实力修正</span><span>±3 分</span></div>
+                  <p class="score-note">走到越深、打的越多，基底分越高；个人数据和队伍实力在小范围内微调。</p>
                 </div>
               </el-popover></strong>
             <span>综合状态分</span>
@@ -83,24 +82,42 @@
         </article>
 
         <aside class="metric-grid">
-          <div class="metric-card primary"><span>本赛季场次</span><strong>{{ player.battleCount || 0 }}</strong><em>同位置 #{{ rankOf('avgKda') || '-' }}</em></div>
-          <div class="metric-card win"><span>胜率</span><strong>{{ formatPercent(player.winRate) }}</strong><em>排名 #{{ rankOf('winRate') || '-' }}</em></div>
-          <div class="metric-card light"><span>KDA</span><strong>{{ fixed(player.avgKda, 2) }}</strong><em>{{ fixed(player.avgKill, 1) }}/{{ fixed(player.avgDeath, 1) }}/{{ fixed(player.avgAssist, 1) }}</em></div>
-          <div class="metric-card accent"><span>场均经济</span><strong>{{ formatCompact(player.avgGold) }}</strong><em>排名 #{{ rankOf('avgGold') || '-' }}</em></div>
-          <div class="metric-card primary"><span>参团率</span><strong>{{ formatPercent(player.avgParticipationRate) }}</strong><em>排名 #{{ rankOf('avgParticipationRate') || '-' }}</em></div>
-          <div class="metric-card danger"><span>近期 5 场胜率</span><strong>{{ formatPercent(recent5.winRate) }}</strong><em>KDA {{ fixed(recent5.avgKda, 2) }}</em></div>
+          <div class="metric-card primary" role="button" tabindex="0" @click="openRankDialog('battleCount')" @keydown.enter="openRankDialog('battleCount')"><span>本赛季场次</span><strong>{{ player.battleCount || 0 }}</strong><em>排名 #{{ metricRank('battleCount') || '-' }}</em></div>
+          <div class="metric-card win" role="button" tabindex="0" @click="openRankDialog('winRate')" @keydown.enter="openRankDialog('winRate')"><span>胜率</span><strong>{{ formatPercent(player.winRate) }}</strong><em>排名 #{{ metricRank('winRate') || '-' }}</em></div>
+          <div class="metric-card light" role="button" tabindex="0" @click="openRankDialog('avgKda')" @keydown.enter="openRankDialog('avgKda')"><span>KDA</span><strong>{{ fixed(player.avgKda, 2) }}</strong><em>排名 #{{ metricRank('avgKda') || '-' }}</em></div>
+          <div class="metric-card accent" role="button" tabindex="0" @click="openRankDialog('avgGold')" @keydown.enter="openRankDialog('avgGold')"><span>场均经济</span><strong>{{ formatCompact(player.avgGold) }}</strong><em>排名 #{{ metricRank('avgGold') || '-' }}</em></div>
+          <div class="metric-card primary" role="button" tabindex="0" @click="openRankDialog('avgParticipationRate')" @keydown.enter="openRankDialog('avgParticipationRate')"><span>参团率</span><strong>{{ formatPercent(player.avgParticipationRate) }}</strong><em>排名 #{{ metricRank('avgParticipationRate') || '-' }}</em></div>
+          <div class="metric-card danger" role="button" tabindex="0" @click="openRankDialog('recent5WinRate')" @keydown.enter="openRankDialog('recent5WinRate')"><span>近期 5 场胜率</span><strong>{{ formatPercent(recent5.winRate) }}</strong><em>排名 #{{ metricRank('recent5WinRate') || '-' }}</em></div>
         </aside>
       </section>
 
       <section class="analysis-grid">
-        <article class="panel trend-panel" :key="`trend-${chartRenderKey}`">
-          <PanelTitle tag="FORM" title="本赛季状态趋势" note="最近 5 / 10 场比赛" />
-          <div class="mini-stat-row">
-            <div><span>最近5场比赛</span><strong>{{ formatPercent(recent5.winRate) }}</strong><em>KDA {{ fixed(recent5.avgKda, 2) }}</em></div>
-            <div><span>最近10场比赛</span><strong>{{ formatPercent(recent10.winRate) }}</strong><em>KDA {{ fixed(recent10.avgKda, 2) }}</em></div>
-            <div><span>赛季整体</span><strong>{{ formatPercent(player.winRate) }}</strong><em>KDA {{ fixed(player.avgKda, 2) }}</em></div>
+        <article class="panel trend-panel" :key="`trend-${chartRenderKey}-${selectedTrendMetric}`">
+          <div class="section-title trend-title">
+            <div>
+              <span>FORM</span>
+              <h3>近期比赛走势</h3>
+            </div>
+            <div class="trend-tools">
+              <small>{{ trendMetricMeta.note }}</small>
+              <el-select v-model="selectedTrendMetric" class="trend-metric-select" size="small" :teleported="false">
+                <el-option v-for="item in trendMetricOptions" :key="item.key" :label="item.label" :value="item.key" />
+              </el-select>
+            </div>
           </div>
-          <svg class="trend-chart" viewBox="0 0 420 150" role="img" aria-label="近期KDA趋势">
+          <div class="mini-stat-row">
+            <div v-for="card in trendSummaryCards" :key="card.label">
+              <span>{{ card.label }}</span>
+              <strong>{{ card.value }}</strong>
+              <em>{{ card.note }}</em>
+            </div>
+          </div>
+          <div class="trend-explain">
+            <span>折线取最近 {{ trendDots.length }} 场比赛，点上数字为{{ trendMetricMeta.label }}</span>
+            <b>均值 {{ formatTrendValue(trendAverage) }}</b>
+            <em>{{ trendMetricMeta.description }}</em>
+          </div>
+          <svg class="trend-chart" viewBox="0 0 420 150" role="img" :aria-label="`${trendMetricMeta.label}走势`">
             <defs>
               <linearGradient id="trendLineGradient" x1="0" x2="1" y1="0" y2="0">
                 <stop offset="0%" stop-color="#6752D7" />
@@ -119,7 +136,7 @@
             </g>
             <polygon v-if="trendArea" class="trend-area" :points="trendArea" />
             <polyline class="trend-line" :points="trendLine" />
-            <text v-for="point in trendDots" :key="`${point.key}-value`" class="chart-point-value" :x="point.x" :y="point.labelY">{{ fixed(point.value, 1) }}</text>
+            <text v-for="point in trendDots" :key="`${point.key}-value`" class="chart-point-value" :x="point.x" :y="point.labelY">{{ formatTrendValue(point.value) }}</text>
             <text v-for="point in trendDots" :key="`${point.key}-x`" class="chart-x-label" :x="point.x" y="146">{{ point.label }}</text>
             <circle v-for="(point, index) in trendDots" :key="point.key" :cx="point.x" :cy="point.y" :class="['trend-dot', { win: point.won }]" :style="{ animationDelay: `${index * 70 + 280}ms` }" r="4" />
           </svg>
@@ -138,6 +155,12 @@
               <em v-if="isSignatureHero(hero)">招牌</em>
             </div>
           </div>
+          <div v-if="heroPoolSummary" class="hero-pool-summary">
+            <div><span>英雄数</span><strong>{{ heroPoolSummary.heroCount }}</strong></div>
+            <div><span>招牌英雄</span><strong>{{ heroPoolSummary.signatureCount }}</strong></div>
+            <div><span>池子胜率</span><strong>{{ fixed(heroPoolSummary.winRate, 1) }}%</strong></div>
+            <div><span>平均 KDA</span><strong>{{ fixed(heroPoolSummary.avgKda, 2) }}</strong></div>
+          </div>
         </article>
 
         <article class="panel compare-panel" :key="`compare-${chartRenderKey}`">
@@ -148,6 +171,13 @@
             <CompareBar label="击杀" :value="num(player.avgKill)" :avg="num(compareAvg.avgKill)" />
             <CompareBar label="助攻" :value="num(player.avgAssist)" :avg="num(compareAvg.avgAssist)" />
             <CompareBar label="经济" :value="num(player.avgGold)" :avg="num(compareAvg.avgGold)" compact />
+          </div>
+          <div class="compare-legend">
+            <div class="legend-items">
+              <span class="legend-item"><i class="swatch self" />选手数值</span>
+              <span class="legend-item"><i class="swatch avg" />同分路均值</span>
+            </div>
+            <p class="legend-note">条形长度按选手与同分路均值的相对最大值归一化；选手条在上(紫色)，均值条在下(青色)。条越长表示该项越强。经济采用紧凑千分位(k)。</p>
           </div>
         </article>
       </section>
@@ -165,10 +195,25 @@
               <div class="league-trend">
                 <div class="league-summary" v-if="activeTrendLeague">
                   <strong>{{ trendLeagueLabel(activeTrendLeague) }}</strong>
-                  <span>{{ activeTrendLeague.games }} 局 · 表现指数 {{ fixed(historyMetricValue(activeTrendLeague), 1) }} · 大场胜率 {{ formatPercent(activeTrendLeague.winRate) }} · KDA {{ fixed(activeTrendLeague.avgKda, 2) }}</span>
-                  <em>{{ activeTrendLeague.performancePositionDesc || player.positionDesc || '-' }} · {{ performancePeerLabel(activeTrendLeague) }} · {{ activeTrendLeague.heroCount || 0 }} 个英雄</em>
+                  <span>{{ activeTrendLeague.games }} 局 · 表现指数 {{ fixed(historyMetricValue(activeTrendLeague), 1) }} · {{ activeTrendLeague.teamResultLabel || '进程待识别' }} · KDA {{ fixed(activeTrendLeague.avgKda, 2) }}</span>
+                  <em>{{ activeTrendLeague.teamName || player.teamName || '-' }} · {{ activeTrendLeague.performancePositionDesc || player.positionDesc || '-' }}</em>
                 </div>
-                <svg class="history-chart" viewBox="0 0 420 96" role="img" aria-label="历史赛事表现指数趋势">
+                <div class="history-score-grid" v-if="activeTrendLeague">
+                  <div v-for="factor in historyScoreFactors(activeTrendLeague)" :key="factor.label">
+                    <span>
+                      {{ factor.label }}
+                      <el-tooltip :content="factor.help" placement="top" effect="dark">
+                        <QuestionFilled />
+                      </el-tooltip>
+                    </span>
+                    <strong>{{ factor.value }}</strong>
+                    <em>{{ factor.note }}</em>
+                  </div>
+                </div>
+                <p class="history-formula" v-if="activeTrendLeague">
+                  {{ activeTrendLeague.performanceFormula || '表现指数 = 赛事进程 65% + 队伍表现 20% + 同分路个人表现 15%' }}
+                </p>
+                <svg class="history-chart" viewBox="0 0 420 108" role="img" aria-label="历史赛事表现指数趋势">
                   <defs>
                     <linearGradient id="historyLineGradient" x1="0" x2="1" y1="0" y2="0">
                       <stop offset="0%" stop-color="#D25A78" />
@@ -188,6 +233,7 @@
                   <polygon v-if="historyArea" class="history-area" :points="historyArea" />
                   <polyline class="history-line" :points="historyTrendLine" />
                   <text v-for="point in historyTrendDots" :key="`${point.key}-value`" class="chart-point-value compact" :x="point.x" :y="point.labelY">{{ fixed(point.value, 1) }}</text>
+                  <text v-for="point in historyTrendDots" :key="`${point.key}-x`" class="chart-x-label compact" :x="point.x" y="104">{{ point.label }}</text>
                   <circle
                     v-for="(point, index) in historyTrendDots"
                     :key="point.key"
@@ -278,6 +324,44 @@
         </article>
       </section>
     </template>
+    <Teleport to="body">
+      <div v-if="rankDialogVisible" class="rank-overlay" :class="`theme-${theme}`" @click.self="rankDialogVisible = false">
+        <div class="rank-dialog">
+          <div class="rank-dialog-head">
+            <strong>{{ rankDialogTitle }}</strong>
+            <button class="rank-dialog-close" @click="rankDialogVisible = false">&times;</button>
+          </div>
+          <div class="rank-dialog-note">{{ rankDialogNote }}</div>
+          <div class="rank-table-wrap">
+            <table class="rank-table">
+              <thead>
+                <tr><th class="rank-col">#</th><th>选手</th><th class="data-col">数据</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in rankDialogRows" :key="row.playerName" :class="{ active: isSelectedRankRow(row) }">
+                  <td class="rank-col"><span class="rank-badge" :class="{ 'rank-top3': row.rank <= 3 }">{{ row.rank }}</span></td>
+                  <td>
+                    <div class="name-cell">
+                      <img v-if="row.playerIcon" :src="row.playerIcon" class="cell-icon" @error="hideBroken">
+                      <div class="name-text">
+                        <strong>{{ shortName(row.playerName) }}</strong>
+                        <span>{{ row.teamName || '-' }} · {{ row.positionDesc || '-' }}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="data-col">
+                    <div class="rate-cell">
+                      <span class="rate-num">{{ row.display }}</span>
+                      <div class="rate-track"><i class="rate-bar" :style="{ width: rankBarWidth(row) }" /></div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </main>
 </template>
 
@@ -285,7 +369,7 @@
 import { computed, defineComponent, h, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowLeftBold, ArrowRightBold, Back, Refresh } from '@element-plus/icons-vue'
+import { ArrowDown, ArrowLeftBold, ArrowRightBold, Back, QuestionFilled, Refresh } from '@element-plus/icons-vue'
 import { getTheme, setTheme } from '../utils/theme'
 
 const route = useRoute()
@@ -305,6 +389,9 @@ const errorText = ref('')
 const theme = ref(getTheme())
 const stageMode = ref('stage')
 const selectedLeagueTrendId = ref('')
+const selectedTrendMetric = ref('winRate')
+const rankDialogVisible = ref(false)
+const activeRankMetric = ref('statusScore')
 const leagueTabsRef = ref(null)
 const routeReady = ref(false)
 const loadedBattleCovers = ref({})
@@ -313,8 +400,32 @@ watch(theme, (value) => setTheme(value))
 
 const player = computed(() => detail.value?.player || {})
 const recentGames = computed(() => detail.value?.recentGames || [])
-const recentGamesByBattle = computed(() => detail.value?.recentGamesByBattle || [])
-const heroPool = computed(() => detail.value?.heroPool || [])
+const seasonTrendSummary = computed(() => detail.value?.seasonTrendSummary || {})
+const heroPool = computed(() => {
+  const pool = detail.value?.heroPool || []
+  const signature = []
+  const normal = []
+  for (const hero of pool) {
+    if (isSignatureHero(hero)) signature.push(hero)
+    else normal.push(hero)
+  }
+  signature.sort((a, b) => percentNumber(b.winRate) - percentNumber(a.winRate))
+  return [...signature, ...normal]
+})
+const heroPoolSummary = computed(() => {
+  const pool = heroPool.value
+  if (!pool.length) return null
+  const games = pool.reduce((sum, hero) => sum + num(hero.games), 0)
+  const wins = pool.reduce((sum, hero) => sum + num(hero.wins), 0)
+  const signatureCount = pool.filter(hero => isSignatureHero(hero)).length
+  const avgKda = pool.reduce((sum, hero) => sum + num(hero.avgKda), 0) / pool.length
+  return {
+    heroCount: pool.length,
+    signatureCount,
+    winRate: games > 0 ? (wins / games) * 100 : 0,
+    avgKda,
+  }
+})
 const stageStats = computed(() => detail.value?.stageStats || [])
 const leagueTimeline = computed(() => detail.value?.leagueTimeline || [])
 const leagueHeroMatrix = computed(() => detail.value?.leagueHeroMatrix || [])
@@ -322,6 +433,108 @@ const featuredBattles = computed(() => detail.value?.featuredBattles || [])
 const comparison = computed(() => detail.value?.positionComparison || {})
 const compareAvg = computed(() => comparison.value?.avg || {})
 const compareRank = computed(() => comparison.value?.rank || {})
+const selectedPlayerTop = computed(() => {
+  const target = shortName(selectedPlayer.value)
+  return players.value.find(item => shortName(item.playerName) === target) || {}
+})
+const rankMetricConfigs = {
+  battleCount: { title: '本赛季场次排名', note: '按当前赛事选手小局出场数排序。', value: row => num(row.battleCount), format: value => Math.round(value).toString() },
+  winRate: { title: '胜率排名', note: '按当前赛事官方选手胜率排序。', value: row => percentNumber(row.winRate), format: value => `${value.toFixed(1)}%` },
+  avgKda: { title: 'KDA 排名', note: '按当前赛事选手平均 KDA 排序。', value: row => num(row.avgKda), format: value => fixed(value, 2) },
+  avgGold: { title: '场均经济排名', note: '按当前赛事选手场均经济排序。', value: row => num(row.avgGold), format: value => formatCompact(value) },
+  avgParticipationRate: { title: '参团率排名', note: '按当前赛事选手平均参团率排序。', value: row => percentNumber(row.avgParticipationRate), format: value => `${value.toFixed(1)}%` },
+  recent5WinRate: { title: '近期 5 场胜率排名', note: '按最近 5 场大场胜率排序；不足 5 场按实际样本展示。', value: row => percentNumber(row.recent5WinRate), format: value => `${value.toFixed(1)}%` },
+  statusScore: { title: '综合状态分排名', note: '基底分 = 赛段进程 + 出场数，个人 ±8、队伍 ±3 微调。', value: row => num(row.statusScore), format: value => fixed(value, 1) },
+}
+const activeRankConfig = computed(() => rankMetricConfigs[activeRankMetric.value] || rankMetricConfigs.statusScore)
+const rankDialogTitle = computed(() => activeRankConfig.value.title)
+const rankDialogNote = computed(() => activeRankConfig.value.note)
+const rankDialogRows = computed(() => {
+  const config = activeRankConfig.value
+  return players.value
+    .map(row => ({ row, value: config.value(row) }))
+    .filter(item => Number.isFinite(item.value))
+    .sort((a, b) => b.value - a.value || num(b.row.statusScore) - num(a.row.statusScore))
+    .slice(0, 50)
+    .map((item, index) => ({
+      ...item.row,
+      rank: index + 1,
+      rawValue: item.value,
+      display: config.format(item.value),
+    }))
+})
+const trendMetricOptions = [
+  {
+    key: 'winRate',
+    label: '胜率',
+    note: '最近10场比赛',
+    description: '按小局总胜率计算：本场小局胜场 / 本场小局总数，例如 5:0 为 100%。',
+    suffix: '%',
+    fixedMax: 100,
+    decimals: 1,
+    value: row => matchWinRateValue(row),
+  },
+  {
+    key: 'kda',
+    label: 'KDA',
+    note: '最近10场比赛',
+    description: '同一场 BO 的逐局 KDA 先求平均，再用于比赛走势和近期汇总。',
+    decimals: 1,
+    value: row => num(row.kda),
+  },
+  {
+    key: 'participationRate',
+    label: '参团率',
+    note: '最近10场比赛',
+    description: '同一场 BO 的逐局参团率先求平均，表示参与本队击杀的比例。',
+    suffix: '%',
+    fixedMax: 100,
+    decimals: 1,
+    value: row => percentNumber(row.participationRate),
+  },
+  {
+    key: 'beHurtTotal',
+    label: '承伤',
+    note: '最近10场比赛',
+    description: '同一场 BO 的逐局总承伤先求平均，再观察近期承压变化。',
+    compact: true,
+    value: row => num(row.beHurtTotal),
+  },
+  {
+    key: 'killNum',
+    label: '击杀',
+    note: '最近10场比赛',
+    description: '同一场 BO 的逐局击杀数先求平均，再作为这一场比赛的击杀表现。',
+    decimals: 0,
+    value: row => num(row.killNum),
+  },
+  {
+    key: 'deathNum',
+    label: '死亡',
+    note: '最近10场比赛',
+    description: '同一场 BO 的逐局死亡数先求平均，数值越低通常越好。',
+    decimals: 0,
+    lowerIsBetter: true,
+    value: row => num(row.deathNum),
+  },
+  {
+    key: 'hurtToHeroPerMinute',
+    label: '分均伤害',
+    note: '最近10场比赛',
+    description: '逐局先计算“对英雄伤害 / 对局时长分钟”，同一场 BO 再求平均。',
+    compact: true,
+    value: row => num(row.hurtToHeroPerMinute),
+  },
+  {
+    key: 'goldPerMinute',
+    label: '分均经济',
+    note: '最近10场比赛',
+    description: '逐局先计算“经济 / 对局时长分钟”，同一场 BO 再求平均。',
+    compact: true,
+    value: row => num(row.goldPerMinute),
+  },
+]
+const trendMetricMeta = computed(() => trendMetricOptions.find(item => item.key === selectedTrendMetric.value) || trendMetricOptions[0])
 
 watch(featuredBattles, (items) => {
   preloadBattleCoverImages(items)
@@ -349,6 +562,12 @@ const activeLeagueHeroes = computed(() => {
 })
 const recent5 = computed(() => summarizeRecent(recentGames.value.slice(0, 5)))
 const recent10 = computed(() => summarizeRecent(recentGames.value.slice(0, 10)))
+const seasonSummary = computed(() => summarizeSeason(seasonTrendSummary.value))
+const trendSummaryCards = computed(() => [
+  trendSummaryCard('最近5场比赛', recent5.value, trendMetricMeta.value.key === 'winRate' ? '小局汇总' : '5场均值'),
+  trendSummaryCard('最近10场比赛', recent10.value, trendMetricMeta.value.key === 'winRate' ? '小局汇总' : '10场均值'),
+  trendSummaryCard('赛季整体', seasonSummary.value, trendMetricMeta.value.key === 'winRate' ? '小局汇总' : '按比赛聚合'),
+])
 const chartRenderKey = computed(() => `${selectedLeagueId.value || 'auto'}-${selectedPlayer.value || 'player'}`)
 const positionOptions = computed(() => {
   const order = ['对抗路', '打野', '中路', '发育路', '游走']
@@ -361,6 +580,8 @@ const positionOptions = computed(() => {
     })
 })
 const statusScore = computed(() => {
+  const backendScore = Number(selectedPlayerTop.value.statusScore)
+  if (Number.isFinite(backendScore) && backendScore > 0) return Math.round(backendScore)
   const games = num(player.value.battleCount)
   const wins = Math.round(percentNumber(player.value.winRate) / 100 * games)
   const avgKda = num(player.value.avgKda)
@@ -394,29 +615,40 @@ const statusScore = computed(() => {
   const displayScore = 50 + rankScore * 0.5
   return Math.max(0, Math.min(100, Math.round(displayScore)))
 })
+const trendRows = computed(() => [...recentGames.value.slice(0, 10)].reverse())
+const trendValues = computed(() => trendRows.value.map(row => trendMetricMeta.value.value(row)))
+const trendAverage = computed(() => {
+  if (trendMetricMeta.value.key === 'winRate') return smallGameWinRate(trendRows.value)
+  const values = trendValues.value.filter(value => Number.isFinite(value))
+  if (!values.length) return 0
+  return values.reduce((sum, value) => sum + value, 0) / values.length
+})
 const trendDots = computed(() => {
-  const rows = [...recentGamesByBattle.value].reverse()
-  const maxKda = trendMaxKda.value
+  const rows = trendRows.value
+  const maxValue = trendMaxValue.value
   return rows.map((row, index) => {
-    const value = num(row.kda)
+    const value = trendMetricMeta.value.value(row)
     const x = 18 + index * (384 / Math.max(1, rows.length - 1))
-    const y = 126 - (value / maxKda) * 104
+    const y = 126 - (value / maxValue) * 104
     return {
       key: `${row.matchId}-${index}`,
       x,
       y,
       labelY: Math.max(12, y - 10),
       value,
-      label: `${index + 1}`,
+      label: `M${index + 1}`,
       won: Number(row.won) === 1,
     }
   })
 })
-const trendMaxKda = computed(() => Math.max(1, ...recentGamesByBattle.value.map(row => num(row.kda))))
-const trendAxisTicks = computed(() => [trendMaxKda.value, trendMaxKda.value / 2, 0].map(value => ({
+const trendMaxValue = computed(() => {
+  if (trendMetricMeta.value.fixedMax) return trendMetricMeta.value.fixedMax
+  return Math.max(1, ...trendValues.value.map(value => Number.isFinite(value) ? value : 0))
+})
+const trendAxisTicks = computed(() => [trendMaxValue.value, trendMaxValue.value / 2, 0].map(value => ({
   value,
-  label: fixed(value, 1),
-  y: 126 - (value / trendMaxKda.value) * 104,
+  label: formatTrendValue(value),
+  y: 126 - (value / trendMaxValue.value) * 104,
 })))
 const trendLine = computed(() => trendDots.value.map(point => `${point.x},${point.y}`).join(' '))
 const trendArea = computed(() => {
@@ -437,6 +669,7 @@ const historyTrendDots = computed(() => {
       y,
       labelY: Math.max(10, y - 7),
       value,
+      label: historyAxisLabel(row),
     }
   })
 })
@@ -507,7 +740,7 @@ async function loadPlayers() {
   if (!selectedLeagueId.value) return
   playerLoading.value = true
   try {
-    const res = await request(`/api/query/player/top?sort=win&leagueId=${selectedLeagueId.value}`)
+    const res = await request(`/api/query/player/top?sort=status&leagueId=${selectedLeagueId.value}`)
     const rows = Array.isArray(res?.data) ? res.data : Array.isArray(res?.data?.data) ? res.data.data : []
     players.value = rows.filter(item => item.playerName)
     applyPlayerFilter()
@@ -660,10 +893,34 @@ function focusSelectedPlayerInput() {
 }
 
 function summarizeRecent(rows) {
-  if (!rows.length) return { games: 0, wins: 0, winRate: 0, avgKda: 0 }
+  if (!rows.length) return { games: 0, wins: 0, winRate: 0, avgKda: 0, value: 0 }
   const wins = rows.filter(row => Number(row.won) === 1).length
   const kda = rows.reduce((sum, row) => sum + num(row.kda), 0) / rows.length
-  return { games: rows.length, wins, winRate: wins / rows.length, avgKda: kda }
+  const value = trendMetricMeta.value.key === 'winRate'
+    ? smallGameWinRate(rows)
+    : averageMetric(rows)
+  return { games: rows.length, wins, winRate: wins / rows.length, avgKda: kda, value }
+}
+
+function summarizeSeason(row) {
+  const matches = Math.round(num(row?.matches))
+  const wins = Math.round(num(row?.wins))
+  return {
+    games: matches,
+    wins,
+    winRate: percentNumber(row?.winRate) / 100,
+    avgKda: num(row?.kda),
+    value: trendMetricMeta.value.value(row || {}),
+  }
+}
+
+function trendSummaryCard(label, summary, note) {
+  const games = Math.round(num(summary.games))
+  return {
+    label,
+    value: formatTrendValue(summary.value),
+    note: games > 0 ? `${note} · 样本${games}场` : '暂无样本',
+  }
 }
 
 function playerKey(item) {
@@ -672,6 +929,34 @@ function playerKey(item) {
 
 function rankOf(key) {
   return compareRank.value?.[key] || 0
+}
+
+function openRankDialog(metric) {
+  activeRankMetric.value = metric
+  rankDialogVisible.value = true
+}
+
+function metricRank(metric) {
+  const config = rankMetricConfigs[metric]
+  if (!config) return 0
+  const targetName = shortName(selectedPlayer.value)
+  const sorted = players.value
+    .map(row => ({ name: shortName(row.playerName), value: config.value(row) }))
+    .filter(item => Number.isFinite(item.value))
+    .sort((a, b) => b.value - a.value)
+  const idx = sorted.findIndex(item => item.name === targetName)
+  return idx >= 0 ? idx + 1 : 0
+}
+
+function rankBarWidth(row) {
+  const rows = rankDialogRows.value
+  if (!rows.length) return '0%'
+  const max = rows[0].rawValue || 1
+  return `${Math.min(100, (row.rawValue / max) * 100)}%`
+}
+
+function isSelectedRankRow(row) {
+  return shortName(row.playerName) === shortName(selectedPlayer.value)
 }
 
 function syncTrendLeague() {
@@ -716,6 +1001,21 @@ function compactLeagueName(league) {
     .replace(/\s+/g, '')
 }
 
+function historyAxisLabel(league) {
+  const name = compactLeagueName(league)
+    .replace(/^20(\d{2})年?/, '$1')
+    .replace(/王者荣耀/g, '')
+    .replace(/挑战者杯/g, '挑杯')
+    .replace(/年度总决赛/g, '年总')
+    .replace(/世界冠军杯/g, '世冠')
+    .replace(/冬季冠军杯/g, '冬冠')
+    .replace(/春季赛/g, '春')
+    .replace(/夏季赛/g, '夏')
+    .replace(/秋季赛/g, '秋')
+    .replace(/正赛|选拔赛|季前赛/g, '')
+  return name.length > 6 ? name.slice(0, 6) : name
+}
+
 function heroIcon(hero) {
   return hero?.heroId ? `https://res.edata.qq.com/sgame/static/images/hero/${hero.heroId}.jpg` : ''
 }
@@ -738,6 +1038,35 @@ function percentNumber(value) {
   return Math.abs(n) <= 1 ? n * 100 : n
 }
 
+function matchWinRateValue(row) {
+  if (!row) return 0
+  if (Object.prototype.hasOwnProperty.call(row, 'battleWinRate')) {
+    return percentNumber(row.battleWinRate)
+  }
+  if (Object.prototype.hasOwnProperty.call(row, 'battleCount')) {
+    const battles = num(row.battleCount)
+    return battles > 0 ? (num(row.wins) / battles) * 100 : 0
+  }
+  if (Object.prototype.hasOwnProperty.call(row, 'won')) {
+    return Number(row.won) === 1 ? 100 : 0
+  }
+  return percentNumber(row?.winRate)
+}
+
+function smallGameWinRate(rows) {
+  const games = rows.reduce((sum, row) => sum + num(row.battleCount), 0)
+  if (!games) return 0
+  const wins = rows.reduce((sum, row) => sum + num(row.wins), 0)
+  return (wins / games) * 100
+}
+
+function averageMetric(rows) {
+  const values = rows
+    .map(row => trendMetricMeta.value.value(row))
+    .filter(value => Number.isFinite(value))
+  return values.length ? values.reduce((sum, item) => sum + item, 0) / values.length : 0
+}
+
 function historyMetricValue(row) {
   const score = Number(row?.performanceIndex)
   return Number.isFinite(score) ? score : num(row?.avgKda)
@@ -746,6 +1075,35 @@ function historyMetricValue(row) {
 function performancePeerLabel(row) {
   const count = Number(row?.performancePeerCount)
   return Number.isFinite(count) && count > 0 ? `同分路 ${count} 人` : '同分路样本待计算'
+}
+
+function historyScoreFactors(row) {
+  const breakdown = row?.performanceBreakdown || {}
+  return [
+    {
+      label: '赛事进程',
+      value: fixed(breakdown.progressScore, 1),
+      note: row?.teamLastStageDesc || row?.teamResultLabel || '根据最终阶段',
+      help: '占总指数 65%。根据队伍该赛事最后一场阶段和输赢推断：冠军最高，其次亚军、四强、八强、淘汰赛、常规赛/小组赛。',
+    },
+    {
+      label: '队伍表现',
+      value: fixed(breakdown.teamScore, 1),
+      note: `大场${formatMaybePercent(row?.teamMatchWinRate)} · 小局${formatMaybePercent(row?.teamBattleWinRate)}`,
+      help: '占总指数 20%。在同赛事所有队伍中比较：大场胜率 40%、小局胜率 35%、场均小局净胜 25%。',
+    },
+    {
+      label: '个人表现',
+      value: fixed(breakdown.playerScore, 1),
+      note: performancePeerLabel(row),
+      help: '占总指数 15%。只和同赛事、同分路选手比较，按分路权重综合 KDA、分均经济、参团率、分均伤害、分均承伤和出场局数的百分位。',
+    },
+  ]
+}
+
+function formatMaybePercent(value) {
+  const n = Number(value)
+  return Number.isFinite(n) ? `${percentNumber(n).toFixed(1)}%` : '-'
 }
 
 function formatPercent(value) {
@@ -846,6 +1204,14 @@ function formatMetric(value, compact = false) {
   return compact ? formatCompact(value) : fixed(value, 1)
 }
 
+function formatTrendValue(value) {
+  const metric = trendMetricMeta.value
+  const n = num(value)
+  if (metric.compact) return formatCompact(n)
+  const decimals = Number.isFinite(metric.decimals) ? metric.decimals : 1
+  return `${fixed(n, decimals)}${metric.suffix || ''}`
+}
+
 onMounted(async () => {
   await loadLeagues()
   if (route.query.leagueId) selectedLeagueId.value = String(route.query.leagueId)
@@ -871,6 +1237,10 @@ onMounted(async () => {
   --green: #87df55;
   --red: #ff5e57;
   --gold: #d7b45a;
+  --metric-blue: #8fb7d2;
+  --metric-green: #86c7a4;
+  --metric-red: #d28a80;
+  --metric-gold: #d3b36a;
   min-height: 100vh;
   margin-left: 67.5px;
   padding: 10px 14px 24px;
@@ -892,12 +1262,12 @@ onMounted(async () => {
 }
 
 .topbar {
-  min-height: 58px;
+  min-height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 12px;
+  padding: 10px 18px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--panel-strong);
@@ -936,9 +1306,16 @@ onMounted(async () => {
 .controls :deep(.el-select__wrapper),
 .controls :deep(.el-button) {
   min-height: 34px;
-  border-radius: 6px !important;
+  border-radius: 0 !important;
   background: rgba(255, 255, 255, .06) !important;
   box-shadow: 0 0 0 1px var(--line) inset !important;
+}
+
+.controls :deep(.el-select__suffix) {
+  color: var(--soft);
+}
+.controls :deep(.el-select__caret) {
+  color: var(--soft);
 }
 
 .refresh-btn {
@@ -1129,6 +1506,7 @@ onMounted(async () => {
   justify-content: center;
   padding: 12px;
   border-left: 3px solid transparent;
+  cursor: pointer;
   transition: border-color .25s ease, background .25s ease, box-shadow .25s ease;
 }
 .metric-card span,
@@ -1156,6 +1534,10 @@ onMounted(async () => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, .06);
   transform: translateY(-3px);
 }
+.metric-card:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
 .metric-card.primary { border-left-color: var(--blue); }
 .metric-card.primary strong { color: var(--blue); }
 .metric-card.light { border-left-color: #fff; }
@@ -1171,6 +1553,13 @@ onMounted(async () => {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   margin-top: 16px;
+}
+/* hero panel uses flex so the summary footer pins to the bottom,
+   filling the dead space without resizing the card. */
+.hero-panel,
+.compare-panel {
+  display: flex;
+  flex-direction: column;
 }
 .bottom-grid {
   display: grid;
@@ -1209,6 +1598,66 @@ onMounted(async () => {
 .section-title :deep(small) {
   color: var(--dim);
   font-size: 11px;
+}
+
+.trend-title {
+  align-items: center;
+}
+
+.trend-tools {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.trend-tools small {
+  color: var(--dim);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.trend-metric-select {
+  width: 116px;
+}
+
+.trend-metric-select :deep(.el-select__wrapper) {
+  min-height: 28px;
+  border-radius: 0 !important;
+  background: rgba(255, 255, 255, .05) !important;
+  box-shadow: 0 0 0 1px var(--line) inset !important;
+}
+
+.trend-explain {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  padding: 8px 12px 0;
+  color: var(--dim);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.trend-explain span,
+.trend-explain em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trend-explain b {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.trend-explain em {
+  grid-column: 1 / -1;
+  font-style: normal;
 }
 
 .stage-panel,
@@ -1259,11 +1708,12 @@ onMounted(async () => {
   overflow: hidden;
 }
 .league-trend {
-  flex: 0 0 232px;
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
   min-height: 0;
-  padding: 10px 12px 0;
+  padding: 9px 12px 0;
   border-bottom: 1px solid var(--line);
-  overflow: hidden;
 }
 .league-summary {
   display: grid;
@@ -1293,10 +1743,70 @@ onMounted(async () => {
   color: var(--gold);
   font-weight: 900;
 }
+.history-score-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  margin-top: 6px;
+}
+.history-score-grid div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  min-width: 0;
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, .035);
+}
+.history-score-grid span,
+.history-score-grid em {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dim);
+  font-size: 10px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-score-grid span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 900;
+}
+.history-score-grid span svg {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 11px;
+  color: var(--gold);
+}
+.history-score-grid strong {
+  display: block;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  margin-left: 6px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 950;
+}
+.history-score-grid em {
+  grid-column: 1;
+}
+.history-formula {
+  margin: 4px 0 0;
+  overflow: hidden;
+  color: var(--dim);
+  font-size: 10px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .history-chart {
   width: 100%;
-  height: 104px;
-  margin-top: 6px;
+  height: 92px;
+  margin-top: 2px;
   overflow: visible;
 }
 .history-chart line {
@@ -1341,11 +1851,15 @@ onMounted(async () => {
   stroke-width: 3;
 }
 .league-tabs-shell {
+  position: relative;
+  z-index: 5;
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr) 28px;
   align-items: stretch;
   gap: 5px;
+  margin-top: 2px;
   padding-bottom: 6px;
+  background: var(--panel-bg);
 }
 .league-scroll-btn {
   display: grid;
@@ -1409,7 +1923,7 @@ onMounted(async () => {
 }
 .history-hero-list {
   position: relative;
-  z-index: 1;
+  z-index: 0;
   flex: 1;
   min-height: 0;
   max-height: none;
@@ -1541,6 +2055,35 @@ onMounted(async () => {
   overflow-y: auto;
   padding: 8px;
 }
+/* hero pool footer summary — fills the bottom space under the hero list */
+.hero-pool-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding: 10px 8px 12px;
+  margin-top: auto;
+  border-top: 1px solid var(--line);
+}
+.hero-pool-summary div {
+  padding: 6px 4px;
+  text-align: center;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, .035);
+}
+.hero-pool-summary span {
+  display: block;
+  color: var(--dim);
+  font-size: 10px;
+  font-weight: 800;
+}
+.hero-pool-summary strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--gold);
+  font-size: 16px;
+  font-weight: 950;
+  line-height: 1.1;
+}
 .hero-row,
 .stage-row,
 .battle-row {
@@ -1600,9 +2143,47 @@ onMounted(async () => {
 
 .compare-bars {
   display: grid;
-  gap: 24px;
-  padding: 20px 20px;
+  gap: 18px;
+  padding: 16px 20px;
   align-content: start;
+}
+/* legend / chart-info footer — pins to the bottom, fills dead space */
+.compare-legend {
+  margin-top: auto;
+  padding: 10px 20px 12px;
+  border-top: 1px solid var(--line);
+}
+.compare-legend .legend-items {
+  display: flex;
+  flex-direction: row;
+  gap: 14px;
+}
+.compare-legend .legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--soft);
+  font-size: 11px;
+  font-weight: 800;
+}
+.compare-legend .swatch {
+  display: inline-block;
+  width: 18px;
+  height: 7px;
+  border-radius: 3px;
+}
+.compare-legend .swatch.self {
+  background: linear-gradient(90deg, #6752D7, #8E7CF3);
+  box-shadow: 0 0 10px rgba(103, 82, 215, .22);
+}
+.compare-legend .swatch.avg {
+  background: linear-gradient(90deg, rgba(77, 224, 212, .70), rgba(36, 158, 143, .70));
+}
+.compare-legend .legend-note {
+  margin: 8px 0 0;
+  color: var(--dim);
+  font-size: 10px;
+  line-height: 1.5;
 }
 .compare-row {
   display: grid;
@@ -1663,22 +2244,22 @@ onMounted(async () => {
 }
 .compare-track .self {
   top: 1px;
-  background: var(--gold);
-  box-shadow: 0 0 14px rgba(215, 180, 90, .18);
+  background: linear-gradient(90deg, #6752D7, #8E7CF3);
+  box-shadow: 0 0 16px rgba(103, 82, 215, .22);
 }
 .compare-row :deep(.compare-track .self) {
   top: 1px;
-  background: var(--gold);
-  box-shadow: 0 0 14px rgba(215, 180, 90, .18);
+  background: linear-gradient(90deg, #6752D7, #8E7CF3);
+  box-shadow: 0 0 16px rgba(103, 82, 215, .22);
 }
 .compare-track .avg {
   bottom: 1px;
-  background: rgba(59, 167, 255, .6);
+  background: linear-gradient(90deg, rgba(77, 224, 212, .70), rgba(36, 158, 143, .70));
   animation-delay: 120ms;
 }
 .compare-row :deep(.compare-track .avg) {
   bottom: 1px;
-  background: rgba(59, 167, 255, .6);
+  background: linear-gradient(90deg, rgba(77, 224, 212, .70), rgba(36, 158, 143, .70));
   animation-delay: 120ms;
 }
 
@@ -1941,7 +2522,7 @@ onMounted(async () => {
   background: rgba(255, 76, 76, 0.2);
 }
 
-.player-insights.theme-light {
+.theme-light {
   --page-bg: #dce6f4;
   --panel-bg: rgba(238, 245, 252, .70);
   --panel-strong: rgba(248, 251, 255, .82);
@@ -1962,7 +2543,7 @@ onMounted(async () => {
     linear-gradient(180deg, #dce6f4 0%, #f4f0fa 58%, #d5c7ee 100%);
 }
 
-.player-insights.theme-light .topbar {
+.theme-light .topbar {
   background: var(--panel-strong);
   border-color: var(--line);
   box-shadow: 0 18px 55px rgba(49, 57, 92, .14), inset 0 0 46px rgba(255, 255, 255, .32);
@@ -1970,14 +2551,14 @@ onMounted(async () => {
   padding: 10px 18px;
 }
 
-.player-insights.theme-light .panel {
+.theme-light .panel {
   background: var(--panel-bg);
   border-color: var(--line);
   box-shadow: 0 18px 55px rgba(49, 57, 92, .14), inset 0 0 46px rgba(255, 255, 255, .30);
   border-radius: 12px;
 }
 
-.player-insights.theme-light .metric-card {
+.theme-light .metric-card {
   background:
     linear-gradient(145deg, rgba(255, 255, 255, .70), rgba(235, 242, 252, .50)),
     var(--panel-bg);
@@ -1987,7 +2568,7 @@ onMounted(async () => {
   padding: 14px 18px;
 }
 
-.player-insights.theme-light .profile-card {
+.theme-light .profile-card {
   background:
     linear-gradient(135deg, rgba(255, 255, 255, .72), rgba(238, 245, 252, .52)),
     var(--panel-bg);
@@ -1997,255 +2578,277 @@ onMounted(async () => {
   padding: 16px 18px;
 }
 
-.player-insights.theme-light .state-panel {
+.theme-light .state-panel {
   background: var(--panel-bg);
   border-color: var(--line);
   box-shadow: 0 18px 55px rgba(49, 57, 92, .14), inset 0 0 46px rgba(255, 255, 255, .30);
   border-radius: 12px;
 }
 
-.player-insights.theme-light .metric-card span {
+.theme-light .metric-card span {
   color: #6B7280;
 }
 
-.player-insights.theme-light .metric-card em {
+.theme-light .metric-card em {
   color: #9CA3AF;
 }
 
-.player-insights.theme-light .metric-card strong {
+.theme-light .metric-card strong {
   color: #111827;
 }
 
-.player-insights.theme-light .metric-card.win strong { color: #16A34A; }
-.player-insights.theme-light .metric-card.danger strong { color: #EF4444; }
-.player-insights.theme-light .metric-card.accent strong { color: #D97706; }
+.theme-light .metric-card.win strong { color: #16A34A; }
+.theme-light .metric-card.danger strong { color: #EF4444; }
+.theme-light .metric-card.accent strong { color: #D97706; }
 
-.player-insights.theme-light .section-title {
+.theme-light .section-title {
   border-bottom-color: #8A9097;
   padding: 10px 18px 10px;
 }
 
-.player-insights.theme-light .section-title :deep(small),
-.player-insights.theme-light .section-title small {
+.theme-light .section-title :deep(small),
+.theme-light .section-title small {
   color: #4B5563;
 }
 
-.player-insights.theme-light .empty-line {
+.theme-light .empty-line {
   color: #4B5563;
 }
 
-.player-insights.theme-light .section-title :deep(h3),
-.player-insights.theme-light .section-title h3 {
+.theme-light .section-title :deep(h3),
+.theme-light .section-title h3 {
   color: #111827;
 }
 
-.player-insights.theme-light .title-block span,
-.player-insights.theme-light .section-title :deep(span) {
+.theme-light .title-block span,
+.theme-light .section-title :deep(span) {
   color: #B88A2E;
 }
 
-.player-insights.theme-light .toggle-track {
+.player-insights .toggle-track {
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .35);
+}
+
+.player-insights .toggle-track.on {
+  background: var(--text);
+}
+
+.theme-light .toggle-track {
   background: #8A9097;
 }
 
-.player-insights.theme-light .toggle-track.on {
+.theme-light .toggle-track.on {
   background: #111827;
 }
 
-.player-insights.theme-light .toggle-thumb {
+.theme-light .toggle-thumb {
   background: #FFFFFF;
 }
 
-.player-insights.theme-light .theme-toggle small {
+.theme-light .theme-toggle small {
   color: #6B7280;
 }
 
-.player-insights.theme-light .refresh-btn {
+.theme-light .refresh-btn {
   --el-button-text-color: #4B5563;
   --el-button-hover-text-color: #FFFFFF;
   --el-button-hover-bg-color: #B88A2E;
   --el-button-hover-border-color: #B88A2E;
 }
 
-.player-insights.theme-light .hero-list,
-.player-insights.theme-light .stage-list,
-.player-insights.theme-light .featured-list {
+.theme-light .hero-list,
+.theme-light .stage-list,
+.theme-light .featured-list {
   padding: 10px 14px;
 }
 
-.player-insights.theme-light .player-option em {
+.theme-light .player-option em {
   color: #9CA3AF;
 }
 
-.player-insights.theme-light .player-option b {
+.theme-light .player-option b {
   color: #16A34A;
 }
 
-.player-insights.theme-light .profile-main span {
+.theme-light .profile-main span {
   color: #B88A2E;
 }
 
-.player-insights.theme-light .profile-main h2 {
+.theme-light .profile-main h2 {
   color: #111827;
 }
 
-.player-insights.theme-light .profile-main p {
+.theme-light .profile-main p {
   color: #4B5563;
 }
 
-.player-insights.theme-light .status-score strong {
+.theme-light .status-score strong {
   color: #16A34A;
 }
 
-.player-insights.theme-light .status-score span {
+.theme-light .status-score span {
   color: #9CA3AF;
 }
 
-.player-insights.theme-light .score-hint {
+.theme-light .score-hint {
   background: #F3F4F6;
   color: #9CA3AF;
 }
 
-.player-insights.theme-light .score-hint:hover {
+.theme-light .score-hint:hover {
   background: #E5E7EB;
   color: #111827;
 }
 
-.player-insights.theme-light .mini-stat-row div {
+.theme-light .mini-stat-row div {
   background: #F6F7F9;
   border-color: #8A9097;
 }
 
-.player-insights.theme-light .mini-stat-row span,
-.player-insights.theme-light .mini-stat-row em {
+.theme-light .mini-stat-row span,
+.theme-light .mini-stat-row em {
   color: #6B7280;
 }
 
-.player-insights.theme-light .mini-stat-row strong {
+.theme-light .mini-stat-row strong {
   color: #16A34A;
 }
 
-.player-insights.theme-light .trend-chart line,
-.player-insights.theme-light .history-chart line {
+.theme-light .hero-pool-summary div {
+  border-color: #E3D6C4;
+  background: rgba(0, 0, 0, .02);
+}
+.theme-light .hero-pool-summary span { color: #9A8B78; }
+.theme-light .hero-pool-summary strong { color: #B88A2E; }
+
+.theme-light .trend-chart line,
+.theme-light .history-chart line {
   stroke: #8A9097;
 }
 
-.player-insights.theme-light .trend-chart polyline {
+.theme-light .trend-chart polyline {
   stroke: #C9972F;
 }
 
-.player-insights.theme-light .trend-chart .trend-line {
+.theme-light .trend-chart .trend-line {
   stroke: url(#trendLineGradient);
 }
 
-.player-insights.theme-light .trend-chart .trend-area {
+.theme-light .trend-chart .trend-area {
   fill: url(#trendAreaGradient);
 }
 
-.player-insights.theme-light .trend-chart circle {
+.theme-light .trend-chart circle {
   fill: #EF4444;
   stroke: #FFFFFF;
 }
 
-.player-insights.theme-light .trend-chart circle.win {
+.theme-light .trend-chart circle.win {
   fill: #16A34A;
 }
 
-.player-insights.theme-light .history-chart polyline {
+.theme-light .history-chart polyline {
   stroke: #C9972F;
 }
 
-.player-insights.theme-light .history-chart .history-line {
+.theme-light .history-chart .history-line {
   stroke: url(#historyLineGradient);
 }
 
-.player-insights.theme-light .history-chart .history-area {
+.theme-light .history-chart .history-area {
   fill: url(#historyAreaGradient);
 }
 
-.player-insights.theme-light .trend-chart .chart-axis,
-.player-insights.theme-light .history-chart .chart-axis {
+.theme-light .trend-chart .chart-axis,
+.theme-light .history-chart .chart-axis {
   stroke: #9CA3AF;
 }
 
-.player-insights.theme-light .trend-chart .chart-grid,
-.player-insights.theme-light .history-chart .chart-grid {
+.theme-light .trend-chart .chart-grid,
+.theme-light .history-chart .chart-grid {
   stroke: #E5E7EB;
 }
 
-.player-insights.theme-light .chart-y-label,
-.player-insights.theme-light .chart-x-label {
+.theme-light .chart-y-label,
+.theme-light .chart-x-label {
   fill: #6B7280;
 }
 
-.player-insights.theme-light .chart-point-value {
+.theme-light .chart-point-value {
   fill: #111827;
 }
 
-.player-insights.theme-light .history-chart circle {
+.theme-light .history-chart circle {
   fill: #B88A2E;
   stroke: #FFFFFF;
 }
 
-.player-insights.theme-light .history-chart circle.active {
+.theme-light .history-chart circle.active {
   fill: #16A34A;
 }
 
-.player-insights.theme-light .compare-track {
+.theme-light .compare-track {
   background: #F3F4F6;
 }
 
-.player-insights.theme-light .compare-track .self {
+.theme-light .compare-track .self {
   background: #C9972F;
 }
 
-.player-insights.theme-light .compare-track .avg {
+.theme-light .compare-track .avg {
   background: #93C5FD;
 }
 
-.player-insights.theme-light .compare-row span,
-.player-insights.theme-light .compare-row em,
-.player-insights.theme-light .compare-row :deep(span),
-.player-insights.theme-light .compare-row :deep(em) {
+.theme-light .compare-row span,
+.theme-light .compare-row em,
+.theme-light .compare-row :deep(span),
+.theme-light .compare-row :deep(em) {
   color: #6B7280;
 }
 
-.player-insights.theme-light .compare-row b,
-.player-insights.theme-light .compare-row :deep(b) {
+.theme-light .compare-row b,
+.theme-light .compare-row :deep(b) {
   color: #111827;
 }
 
-.player-insights.theme-light .hero-row strong {
+.theme-light .compare-legend {
+  border-top-color: #E3D6C4;
+}
+.theme-light .compare-legend .legend-item { color: #5F6670; }
+.theme-light .compare-legend .legend-note { color: #9A8B78; }
+
+.theme-light .hero-row strong {
   color: #111827;
 }
 
-.player-insights.theme-light .hero-row span {
+.theme-light .hero-row span {
   color: #6B7280;
 }
 
-.player-insights.theme-light .hero-row b {
+.theme-light .hero-row b {
   color: #16A34A;
 }
 
-.player-insights.theme-light .hero-row em {
+.theme-light .hero-row em {
   color: #B88A2E;
 }
 
-.player-insights.theme-light .stage-row strong {
+.theme-light .stage-row strong {
   color: #111827;
 }
 
-.player-insights.theme-light .stage-row span,
-.player-insights.theme-light .stage-row em,
-.player-insights.theme-light .stage-row small {
+.theme-light .stage-row span,
+.theme-light .stage-row em,
+.theme-light .stage-row small {
   color: #6B7280;
 }
 
-.player-insights.theme-light .stage-row b {
+.theme-light .stage-row b {
   color: #16A34A;
 }
 
-.player-insights.theme-light .battle-thumb {
+.theme-light .battle-thumb {
   border-color: #E3D6C4;
   background:
     linear-gradient(90deg, rgba(255, 255, 255, .18), rgba(255, 255, 255, .56), rgba(255, 255, 255, .18)),
@@ -2253,131 +2856,114 @@ onMounted(async () => {
     #F5EFE4;
 }
 
-.player-insights.theme-light .battle-main span,
-.player-insights.theme-light .battle-main em {
+.theme-light .battle-main span,
+.theme-light .battle-main em {
   color: #6B7280;
 }
 
-.player-insights.theme-light .battle-main strong {
+.theme-light .battle-main strong {
   color: #111827;
 }
 
-.player-insights.theme-light .battle-score strong {
+.theme-light .battle-score strong {
   color: #B88A2E;
 }
 
-.player-insights.theme-light .battle-score span {
+.theme-light .battle-score span {
   color: #EF4444;
 }
 
-.player-insights.theme-light .battle-score span.won {
+.theme-light .battle-score span.won {
   color: #16A34A;
 }
 
-.player-insights.theme-light .league-summary strong {
+.theme-light .league-summary strong {
   color: #111827;
 }
 
-.player-insights.theme-light .league-summary span {
+.theme-light .league-summary span {
   color: #6B7280;
 }
 
-.player-insights.theme-light .league-summary em {
+.theme-light .league-summary em {
   color: #B88A2E;
 }
 
-.player-insights.theme-light .league-tabs button {
+.theme-light .league-tabs button {
   background: #F6F7F9;
   border-color: #8A9097;
   color: #4B5563;
 }
 
-.player-insights.theme-light .league-tabs button.active {
+.theme-light .league-tabs button.active {
   border-color: #B88A2E;
   background: rgba(184, 138, 46, .1);
 }
 
-.player-insights.theme-light .league-tabs strong {
+.theme-light .league-tabs strong {
   color: #111827;
 }
 
-.player-insights.theme-light .league-tabs span {
+.theme-light .league-tabs span {
   color: #6B7280;
 }
 
-.player-insights.theme-light .mode-switch {
+.theme-light .mode-switch {
   border-color: #8A9097;
   background: #F6F7F9;
 }
 
-.player-insights.theme-light .mode-switch button {
+.theme-light .mode-switch button {
   color: #6B7280;
 }
 
-.player-insights.theme-light .mode-switch button.active {
+.theme-light .mode-switch button.active {
   background: #B88A2E;
   color: #FFFFFF;
 }
 
-.player-insights.theme-light .avatar-fallback {
+.theme-light .avatar-fallback {
   background: #F6F7F9;
   color: #B88A2E;
 }
 
-.player-insights.theme-light .controls :deep(.el-select__wrapper),
-.player-insights.theme-light .controls :deep(.el-button) {
+.theme-light .controls :deep(.el-select__wrapper),
+.theme-light .controls :deep(.el-button) {
   background: #FFFFFF !important;
   box-shadow: 0 0 0 1px #8A9097 inset !important;
 }
 
-.player-insights.theme-light .metric-card:hover {
+.theme-light .metric-card:hover {
   border-color: #8A9097;
   border-left-color: #B88A2E;
   background: #F3F4F6;
   box-shadow: 0 2px 12px rgba(15, 23, 42, .08);
 }
 
-.player-insights.theme-light .hero-row:hover,
-.player-insights.theme-light .stage-row:hover,
-.player-insights.theme-light .battle-row:hover {
+.theme-light .hero-row:hover,
+.theme-light .stage-row:hover,
+.theme-light .battle-row:hover {
   background: #F3F4F6;
 }
 
-.player-insights.theme-light .title-block span,
-.player-insights.theme-light .section-title :deep(span) {
+.theme-light .title-block span,
+.theme-light .section-title :deep(span) {
   color: var(--blue);
 }
 
-.player-insights.theme-light .section-title {
+.theme-light .section-title {
   border-bottom-color: rgba(255, 255, 255, .56);
 }
 
-.player-insights.theme-light .metric-card.primary {
-  background:
-    linear-gradient(145deg, rgba(103, 82, 215, .14), rgba(255, 255, 255, .58)),
-    var(--panel-bg);
+.theme-light .metric-card.primary,
+.theme-light .metric-card.win,
+.theme-light .metric-card.danger,
+.theme-light .metric-card.accent,
+.theme-light .metric-card.light {
+  background: #FFFFFF;
 }
 
-.player-insights.theme-light .metric-card.win {
-  background:
-    linear-gradient(145deg, rgba(36, 158, 143, .14), rgba(255, 255, 255, .58)),
-    var(--panel-bg);
-}
-
-.player-insights.theme-light .metric-card.danger {
-  background:
-    linear-gradient(145deg, rgba(210, 90, 120, .15), rgba(255, 255, 255, .58)),
-    var(--panel-bg);
-}
-
-.player-insights.theme-light .metric-card.accent,
-.player-insights.theme-light .metric-card.light {
-  background:
-    linear-gradient(145deg, rgba(184, 138, 46, .14), rgba(255, 255, 255, .58)),
-    var(--panel-bg);
-}
-
-.player-insights.theme-light .metric-card:hover {
+.theme-light .metric-card:hover {
   border-color: var(--line-strong);
   border-left-color: var(--blue);
   background:
@@ -2386,119 +2972,119 @@ onMounted(async () => {
   box-shadow: 0 20px 48px rgba(49, 57, 92, .16), inset 0 1px 0 rgba(255, 255, 255, .84);
 }
 
-.player-insights.theme-light .metric-card.primary strong { color: var(--blue); }
-.player-insights.theme-light .metric-card.win strong { color: var(--green); }
-.player-insights.theme-light .metric-card.danger strong { color: var(--red); }
-.player-insights.theme-light .metric-card.accent strong,
-.player-insights.theme-light .metric-card.light strong { color: var(--gold); }
+.theme-light .metric-card.primary strong { color: var(--blue); }
+.theme-light .metric-card.win strong { color: var(--green); }
+.theme-light .metric-card.danger strong { color: var(--red); }
+.theme-light .metric-card.accent strong,
+.theme-light .metric-card.light strong { color: var(--gold); }
 
-.player-insights.theme-light .mini-stat-row div,
-.player-insights.theme-light .league-tabs button,
-.player-insights.theme-light .league-scroll-btn {
+.theme-light .mini-stat-row div,
+.theme-light .league-tabs button,
+.theme-light .league-scroll-btn {
   background: rgba(255, 255, 255, .42);
   border-color: rgba(255, 255, 255, .62);
   box-shadow: 0 8px 18px rgba(49, 57, 92, .07);
 }
 
-.player-insights.theme-light .league-tabs button.active {
+.theme-light .league-tabs button.active {
   border-color: rgba(103, 82, 215, .42);
   background: linear-gradient(135deg, rgba(103, 82, 215, .16), rgba(77, 224, 212, .12));
 }
 
-.player-insights.theme-light .league-scroll-btn:hover {
+.theme-light .league-scroll-btn:hover {
   border-color: rgba(103, 82, 215, .42);
   color: var(--blue);
   background: rgba(255, 255, 255, .62);
 }
 
-.player-insights.theme-light .hero-row,
-.player-insights.theme-light .stage-row,
-.player-insights.theme-light .battle-row {
+.theme-light .hero-row,
+.theme-light .stage-row,
+.theme-light .battle-row {
   border-bottom-color: rgba(255, 255, 255, .52);
 }
 
-.player-insights.theme-light .hero-row:hover,
-.player-insights.theme-light .stage-row:hover,
-.player-insights.theme-light .battle-row:hover {
+.theme-light .hero-row:hover,
+.theme-light .stage-row:hover,
+.theme-light .battle-row:hover {
   background: rgba(255, 255, 255, .48);
 }
 
-.player-insights.theme-light .compare-track,
-.player-insights.theme-light .compare-row :deep(.compare-track) {
+.theme-light .compare-track,
+.theme-light .compare-row :deep(.compare-track) {
   background: rgba(255, 255, 255, .46);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .58);
 }
 
-.player-insights.theme-light .compare-track .self,
-.player-insights.theme-light .compare-row :deep(.compare-track .self) {
+.theme-light .compare-track .self,
+.theme-light .compare-row :deep(.compare-track .self) {
   background: linear-gradient(90deg, #6752d7, #8e7cf3);
   box-shadow: 0 0 16px rgba(103, 82, 215, .22);
 }
 
-.player-insights.theme-light .compare-track .avg,
-.player-insights.theme-light .compare-row :deep(.compare-track .avg) {
+.theme-light .compare-track .avg,
+.theme-light .compare-row :deep(.compare-track .avg) {
   background: linear-gradient(90deg, rgba(77, 224, 212, .70), rgba(36, 158, 143, .70));
 }
 
-.player-insights.theme-light .trend-chart .chart-axis,
-.player-insights.theme-light .history-chart .chart-axis {
+.theme-light .trend-chart .chart-axis,
+.theme-light .history-chart .chart-axis {
   stroke: rgba(22, 32, 44, .38);
 }
 
-.player-insights.theme-light .trend-chart .chart-grid,
-.player-insights.theme-light .history-chart .chart-grid {
+.theme-light .trend-chart .chart-grid,
+.theme-light .history-chart .chart-grid {
   stroke: rgba(22, 32, 44, .14);
 }
 
-.player-insights.theme-light .trend-chart circle,
-.player-insights.theme-light .history-chart circle {
+.theme-light .trend-chart circle,
+.theme-light .history-chart circle {
   stroke: rgba(255, 255, 255, .86);
 }
 
-.player-insights.theme-light .history-chart circle {
+.theme-light .history-chart circle {
   fill: var(--blue);
 }
 
-.player-insights.theme-light .history-chart circle.active {
+.theme-light .history-chart circle.active {
   fill: var(--red);
 }
 
-.player-insights.theme-light .status-score strong,
-.player-insights.theme-light .mini-stat-row strong,
-.player-insights.theme-light .hero-row b,
-.player-insights.theme-light .stage-row b,
-.player-insights.theme-light .battle-score span.won {
+.theme-light .status-score strong,
+.theme-light .mini-stat-row strong,
+.theme-light .hero-row b,
+.theme-light .stage-row b,
+.theme-light .battle-score span.won {
   color: var(--green);
 }
 
-.player-insights.theme-light .battle-score span {
+.theme-light .battle-score span {
   color: var(--red);
 }
 
-.player-insights.theme-light .battle-score strong,
-.player-insights.theme-light .hero-row em,
-.player-insights.theme-light .league-summary em {
+.theme-light .battle-score strong,
+.theme-light .hero-row em,
+.theme-light .league-summary em {
   color: var(--gold);
 }
 
-.player-insights.theme-light .avatar-fallback {
+.theme-light .avatar-fallback {
   background: linear-gradient(135deg, rgba(103, 82, 215, .16), rgba(77, 224, 212, .14));
   color: var(--blue);
 }
 
-.player-insights.theme-light .profile-card img,
-.player-insights.theme-light .avatar-fallback {
+.theme-light .profile-card img,
+.theme-light .avatar-fallback {
   border-color: rgba(255, 255, 255, .78);
   box-shadow: 0 12px 26px rgba(49, 57, 92, .15);
 }
 
-.player-insights.theme-light .controls :deep(.el-select__wrapper),
-.player-insights.theme-light .controls :deep(.el-button) {
+.theme-light .controls :deep(.el-select__wrapper),
+.theme-light .controls :deep(.el-button) {
   background: rgba(255, 255, 255, .62) !important;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, .74) inset, 0 10px 24px rgba(49, 57, 92, .08) !important;
 }
 
-.player-insights.theme-light {
+.theme-light {
   --page-bg: #F5EFE4;
   --panel-bg: #FFFBF3;
   --panel-strong: #FFFBF3;
@@ -2511,150 +3097,146 @@ onMounted(async () => {
   --red: #EF4444;
   --gold: #B88A2E;
   --blue: #2563EB;
+  --metric-blue: #2563EB;
+  --metric-green: #16A34A;
+  --metric-red: #EF4444;
+  --metric-gold: #B88A2E;
   background: #F5EFE4;
 }
 
-.player-insights.theme-light .topbar,
-.player-insights.theme-light .panel,
-.player-insights.theme-light .metric-card,
-.player-insights.theme-light .profile-card,
-.player-insights.theme-light .state-panel {
+.theme-light .topbar,
+.theme-light .panel,
+.theme-light .metric-card,
+.theme-light .profile-card,
+.theme-light .state-panel {
   background: #FFFBF3;
   border-color: #E3D6C4;
   backdrop-filter: none;
   box-shadow: 0 8px 22px rgba(88, 72, 50, .055);
 }
 
-.player-insights.theme-light .topbar {
+.theme-light .topbar {
   box-shadow: 0 1px 4px rgba(15, 23, 42, .06);
 }
 
-.player-insights.theme-light .title-block span,
-.player-insights.theme-light .section-title :deep(span) {
+.theme-light .title-block span,
+.theme-light .section-title :deep(span) {
   color: #B88A2E;
 }
 
-.player-insights.theme-light .section-title {
+.theme-light .section-title {
   border-bottom-color: #E3D6C4;
 }
 
-.player-insights.theme-light .metric-card.primary,
-.player-insights.theme-light .metric-card.win,
-.player-insights.theme-light .metric-card.danger,
-.player-insights.theme-light .metric-card.accent,
-.player-insights.theme-light .metric-card.light {
-  background: #FFFBF3;
-}
+.theme-light .metric-card.primary strong { color: #2563EB; }
+.theme-light .metric-card.win strong,
+.theme-light .status-score strong,
+.theme-light .mini-stat-row strong,
+.theme-light .hero-row b,
+.theme-light .stage-row b,
+.theme-light .battle-score span.won { color: #16A34A; }
+.theme-light .metric-card.danger strong,
+.theme-light .battle-score span { color: #EF4444; }
+.theme-light .metric-card.accent strong,
+.theme-light .metric-card.light strong,
+.theme-light .battle-score strong,
+.theme-light .hero-row em,
+.theme-light .league-summary em { color: #B88A2E; }
 
-.player-insights.theme-light .metric-card.primary strong { color: #2563EB; }
-.player-insights.theme-light .metric-card.win strong,
-.player-insights.theme-light .status-score strong,
-.player-insights.theme-light .mini-stat-row strong,
-.player-insights.theme-light .hero-row b,
-.player-insights.theme-light .stage-row b,
-.player-insights.theme-light .battle-score span.won { color: #16A34A; }
-.player-insights.theme-light .metric-card.danger strong,
-.player-insights.theme-light .battle-score span { color: #EF4444; }
-.player-insights.theme-light .metric-card.accent strong,
-.player-insights.theme-light .metric-card.light strong,
-.player-insights.theme-light .battle-score strong,
-.player-insights.theme-light .hero-row em,
-.player-insights.theme-light .league-summary em { color: #B88A2E; }
-
-.player-insights.theme-light .mini-stat-row div,
-.player-insights.theme-light .league-tabs button,
-.player-insights.theme-light .league-scroll-btn,
-.player-insights.theme-light .avatar-fallback {
+.theme-light .mini-stat-row div,
+.theme-light .league-tabs button,
+.theme-light .league-scroll-btn,
+.theme-light .avatar-fallback {
   background: #F5EFE4;
   border-color: #E3D6C4;
   box-shadow: none;
 }
 
-.player-insights.theme-light .league-tabs button.active {
+.theme-light .league-tabs button.active {
   border-color: #B88A2E;
   background: rgba(184, 138, 46, .1);
 }
 
-.player-insights.theme-light .metric-card:hover,
-.player-insights.theme-light .hero-row:hover,
-.player-insights.theme-light .stage-row:hover,
-.player-insights.theme-light .battle-row:hover {
+.theme-light .metric-card:hover,
+.theme-light .hero-row:hover,
+.theme-light .stage-row:hover,
+.theme-light .battle-row:hover {
   background: #F8F1E8;
   border-color: #C9B79F;
   box-shadow: 0 2px 12px rgba(88, 72, 50, .08);
 }
 
-.player-insights.theme-light .controls :deep(.el-select__wrapper),
-.player-insights.theme-light .controls :deep(.el-button) {
+.theme-light .controls :deep(.el-select__wrapper),
+.theme-light .controls :deep(.el-button) {
   background: #FFFBF3 !important;
   box-shadow: 0 0 0 1px #E3D6C4 inset !important;
 }
 
-.player-insights.theme-light .trend-chart .trend-line {
+.theme-light .trend-chart .trend-line {
   stroke: url(#trendLineGradient);
   filter: drop-shadow(0 6px 10px rgba(103, 82, 215, .20));
 }
 
-.player-insights.theme-light .trend-chart .trend-area {
+.theme-light .trend-chart .trend-area {
   fill: url(#trendAreaGradient);
 }
 
-.player-insights.theme-light .history-chart .history-line {
+.theme-light .history-chart .history-line {
   stroke: url(#historyLineGradient);
   filter: drop-shadow(0 5px 8px rgba(210, 90, 120, .18));
 }
 
-.player-insights.theme-light .history-chart .history-area {
+.theme-light .history-chart .history-area {
   fill: url(#historyAreaGradient);
 }
 
-.player-insights.theme-light .trend-chart circle {
+.theme-light .trend-chart circle {
   fill: #D25A78;
   stroke: #FFFBF3;
 }
 
-.player-insights.theme-light .trend-chart circle.win {
+.theme-light .trend-chart circle.win {
   fill: #249E8F;
 }
 
-.player-insights.theme-light .history-chart circle {
+.theme-light .history-chart circle {
   fill: #6752D7;
   stroke: #FFFBF3;
 }
 
-.player-insights.theme-light .history-chart circle.active {
+.theme-light .history-chart circle.active {
   fill: #D25A78;
 }
 
-.player-insights.theme-light .compare-track,
-.player-insights.theme-light .compare-row :deep(.compare-track) {
+.theme-light .compare-track,
+.theme-light .compare-row :deep(.compare-track) {
   background: rgba(255, 251, 243, .76);
   box-shadow: inset 0 0 0 1px rgba(227, 214, 196, .72);
 }
 
-.player-insights.theme-light .compare-track .self,
-.player-insights.theme-light .compare-row :deep(.compare-track .self) {
+.theme-light .compare-track .self,
+.theme-light .compare-row :deep(.compare-track .self) {
   background: linear-gradient(90deg, #6752D7, #8E7CF3);
   box-shadow: 0 0 16px rgba(103, 82, 215, .22);
 }
 
-.player-insights.theme-light .compare-track .avg,
-.player-insights.theme-light .compare-row :deep(.compare-track .avg) {
+.theme-light .compare-track .avg,
+.theme-light .compare-row :deep(.compare-track .avg) {
   background: linear-gradient(90deg, rgba(77, 224, 212, .70), rgba(36, 158, 143, .70));
 }
 
-.player-insights.theme-light .trend-chart .chart-axis,
-.player-insights.theme-light .history-chart .chart-axis {
+.theme-light .trend-chart .chart-axis,
+.theme-light .history-chart .chart-axis {
   stroke: rgba(22, 32, 44, .38);
 }
 
-.player-insights.theme-light .trend-chart .chart-grid,
-.player-insights.theme-light .history-chart .chart-grid {
+.theme-light .trend-chart .chart-grid,
+.theme-light .history-chart .chart-grid {
   stroke: rgba(22, 32, 44, .14);
 }
 
-.player-insights.theme-light .profile-card img,
-.player-insights.theme-light .avatar-fallback {
+.theme-light .profile-card img,
+.theme-light .avatar-fallback {
   border-color: #E3D6C4;
   box-shadow: none;
 }
@@ -2686,6 +3268,266 @@ onMounted(async () => {
 .player-insights .compare-track .avg,
 .player-insights .compare-row :deep(.compare-track .avg) {
   background: linear-gradient(90deg, rgba(77, 224, 212, .70), rgba(36, 158, 143, .70));
+}
+
+.player-insights .metric-card.primary { border-left-color: var(--metric-blue); }
+.player-insights .metric-card.win { border-left-color: var(--metric-green); }
+.player-insights .metric-card.danger { border-left-color: var(--metric-red); }
+.player-insights .metric-card.accent,
+.player-insights .metric-card.light { border-left-color: var(--metric-gold); }
+
+.player-insights .metric-card.primary strong { color: var(--metric-blue); }
+.player-insights .metric-card.win strong { color: var(--metric-green); }
+.player-insights .metric-card.danger strong { color: var(--metric-red); }
+.player-insights .metric-card.accent strong,
+.player-insights .metric-card.light strong { color: var(--metric-gold); }
+
+.theme-light .mini-stat-row strong,
+.theme-light .hero-row b,
+.theme-light .stage-row b,
+.theme-light .battle-score span,
+.theme-light .battle-score span.won {
+  color: var(--text);
+}
+
+.player-insights .video-link.bilibili {
+  background: rgba(0, 174, 236, .12);
+  color: #00aeec;
+}
+
+.player-insights .video-link.bilibili:hover {
+  background: rgba(0, 174, 236, .25);
+}
+
+/* Rankings-style console parity with hero insights */
+.player-insights.theme-dark {
+  --page-bg: #0a0a0a;
+  --panel-bg: rgba(18, 18, 18, .92);
+  --panel-strong: rgba(18, 18, 18, .96);
+  --line: rgba(255, 255, 255, .20);
+  --line-strong: rgba(255, 255, 255, .35);
+  --text: #e8e8e8;
+  --soft: rgba(232, 232, 232, .65);
+  --dim: rgba(232, 232, 232, .38);
+  --blue: #e8e8e8;
+  --green: #e8e8e8;
+  --red: #e8e8e8;
+  --gold: #e8e8e8;
+  --metric-blue: #8fb7d2;
+  --metric-green: #86c7a4;
+  --metric-red: #d28a80;
+  --metric-gold: #d3b36a;
+  background: linear-gradient(180deg, #0a0a0a, #141414);
+}
+
+.theme-light {
+  --page-bg: #f8f5ec;
+  --panel-bg: rgba(255, 255, 255, .92);
+  --panel-strong: rgba(255, 255, 255, .92);
+  --line: rgba(0, 0, 0, .38);
+  --line-strong: rgba(0, 0, 0, .45);
+  --text: #1a1a1a;
+  --soft: rgba(26, 26, 26, .65);
+  --dim: rgba(26, 26, 26, .40);
+  --blue: #1a1a1a;
+  --green: #1a1a1a;
+  --red: #1a1a1a;
+  --gold: #1a1a1a;
+  --metric-blue: #2563EB;
+  --metric-green: #16A34A;
+  --metric-red: #EF4444;
+  --metric-gold: #B88A2E;
+  background:
+    linear-gradient(180deg, rgba(250, 248, 240, .98), rgba(245, 242, 232, .99)),
+    #f8f5ec;
+}
+
+.player-insights .topbar,
+.player-insights .profile-card,
+.player-insights .panel,
+.player-insights .metric-card,
+.player-insights .state-panel {
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--panel-bg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
+}
+
+.theme-light .topbar,
+.theme-light .profile-card,
+.theme-light .panel,
+.theme-light .metric-card,
+.theme-light .state-panel,
+.player-insights.theme-dark .topbar,
+.player-insights.theme-dark .profile-card,
+.player-insights.theme-dark .panel,
+.player-insights.theme-dark .metric-card,
+.player-insights.theme-dark .state-panel {
+  border-color: var(--line);
+  border-radius: 0;
+  background: var(--panel-bg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
+}
+
+.player-insights .topbar,
+.player-insights .profile-card,
+.player-insights .panel,
+.player-insights .metric-card,
+.player-insights .state-panel {
+  position: relative;
+}
+
+.player-insights .topbar::before,
+.player-insights .profile-card::before,
+.player-insights .panel::before,
+.player-insights .metric-card::before,
+.player-insights .state-panel::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: -1px;
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  border-left: 2px solid rgba(0, 0, 0, .12);
+  border-top: 2px solid rgba(0, 0, 0, .12);
+  pointer-events: none;
+}
+
+.player-insights.theme-dark .topbar::before,
+.player-insights.theme-dark .profile-card::before,
+.player-insights.theme-dark .panel::before,
+.player-insights.theme-dark .metric-card::before,
+.player-insights.theme-dark .state-panel::before {
+  border-color: rgba(255, 255, 255, .18);
+}
+
+.player-insights .topbar {
+  min-height: 64px;
+  padding: 10px 18px;
+}
+
+.player-insights .title-block span,
+.player-insights .section-title :deep(span) {
+  color: var(--soft);
+  letter-spacing: 1.8px;
+}
+
+.player-insights .controls :deep(.el-select__wrapper),
+.player-insights .controls :deep(.el-button) {
+  min-height: 40px;
+  border-radius: 0 !important;
+  background: rgba(255, 255, 255, .60) !important;
+  box-shadow: 0 0 0 1px var(--line) inset !important;
+}
+
+.player-insights.theme-dark .controls :deep(.el-select__wrapper),
+.player-insights.theme-dark .controls :deep(.el-button) {
+  background: rgba(255, 255, 255, .06) !important;
+}
+
+.player-insights .profile-card img,
+.player-insights .avatar-fallback,
+.player-insights .hero-row img,
+.player-insights .battle-thumb,
+.player-insights .mini-stat-row div,
+.player-insights .league-tabs button,
+.player-insights .league-scroll-btn,
+.player-insights .mode-switch,
+.player-insights .mode-switch button,
+.player-insights .compare-track,
+.player-insights .battle-row,
+.player-insights .hero-row,
+.player-insights .stage-row {
+  border-radius: 0;
+}
+
+.theme-light .profile-card img,
+.theme-light .avatar-fallback,
+.theme-light .hero-row img,
+.theme-light .battle-thumb,
+.theme-light .mini-stat-row div,
+.theme-light .league-tabs button,
+.theme-light .league-scroll-btn,
+.theme-light .battle-row,
+.theme-light .hero-row,
+.theme-light .stage-row,
+.player-insights.theme-dark .profile-card img,
+.player-insights.theme-dark .avatar-fallback,
+.player-insights.theme-dark .hero-row img,
+.player-insights.theme-dark .battle-thumb,
+.player-insights.theme-dark .mini-stat-row div,
+.player-insights.theme-dark .league-tabs button,
+.player-insights.theme-dark .league-scroll-btn,
+.player-insights.theme-dark .battle-row,
+.player-insights.theme-dark .hero-row,
+.player-insights.theme-dark .stage-row {
+  border-radius: 0;
+}
+
+.player-insights .mini-stat-row div,
+.player-insights .hero-row,
+.player-insights .stage-row,
+.player-insights .battle-row,
+.player-insights .league-tabs button,
+.player-insights .league-scroll-btn {
+  border-color: var(--line);
+  background: transparent;
+  box-shadow: none;
+}
+
+.player-insights .metric-card {
+  background: var(--panel-bg);
+  box-shadow: none;
+}
+
+.player-insights .metric-card:hover,
+.player-insights .hero-row:hover,
+.player-insights .stage-row:hover,
+.player-insights .battle-row:hover,
+.player-insights .league-tabs button:hover {
+  border-color: var(--line-strong);
+  background: rgba(0, 0, 0, .04);
+  box-shadow: none;
+}
+
+.player-insights.theme-dark .metric-card:hover,
+.player-insights.theme-dark .hero-row:hover,
+.player-insights.theme-dark .stage-row:hover,
+.player-insights.theme-dark .battle-row:hover,
+.player-insights.theme-dark .league-tabs button:hover {
+  background: rgba(255, 255, 255, .05);
+}
+
+.player-insights .metric-card.primary { border-left-color: var(--metric-blue); }
+.player-insights .metric-card.win { border-left-color: var(--metric-green); }
+.player-insights .metric-card.danger { border-left-color: var(--metric-red); }
+.player-insights .metric-card.accent,
+.player-insights .metric-card.light { border-left-color: var(--metric-gold); }
+
+.player-insights .metric-card.primary strong { color: var(--metric-blue); }
+.player-insights .metric-card.win strong { color: var(--metric-green); }
+.player-insights .metric-card.danger strong { color: var(--metric-red); }
+.player-insights .metric-card.accent strong,
+.player-insights .metric-card.light strong { color: var(--metric-gold); }
+
+.theme-light .mini-stat-row strong,
+.theme-light .hero-row b,
+.theme-light .stage-row b,
+.theme-light .battle-score span,
+.theme-light .battle-score span.won {
+  color: var(--text);
+}
+
+.player-insights .video-link.bilibili,
+.player-insights.theme-dark .video-link.bilibili {
+  background: rgba(0, 174, 236, .12);
+  color: #00aeec;
+}
+
+.player-insights .video-link.bilibili:hover,
+.player-insights.theme-dark .video-link.bilibili:hover {
+  background: rgba(0, 174, 236, .25);
 }
 
 @media (max-width: 1180px) {
@@ -2788,4 +3630,174 @@ onMounted(async () => {
   color: #9ca3af;
   line-height: 1.5;
 }
+
+</style>
+
+<!-- unscoped: Teleport to body -->
+<style>
+/* overlay — click-catch zone left of the dialog, always fully transparent
+   (no veil in any theme). `!important` guards against any global theme
+   background leaking onto the Teleported element. */
+.rank-overlay {
+  position: fixed;
+  top: 0;
+  right: 520px;
+  bottom: 0;
+  left: 0;
+  z-index: 2000;
+  background: transparent !important;
+}
+/* dialog box */
+.rank-dialog {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 520px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, .48);
+  border-radius: 0;
+  background: #1a1b1e;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, .18);
+  overflow: hidden;
+  color: #e8e8e8;
+  animation: rank-slide-in .25s cubic-bezier(.2, .8, .2, 1) both;
+}
+@keyframes rank-slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.rank-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, .48);
+}
+.rank-dialog-head strong {
+  font-size: 16px;
+  font-weight: 800;
+  color: #e8e8e8;
+}
+.rank-dialog-close {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: none;
+  color: rgba(232, 232, 232, .5);
+  font-size: 20px;
+  cursor: pointer;
+}
+.rank-dialog-close:hover {
+  color: #e8e8e8;
+}
+.rank-dialog-note {
+  padding: 8px 20px 0;
+  font-size: 12px;
+  color: rgba(232, 232, 232, .5);
+}
+.rank-table-wrap {
+  flex: 1;
+  min-height: 0;
+  max-height: 420px;
+  margin: 10px 20px 16px;
+  border: 1px solid rgba(255, 255, 255, .48);
+  background: rgba(255, 255, 255, .04);
+  overflow-y: auto;
+}
+.rank-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.rank-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.rank-table th {
+  padding: 7px 10px;
+  background: rgba(255, 255, 255, .05);
+  border-bottom: 1px solid rgba(255, 255, 255, .48);
+  color: rgba(232, 232, 232, .65);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: left;
+}
+.rank-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, .48);
+  vertical-align: middle;
+}
+.rank-table tr:last-child td { border-bottom: none; }
+.rank-table tr:hover { background: rgba(255, 255, 255, .04); }
+.rank-table tr.active { background: rgba(103, 82, 215, .10); }
+.rank-col { width: 48px; text-align: center !important; }
+.data-col { width: 120px; text-align: right !important; }
+.rank-badge {
+  display: inline-block;
+  min-width: 22px;
+  font-size: 13px;
+  font-weight: 900;
+  color: rgba(232, 232, 232, .5);
+  text-align: center;
+}
+.rank-badge.rank-top3 { color: #e8e8e8; }
+.rank-table tr.active .rank-badge { color: #6752d7; }
+.name-cell { display: flex; align-items: center; gap: 8px; }
+.name-cell .cell-icon {
+  width: 28px; height: 28px; border-radius: 0; object-fit: cover; flex-shrink: 0;
+}
+.name-text strong { display: block; font-size: 13px; font-weight: 800; color: #e8e8e8; }
+.name-text span { display: block; font-size: 11px; color: rgba(232, 232, 232, .5); }
+.rate-cell { text-align: right; }
+.rate-num { font-size: 13px; font-weight: 900; color: #e8e8e8; }
+.rate-track {
+  height: 3px; margin-top: 4px; background: rgba(255, 255, 255, .1); border-radius: 0;
+}
+.rate-bar {
+  display: block; height: 100%; background: #e8e8e8; border-radius: 0; transition: width .3s ease;
+}
+
+/* responsive overlay — on narrow screens dialog takes 90vw */
+@media (max-width: 580px) {
+  .rank-overlay {
+    right: 90vw;
+  }
+}
+
+/* light theme — `.rank-overlay` carries the `theme-light` class itself
+   (Teleported to <body>), so we scope via compound selectors.
+   The overlay itself stays transparent (no dim/veil), same as dark theme. */
+.rank-overlay.theme-light .rank-dialog {
+  border-color: #E3D6C4;
+  background: #FFFBF3;
+  box-shadow: -4px 0 24px rgba(88, 72, 50, .15);
+}
+.rank-overlay.theme-light .rank-dialog-head {
+  border-color: #E3D6C4;
+}
+.rank-overlay.theme-light .rank-dialog-head strong { color: #1F2933; }
+.rank-overlay.theme-light .rank-dialog-close { color: #9A8B78; }
+.rank-overlay.theme-light .rank-dialog-close:hover { color: #1F2933; }
+.rank-overlay.theme-light .rank-dialog-note { color: #5F6670; }
+.rank-overlay.theme-light .rank-table-wrap { border-color: #E3D6C4; background: rgba(0, 0, 0, .02); }
+.rank-overlay.theme-light .rank-table th {
+  background: rgba(0, 0, 0, .04); border-color: #E3D6C4; color: #5F6670;
+}
+.rank-overlay.theme-light .rank-table td { border-color: #E3D6C4; }
+.rank-overlay.theme-light .rank-table tr:hover { background: rgba(0, 0, 0, .04); }
+.rank-overlay.theme-light .rank-table tr.active { background: rgba(0, 0, 0, .06); }
+.rank-overlay.theme-light .rank-badge { color: #9A8B78; }
+.rank-overlay.theme-light .rank-badge.rank-top3 { color: #1F2933; }
+.rank-overlay.theme-light .rank-table tr.active .rank-badge { color: #1F2933; }
+.rank-overlay.theme-light .name-text strong { color: #1F2933; }
+.rank-overlay.theme-light .name-text span { color: #9A8B78; }
+.rank-overlay.theme-light .rate-num { color: #1F2933; }
+.rank-overlay.theme-light .rate-track { background: rgba(0, 0, 0, .08); }
+.rank-overlay.theme-light .rate-bar { background: #1F2933; }
 </style>

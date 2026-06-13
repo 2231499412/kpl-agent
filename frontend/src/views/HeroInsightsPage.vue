@@ -2,7 +2,6 @@
   <main class="hero-insights" :class="`theme-${theme}`">
     <section class="topbar">
       <div class="brand-block">
-        <div class="brand-mark">K</div>
         <div class="title-block">
           <span>KPL HERO INTELLIGENCE</span>
           <h1>英雄数据详情</h1>
@@ -61,7 +60,7 @@
     <template v-else-if="detail">
       <section class="hero-stage" :class="{ switching: isSwitchingHero }">
         <article class="hero-visual">
-          <img :key="`poster-${heroViewKey}`" class="hero-bg" :src="heroPoster(activeHero)" :alt="activeHero?.heroName" @error="hideBroken">
+          <img :key="`poster-${heroViewKey}`" class="hero-bg" :src="heroPoster(activeHero)" :alt="activeHero?.heroName" @error="fallbackHeroPoster">
           <div class="visual-shade" />
           <div :key="`copy-${heroViewKey}`" class="hero-copy">
             <span>{{ currentLeagueName }}</span>
@@ -594,18 +593,36 @@ function heroPoster(hero) {
     : heroIcon(hero)
 }
 
-function preloadImage(src) {
+function preloadImage(src, timeout = 1200) {
   if (!src || typeof Image === 'undefined') return Promise.resolve(false)
   return new Promise((resolve) => {
     const img = new Image()
-    img.onload = () => resolve(true)
-    img.onerror = () => resolve(false)
+    let settled = false
+    const finish = (value) => {
+      if (settled) return
+      settled = true
+      window.clearTimeout(timer)
+      resolve(value)
+    }
+    const timer = window.setTimeout(() => finish(false), timeout)
+    img.onload = () => finish(true)
+    img.onerror = () => finish(false)
     img.src = src
   })
 }
 
 function hideBroken(event) {
   event.target.style.display = 'none'
+}
+
+function fallbackHeroPoster(event) {
+  const fallback = heroIcon(activeHero.value)
+  if (fallback && event.target.src !== fallback) {
+    event.target.src = fallback
+    event.target.classList.add('fallback-poster')
+    return
+  }
+  hideBroken(event)
 }
 
 function percentNumber(value) {
@@ -892,9 +909,12 @@ onMounted(async () => {
 }
 
 .hero-option {
-  display: flex;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 112px;
   align-items: center;
   gap: 8px;
+  width: 100%;
+  min-width: 0;
 }
 
 .hero-option img {
@@ -905,15 +925,21 @@ onMounted(async () => {
 }
 
 .hero-option span {
-  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hero-option em {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: 58px 42px;
   align-items: baseline;
-  justify-content: flex-end;
-  gap: 3px;
-  min-width: 94px;
+  justify-content: end;
+  justify-items: end;
+  gap: 4px;
+  width: 112px;
+  min-width: 112px;
   color: #6b5f50;
   font-style: normal;
   font-size: 12px;
@@ -926,6 +952,7 @@ onMounted(async () => {
   font-size: 11px;
   font-weight: 900;
   white-space: nowrap;
+  text-align: left;
 }
 
 .hero-option em b {
@@ -934,6 +961,7 @@ onMounted(async () => {
   font-weight: 950;
   text-align: right;
   white-space: nowrap;
+  min-width: 58px;
 }
 
 .theme-toggle {
@@ -1038,6 +1066,13 @@ onMounted(async () => {
   opacity: 1;
   animation: heroPosterIn .56s cubic-bezier(.2, .72, .18, 1) none;
   transition: transform .4s ease, filter .4s ease, opacity .4s ease;
+}
+
+.hero-bg.fallback-poster {
+  object-fit: contain;
+  object-position: center;
+  padding: 28px;
+  background: rgba(0, 0, 0, .08);
 }
 
 .hero-visual:hover .hero-bg {
@@ -1212,12 +1247,12 @@ onMounted(async () => {
 @keyframes heroPosterIn {
   from {
     opacity: 0;
-    filter: saturate(.9) contrast(.96) blur(8px);
+    filter: none;
     transform: scale(1.035) translateX(10px);
   }
   to {
     opacity: 1;
-    filter: saturate(1.05) contrast(1.05) blur(0);
+    filter: none;
     transform: scale(1) translateX(0);
   }
 }
@@ -2127,6 +2162,10 @@ onMounted(async () => {
   --red: #e8e8e8;
   --gold: #e8e8e8;
   --violet: #e8e8e8;
+  --metric-blue: #8fb7d2;
+  --metric-green: #86c7a4;
+  --metric-red: #d28a80;
+  --metric-gold: #d3b36a;
   background: linear-gradient(180deg, #0a0a0a, #141414);
 }
 
@@ -2144,6 +2183,10 @@ onMounted(async () => {
   --red: #1a1a1a;
   --gold: #1a1a1a;
   --violet: #1a1a1a;
+  --metric-blue: #2563EB;
+  --metric-green: #16A34A;
+  --metric-red: #EF4444;
+  --metric-gold: #B88A2E;
   background:
     linear-gradient(180deg, rgba(250, 248, 240, .98), rgba(245, 242, 232, .99)),
     #f8f5ec;
@@ -2187,8 +2230,8 @@ onMounted(async () => {
 }
 
 .topbar {
-  min-height: 88px;
-  padding: 14px 24px;
+  min-height: 64px;
+  padding: 10px 18px;
 }
 
 .hero-insights .brand-mark {
@@ -2216,7 +2259,7 @@ onMounted(async () => {
 
 .controls :deep(.el-select__wrapper),
 .controls :deep(.el-button) {
-  min-height: 40px;
+  min-height: 34px;
   border-radius: 0 !important;
   background: rgba(255, 255, 255, .60) !important;
   box-shadow: 0 0 0 1px var(--line) inset !important;
@@ -2322,6 +2365,18 @@ onMounted(async () => {
 .metric-card.light strong {
   color: var(--text);
 }
+
+.metric-card.primary { border-left-color: var(--metric-blue); }
+.metric-card.win { border-left-color: var(--metric-green); }
+.metric-card.danger { border-left-color: var(--metric-red); }
+.metric-card.accent,
+.metric-card.light { border-left-color: var(--metric-gold); }
+
+.metric-card.primary strong { color: var(--metric-blue); }
+.metric-card.win strong { color: var(--metric-green); }
+.metric-card.danger strong { color: var(--metric-red); }
+.metric-card.accent strong,
+.metric-card.light strong { color: var(--metric-gold); }
 
 .panel {
   border-radius: 0;
@@ -2482,6 +2537,39 @@ onMounted(async () => {
   color: var(--text);
 }
 
+.hero-insights.theme-light .metric-card.primary { border-left-color: var(--metric-blue); }
+.hero-insights.theme-light .metric-card.win { border-left-color: var(--metric-green); }
+.hero-insights.theme-light .metric-card.danger { border-left-color: var(--metric-red); }
+.hero-insights.theme-light .metric-card.accent,
+.hero-insights.theme-light .metric-card.light { border-left-color: var(--metric-gold); }
+
+.hero-insights.theme-light .metric-card.primary strong { color: var(--metric-blue); }
+.hero-insights.theme-light .metric-card.win strong { color: var(--metric-green); }
+.hero-insights.theme-light .metric-card.danger strong { color: var(--metric-red); }
+.hero-insights.theme-light .metric-card.accent strong,
+.hero-insights.theme-light .metric-card.light strong { color: var(--metric-gold); }
+
+.hero-insights.theme-light .player-metrics strong,
+.hero-insights.theme-light .battle-head b.won,
+.hero-insights.theme-light .hero-chip b {
+  color: #16A34A;
+}
+
+.hero-insights.theme-light .battle-head b,
+.hero-insights.theme-light .hero-chip.warn b {
+  color: #EF4444;
+}
+
+.hero-insights.theme-light .rank {
+  color: #B88A2E;
+}
+
+.hero-insights.theme-light .player-metrics strong,
+.hero-insights.theme-light .hero-chip b,
+.hero-insights.theme-light .hero-chip.warn b {
+  color: var(--text);
+}
+
 .hero-insights.theme-light .metric-card:hover,
 .hero-insights.theme-light .battle-card:hover,
 .hero-insights.theme-light .player-row:hover,
@@ -2542,10 +2630,29 @@ onMounted(async () => {
   color: rgba(255, 255, 255, .82);
 }
 
+.hero-insights .hero-bg,
+.hero-insights .hero-stage.switching .hero-bg {
+  filter: none;
+}
+
+.hero-insights .visual-shade {
+  display: none;
+}
+
 .hero-insights .video-link.bilibili,
 .hero-insights .video-link.tencent {
   background: rgba(0, 0, 0, .08);
   color: var(--text);
+}
+
+.hero-insights.theme-light .video-link.bilibili {
+  background: rgba(0, 174, 236, .12);
+  color: #00aeec;
+}
+
+.hero-insights.theme-light .video-link.tencent {
+  background: rgba(255, 76, 76, .10);
+  color: #ff4c4c;
 }
 
 .hero-insights.theme-dark .video-link.bilibili,
@@ -2554,14 +2661,36 @@ onMounted(async () => {
   color: var(--text);
 }
 
+.hero-insights .video-link.bilibili {
+  background: rgba(0, 174, 236, .12);
+  color: #00aeec;
+}
+
+.hero-insights.theme-dark .video-link.bilibili {
+  background: rgba(0, 174, 236, .12);
+  color: #00aeec;
+}
+
 .hero-insights .video-link.bilibili:hover,
 .hero-insights .video-link.tencent:hover {
   background: rgba(0, 0, 0, .14);
 }
 
+.hero-insights .video-link.bilibili:hover {
+  background: rgba(0, 174, 236, .25);
+}
+
+.hero-insights.theme-dark .video-link.bilibili:hover {
+  background: rgba(0, 174, 236, .25);
+}
+
 .hero-insights.theme-dark .video-link.bilibili:hover,
 .hero-insights.theme-dark .video-link.tencent:hover {
   background: rgba(255, 255, 255, .16);
+}
+
+.hero-insights.theme-dark .video-link.bilibili:hover {
+  background: rgba(0, 174, 236, .25);
 }
 
 @media (max-width: 1180px) {
@@ -2672,15 +2801,31 @@ onMounted(async () => {
 @import '../styles/select-dropdown.css';
 
 .hero-insights-select-popper .hero-option {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 112px;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
   color: #1F2933;
 }
 
+.hero-insights-select-popper .hero-option span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .hero-insights-select-popper .hero-option em {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: 58px 42px;
   align-items: baseline;
-  justify-content: flex-end;
-  gap: 3px;
-  min-width: 94px;
+  justify-content: end;
+  justify-items: end;
+  gap: 4px;
+  width: 112px;
+  min-width: 112px;
   color: #6b5f50;
   font-style: normal;
   font-variant-numeric: tabular-nums;
@@ -2690,12 +2835,16 @@ onMounted(async () => {
   color: #111827;
   font-size: 13px;
   font-weight: 950;
+  min-width: 58px;
+  text-align: right;
 }
 
 .hero-insights-select-popper .hero-option em small {
   color: #111827;
   font-size: 11px;
   font-weight: 900;
+  text-align: left;
+  white-space: nowrap;
 }
 
 .hero-insights-select-popper .el-select-dropdown__item.is-selected .hero-option em b,

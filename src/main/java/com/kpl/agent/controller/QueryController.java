@@ -64,7 +64,7 @@ public class QueryController {
             @RequestParam(required = false) String leagueId,
             @RequestParam(defaultValue = "8") int limit) {
         String lid = leagueQueryService.requireLeagueId(leagueId);
-        return ApiResponse.ok(cached("playerDetailV4",
+        return ApiResponse.ok(cached("playerDetailV9",
                 () -> playerStatsTool.queryPlayerDetail(name, lid, limit),
                 lid, name, limit));
     }
@@ -108,7 +108,8 @@ public class QueryController {
             @RequestParam(defaultValue = "kda") String sort,
             @RequestParam(required = false) String leagueId) {
         String resolvedLeagueId = leagueQueryService.requireLeagueId(leagueId);
-        Map<String, Object> data = cached("playerTop", () -> switch (sort) {
+        Map<String, Object> data = cached("playerTopV2", () -> switch (sort) {
+            case "status" -> playerStatsTool.queryTopStatus(resolvedLeagueId, 5, 9999);
             case "win" -> playerStatsTool.queryTopWinRate(resolvedLeagueId, 5, 9999);
             default -> playerStatsTool.queryTopKda(resolvedLeagueId, 5, 9999);
         }, resolvedLeagueId, sort);

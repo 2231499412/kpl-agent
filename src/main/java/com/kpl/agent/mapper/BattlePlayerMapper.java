@@ -85,11 +85,25 @@ public interface BattlePlayerMapper extends BaseMapper<BattlePlayer> {
                    bp.death_num AS deathNum,
                    bp.assist_num AS assistNum,
                    bp.gold AS gold,
+                   bp.hurt_to_hero AS hurtToHero,
+                   bp.be_hurt_total AS beHurtTotal,
                    bp.kda AS kda,
                    bp.mvp_score AS mvpScore,
                    bp.is_mvp AS isMvp,
                    bp.is_lose_mvp AS isLoseMvp,
-                   bp.participation_rate AS participationRate
+                   bp.participation_rate AS participationRate,
+                   ROUND(CASE
+                       WHEN b.game_duration > 10000 THEN bp.gold * 60000.0 / b.game_duration
+                       WHEN b.game_duration > 0 THEN bp.gold * 60.0 / b.game_duration
+                       ELSE NULL END, 1) AS goldPerMinute,
+                   ROUND(CASE
+                       WHEN b.game_duration > 10000 THEN bp.hurt_to_hero * 60000.0 / b.game_duration
+                       WHEN b.game_duration > 0 THEN bp.hurt_to_hero * 60.0 / b.game_duration
+                       ELSE NULL END, 1) AS hurtToHeroPerMinute,
+                   ROUND(CASE
+                       WHEN b.game_duration > 10000 THEN bp.be_hurt_total * 60000.0 / b.game_duration
+                       WHEN b.game_duration > 0 THEN bp.be_hurt_total * 60.0 / b.game_duration
+                       ELSE NULL END, 1) AS beHurtPerMinute
             FROM battle_player bp
             JOIN battle b ON bp.battle_id = b.battle_id
             JOIN `match` m ON b.match_id = m.match_id
@@ -125,7 +139,21 @@ public interface BattlePlayerMapper extends BaseMapper<BattlePlayer> {
                    ROUND(AVG(bp.assist_num), 2) AS assistNum,
                    ROUND(AVG(bp.kda), 2) AS kda,
                    ROUND(AVG(bp.gold), 2) AS gold,
+                   ROUND(AVG(bp.hurt_to_hero), 2) AS hurtToHero,
+                   ROUND(AVG(bp.be_hurt_total), 2) AS beHurtTotal,
                    ROUND(AVG(bp.participation_rate), 2) AS participationRate,
+                   ROUND(AVG(CASE
+                       WHEN b.game_duration > 10000 THEN bp.gold * 60000.0 / b.game_duration
+                       WHEN b.game_duration > 0 THEN bp.gold * 60.0 / b.game_duration
+                       ELSE NULL END), 1) AS goldPerMinute,
+                   ROUND(AVG(CASE
+                       WHEN b.game_duration > 10000 THEN bp.hurt_to_hero * 60000.0 / b.game_duration
+                       WHEN b.game_duration > 0 THEN bp.hurt_to_hero * 60.0 / b.game_duration
+                       ELSE NULL END), 1) AS hurtToHeroPerMinute,
+                   ROUND(AVG(CASE
+                       WHEN b.game_duration > 10000 THEN bp.be_hurt_total * 60000.0 / b.game_duration
+                       WHEN b.game_duration > 0 THEN bp.be_hurt_total * 60.0 / b.game_duration
+                       ELSE NULL END), 1) AS beHurtPerMinute,
                    MAX(bp.hero_name) AS heroName
             FROM battle_player bp
             JOIN battle b ON bp.battle_id = b.battle_id
@@ -138,8 +166,66 @@ public interface BattlePlayerMapper extends BaseMapper<BattlePlayer> {
             LIMIT #{limit}
             """)
     List<Map<String, Object>> playerRecentMatches(@Param("playerName") String playerName,
-                                                  @Param("leagueId") String leagueId,
-                                                  @Param("limit") int limit);
+                                                   @Param("leagueId") String leagueId,
+                                                   @Param("limit") int limit);
+
+    @Select("""
+            SELECT COUNT(*) AS matches,
+                   SUM(battleCount) AS games,
+                   SUM(battleWins) AS battleWins,
+                   ROUND(SUM(battleWins) * 100.0 / SUM(battleCount), 1) AS battleWinRate,
+                   SUM(won) AS wins,
+                   ROUND(SUM(won) * 100.0 / COUNT(*), 1) AS winRate,
+                   ROUND(AVG(killNum), 2) AS killNum,
+                   ROUND(AVG(deathNum), 2) AS deathNum,
+                   ROUND(AVG(assistNum), 2) AS assistNum,
+                   ROUND(AVG(kda), 2) AS kda,
+                   ROUND(AVG(gold), 2) AS gold,
+                   ROUND(AVG(hurtToHero), 2) AS hurtToHero,
+                   ROUND(AVG(beHurtTotal), 2) AS beHurtTotal,
+                   ROUND(AVG(participationRate), 2) AS participationRate,
+                   ROUND(AVG(goldPerMinute), 1) AS goldPerMinute,
+                   ROUND(AVG(hurtToHeroPerMinute), 1) AS hurtToHeroPerMinute,
+                   ROUND(AVG(beHurtPerMinute), 1) AS beHurtPerMinute
+            FROM (
+                SELECT b.match_id AS matchId,
+                       COUNT(*) AS battleCount,
+                       SUM(CASE WHEN bp.camp = b.win_camp THEN 1 ELSE 0 END) AS battleWins,
+                       CASE
+                           WHEN (bp.team_name = m.camp1_team_name AND m.camp1_score > m.camp2_score)
+                             OR (bp.team_name = m.camp2_team_name AND m.camp2_score > m.camp1_score)
+                           THEN 1 ELSE 0 END AS won,
+                       ROUND(AVG(bp.kill_num), 2) AS killNum,
+                       ROUND(AVG(bp.death_num), 2) AS deathNum,
+                       ROUND(AVG(bp.assist_num), 2) AS assistNum,
+                       ROUND(AVG(bp.kda), 2) AS kda,
+                       ROUND(AVG(bp.gold), 2) AS gold,
+                       ROUND(AVG(bp.hurt_to_hero), 2) AS hurtToHero,
+                       ROUND(AVG(bp.be_hurt_total), 2) AS beHurtTotal,
+                       ROUND(AVG(bp.participation_rate), 2) AS participationRate,
+                       ROUND(AVG(CASE
+                           WHEN b.game_duration > 10000 THEN bp.gold * 60000.0 / b.game_duration
+                           WHEN b.game_duration > 0 THEN bp.gold * 60.0 / b.game_duration
+                           ELSE NULL END), 1) AS goldPerMinute,
+                       ROUND(AVG(CASE
+                           WHEN b.game_duration > 10000 THEN bp.hurt_to_hero * 60000.0 / b.game_duration
+                           WHEN b.game_duration > 0 THEN bp.hurt_to_hero * 60.0 / b.game_duration
+                           ELSE NULL END), 1) AS hurtToHeroPerMinute,
+                       ROUND(AVG(CASE
+                           WHEN b.game_duration > 10000 THEN bp.be_hurt_total * 60000.0 / b.game_duration
+                           WHEN b.game_duration > 0 THEN bp.be_hurt_total * 60.0 / b.game_duration
+                           ELSE NULL END), 1) AS beHurtPerMinute
+                FROM battle_player bp
+                JOIN battle b ON bp.battle_id = b.battle_id
+                JOIN `match` m ON b.match_id = m.match_id
+                WHERE (bp.player_name LIKE CONCAT('%', #{playerName}, '%')
+                    OR SUBSTRING_INDEX(bp.player_name, '.', -1) = #{playerName})
+                  AND (#{leagueId} IS NULL OR m.league_id = #{leagueId})
+                GROUP BY b.match_id, bp.team_name, bp.player_name
+            ) match_rows
+            """)
+    Map<String, Object> playerSeasonMatchAverages(@Param("playerName") String playerName,
+                                                  @Param("leagueId") String leagueId);
 
     @Select("""
             SELECT m.match_stage AS stage,
@@ -248,10 +334,19 @@ public interface BattlePlayerMapper extends BaseMapper<BattlePlayer> {
                          OR (bp.team_name = m.camp2_team_name AND m.camp2_score > m.camp1_score)
                        THEN m.match_id END) * 100.0 / COUNT(DISTINCT m.match_id), 1) AS winRate,
                    ROUND(AVG(bp.kda), 2) AS avgKda,
-                   ROUND(AVG(CASE WHEN b.game_duration > 0 THEN bp.gold * 60.0 / b.game_duration ELSE NULL END), 2) AS avgGoldPerMinute,
-                   ROUND(AVG(bp.participation_rate), 4) AS avgParticipationRate,
-                   ROUND(AVG(CASE WHEN b.game_duration > 0 THEN bp.hurt_to_hero * 60.0 / b.game_duration ELSE NULL END), 2) AS avgHurtToHeroPerMinute,
-                   ROUND(AVG(CASE WHEN b.game_duration > 0 THEN bp.be_hurt_total * 60.0 / b.game_duration ELSE NULL END), 2) AS avgBeHurtPerMinute,
+                    ROUND(AVG(CASE
+                        WHEN b.game_duration > 10000 THEN bp.gold * 60000.0 / b.game_duration
+                        WHEN b.game_duration > 0 THEN bp.gold * 60.0 / b.game_duration
+                        ELSE NULL END), 2) AS avgGoldPerMinute,
+                    ROUND(AVG(bp.participation_rate), 4) AS avgParticipationRate,
+                    ROUND(AVG(CASE
+                        WHEN b.game_duration > 10000 THEN bp.hurt_to_hero * 60000.0 / b.game_duration
+                        WHEN b.game_duration > 0 THEN bp.hurt_to_hero * 60.0 / b.game_duration
+                        ELSE NULL END), 2) AS avgHurtToHeroPerMinute,
+                    ROUND(AVG(CASE
+                        WHEN b.game_duration > 10000 THEN bp.be_hurt_total * 60000.0 / b.game_duration
+                        WHEN b.game_duration > 0 THEN bp.be_hurt_total * 60.0 / b.game_duration
+                        ELSE NULL END), 2) AS avgBeHurtPerMinute,
                    COUNT(DISTINCT bp.hero_id) AS heroCount,
                    MAX(CASE WHEN (bp.player_name LIKE CONCAT('%', #{playerName}, '%')
                        OR SUBSTRING_INDEX(bp.player_name, '.', -1) = #{playerName}) THEN 1 ELSE 0 END) AS targetPlayer
@@ -270,6 +365,224 @@ public interface BattlePlayerMapper extends BaseMapper<BattlePlayer> {
             """)
     List<Map<String, Object>> playerLeaguePerformancePool(@Param("playerName") String playerName,
                                                            @Param("limit") int limit);
+
+    @Select("""
+            WITH target_team_rows AS (
+                SELECT m.league_id AS league_id,
+                       bp.team_name AS team_name,
+                       COUNT(*) AS games,
+                       MIN(COALESCE(l.start_time, m.start_time)) AS start_time
+                FROM battle_player bp
+                JOIN battle b ON bp.battle_id = b.battle_id
+                JOIN `match` m ON b.match_id = m.match_id
+                LEFT JOIN league l ON l.league_id = m.league_id
+                WHERE (bp.player_name LIKE CONCAT('%', #{playerName}, '%')
+                    OR SUBSTRING_INDEX(bp.player_name, '.', -1) = #{playerName})
+                  AND bp.team_name IS NOT NULL
+                  AND bp.team_name <> ''
+                GROUP BY m.league_id, bp.team_name
+            ),
+            target_team_ranked AS (
+                SELECT league_id,
+                       team_name,
+                       games,
+                       start_time,
+                       ROW_NUMBER() OVER (PARTITION BY league_id ORDER BY games DESC, team_name) AS rn
+                FROM target_team_rows
+            ),
+            target_leagues AS (
+                SELECT league_id, start_time
+                FROM target_team_ranked
+                WHERE rn = 1
+                ORDER BY start_time DESC
+                LIMIT #{limit}
+            ),
+            match_battles AS (
+                SELECT match_id,
+                       COUNT(*) AS battle_count,
+                       SUM(CASE WHEN win_camp = 1 THEN 1 ELSE 0 END) AS camp1_wins,
+                       SUM(CASE WHEN win_camp = 2 THEN 1 ELSE 0 END) AS camp2_wins
+                FROM battle
+                GROUP BY match_id
+            ),
+            team_match_rows AS (
+                SELECT m.league_id AS leagueId,
+                       MAX(l.league_name) AS leagueName,
+                       m.match_id AS matchId,
+                       m.start_time AS startTime,
+                       m.match_stage_desc AS stageDesc,
+                       m.camp1_team_name AS teamName,
+                       m.camp1_score AS teamScore,
+                       m.camp2_score AS opponentScore,
+                       CASE WHEN m.camp1_score > m.camp2_score THEN 1 ELSE 0 END AS won,
+                       IFNULL(MAX(mb.battle_count), m.camp1_score + m.camp2_score) AS battleCount,
+                       IFNULL(MAX(mb.camp1_wins), m.camp1_score) AS battleWins
+                FROM `match` m
+                JOIN target_leagues tl ON tl.league_id = m.league_id
+                LEFT JOIN league l ON l.league_id = m.league_id
+                LEFT JOIN match_battles mb ON mb.match_id = m.match_id
+                WHERE m.camp1_team_name IS NOT NULL AND m.camp1_team_name <> ''
+                GROUP BY m.league_id, m.match_id, m.start_time, m.match_stage_desc,
+                         m.camp1_team_name, m.camp1_score, m.camp2_score
+                UNION ALL
+                SELECT m.league_id AS leagueId,
+                       MAX(l.league_name) AS leagueName,
+                       m.match_id AS matchId,
+                       m.start_time AS startTime,
+                       m.match_stage_desc AS stageDesc,
+                       m.camp2_team_name AS teamName,
+                       m.camp2_score AS teamScore,
+                       m.camp1_score AS opponentScore,
+                       CASE WHEN m.camp2_score > m.camp1_score THEN 1 ELSE 0 END AS won,
+                       IFNULL(MAX(mb.battle_count), m.camp1_score + m.camp2_score) AS battleCount,
+                       IFNULL(MAX(mb.camp2_wins), m.camp2_score) AS battleWins
+                FROM `match` m
+                JOIN target_leagues tl ON tl.league_id = m.league_id
+                LEFT JOIN league l ON l.league_id = m.league_id
+                LEFT JOIN match_battles mb ON mb.match_id = m.match_id
+                WHERE m.camp2_team_name IS NOT NULL AND m.camp2_team_name <> ''
+                GROUP BY m.league_id, m.match_id, m.start_time, m.match_stage_desc,
+                         m.camp2_team_name, m.camp2_score, m.camp1_score
+            ),
+            team_ranked AS (
+                SELECT team_match_rows.*,
+                       ROW_NUMBER() OVER (PARTITION BY leagueId, teamName ORDER BY startTime DESC, matchId DESC) AS rn
+                FROM team_match_rows
+            )
+            SELECT tr.leagueId AS leagueId,
+                   MAX(tr.leagueName) AS leagueName,
+                   tr.teamName AS teamName,
+                   COUNT(*) AS matches,
+                   SUM(tr.won) AS matchWins,
+                   ROUND(SUM(tr.won) * 100.0 / COUNT(*), 1) AS matchWinRate,
+                   SUM(tr.battleCount) AS games,
+                   SUM(tr.battleWins) AS battleWins,
+                   ROUND(SUM(tr.battleWins) * 100.0 / NULLIF(SUM(tr.battleCount), 0), 1) AS battleWinRate,
+                   SUM(tr.battleWins) - SUM(tr.battleCount - tr.battleWins) AS gameDiff,
+                   ROUND((SUM(tr.battleWins) - SUM(tr.battleCount - tr.battleWins)) * 1.0 / COUNT(*), 2) AS gameDiffPerMatch,
+                   MAX(CASE WHEN tr.rn = 1 THEN tr.stageDesc END) AS lastStageDesc,
+                   MAX(CASE WHEN tr.rn = 1 THEN tr.won END) AS lastWon,
+                   MAX(CASE WHEN ttr.rn = 1 AND ttr.team_name = tr.teamName THEN 1 ELSE 0 END) AS targetTeam
+            FROM team_ranked tr
+            LEFT JOIN target_team_ranked ttr ON ttr.league_id = tr.leagueId
+            GROUP BY tr.leagueId, tr.teamName
+            ORDER BY MAX(tr.startTime) DESC, matches DESC
+            """)
+    List<Map<String, Object>> playerLeagueTeamResults(@Param("playerName") String playerName,
+                                                       @Param("limit") int limit);
+
+    @Select("""
+            WITH match_battles AS (
+                SELECT match_id,
+                       COUNT(*) AS battle_count,
+                       SUM(CASE WHEN win_camp = 1 THEN 1 ELSE 0 END) AS camp1_wins,
+                       SUM(CASE WHEN win_camp = 2 THEN 1 ELSE 0 END) AS camp2_wins
+                FROM battle
+                GROUP BY match_id
+            ),
+            team_match_rows AS (
+                SELECT m.league_id AS leagueId,
+                       m.match_id AS matchId,
+                       m.start_time AS startTime,
+                       m.match_stage_desc AS stageDesc,
+                       m.camp1_team_name AS teamName,
+                       CASE WHEN m.camp1_score > m.camp2_score THEN 1 ELSE 0 END AS won,
+                       IFNULL(MAX(mb.battle_count), m.camp1_score + m.camp2_score) AS battleCount,
+                       IFNULL(MAX(mb.camp1_wins), m.camp1_score) AS battleWins
+                FROM `match` m
+                LEFT JOIN match_battles mb ON mb.match_id = m.match_id
+                WHERE m.league_id = #{leagueId}
+                  AND m.camp1_team_name IS NOT NULL AND m.camp1_team_name <> ''
+                GROUP BY m.league_id, m.match_id, m.start_time, m.match_stage_desc,
+                         m.camp1_team_name, m.camp1_score, m.camp2_score
+                UNION ALL
+                SELECT m.league_id AS leagueId,
+                       m.match_id AS matchId,
+                       m.start_time AS startTime,
+                       m.match_stage_desc AS stageDesc,
+                       m.camp2_team_name AS teamName,
+                       CASE WHEN m.camp2_score > m.camp1_score THEN 1 ELSE 0 END AS won,
+                       IFNULL(MAX(mb.battle_count), m.camp1_score + m.camp2_score) AS battleCount,
+                       IFNULL(MAX(mb.camp2_wins), m.camp2_score) AS battleWins
+                FROM `match` m
+                LEFT JOIN match_battles mb ON mb.match_id = m.match_id
+                WHERE m.league_id = #{leagueId}
+                  AND m.camp2_team_name IS NOT NULL AND m.camp2_team_name <> ''
+                GROUP BY m.league_id, m.match_id, m.start_time, m.match_stage_desc,
+                         m.camp2_team_name, m.camp2_score, m.camp1_score
+            ),
+            team_ranked AS (
+                SELECT team_match_rows.*,
+                       ROW_NUMBER() OVER (PARTITION BY teamName ORDER BY startTime DESC, matchId DESC) AS rn
+                FROM team_match_rows
+            )
+            SELECT leagueId,
+                   teamName,
+                   COUNT(*) AS matches,
+                   SUM(won) AS matchWins,
+                   ROUND(SUM(won) * 100.0 / COUNT(*), 1) AS matchWinRate,
+                   SUM(battleCount) AS games,
+                   SUM(battleWins) AS battleWins,
+                   ROUND(SUM(battleWins) * 100.0 / NULLIF(SUM(battleCount), 0), 1) AS battleWinRate,
+                   SUM(battleWins) - SUM(battleCount - battleWins) AS gameDiff,
+                   ROUND((SUM(battleWins) - SUM(battleCount - battleWins)) * 1.0 / COUNT(*), 2) AS gameDiffPerMatch,
+                   MAX(CASE WHEN rn = 1 THEN stageDesc END) AS lastStageDesc,
+                   MAX(CASE WHEN rn = 1 THEN won END) AS lastWon,
+                   MAX(startTime) AS lastMatchTime,
+                   MIN(startTime) AS firstMatchTime
+            FROM team_ranked
+            GROUP BY leagueId, teamName
+            ORDER BY matches DESC, matchWinRate DESC
+            """)
+    List<Map<String, Object>> leagueTeamResults(@Param("leagueId") String leagueId);
+
+    @Select("""
+            SELECT MIN(start_time) AS firstTime, MAX(start_time) AS lastTime,
+                   COUNT(*) AS totalMatches
+            FROM `match`
+            WHERE league_id = #{leagueId} AND start_time IS NOT NULL
+            """)
+    Map<String, Object> leagueTimespan(@Param("leagueId") String leagueId);
+
+    @Select("""
+            WITH player_matches AS (
+                SELECT SUBSTRING_INDEX(bp.player_name, '.', -1) AS playerName,
+                       MAX(bp.team_name) AS teamName,
+                       MAX(bp.position_desc) AS positionDesc,
+                       m.match_id AS matchId,
+                       MAX(m.start_time) AS startTime,
+                       CASE
+                           WHEN (bp.team_name = m.camp1_team_name AND m.camp1_score > m.camp2_score)
+                             OR (bp.team_name = m.camp2_team_name AND m.camp2_score > m.camp1_score)
+                           THEN 1 ELSE 0 END AS won,
+                       COUNT(*) AS battleCount,
+                       SUM(CASE WHEN bp.camp = b.win_camp THEN 1 ELSE 0 END) AS battleWins
+                FROM battle_player bp
+                JOIN battle b ON bp.battle_id = b.battle_id
+                JOIN `match` m ON b.match_id = m.match_id
+                WHERE m.league_id = #{leagueId}
+                  AND bp.player_name IS NOT NULL
+                  AND bp.player_name <> ''
+                GROUP BY SUBSTRING_INDEX(bp.player_name, '.', -1), m.match_id, bp.team_name,
+                         m.camp1_team_name, m.camp2_team_name, m.camp1_score, m.camp2_score
+            ),
+            ranked AS (
+                SELECT player_matches.*,
+                       ROW_NUMBER() OVER (PARTITION BY playerName ORDER BY startTime DESC, matchId DESC) AS rn
+                FROM player_matches
+            )
+            SELECT playerName,
+                   COUNT(*) AS recent5Matches,
+                   SUM(won) AS recent5MatchWins,
+                   ROUND(SUM(won) * 100.0 / COUNT(*), 1) AS recent5WinRate,
+                   SUM(battleCount) AS recent5Games,
+                   SUM(battleWins) AS recent5BattleWins,
+                   ROUND(SUM(battleWins) * 100.0 / NULLIF(SUM(battleCount), 0), 1) AS recent5BattleWinRate
+            FROM ranked
+            WHERE rn <= 5
+            GROUP BY playerName
+            """)
+    List<Map<String, Object>> playerRecent5Summaries(@Param("leagueId") String leagueId);
 
     @Select("""
             SELECT m.league_id AS leagueId,
