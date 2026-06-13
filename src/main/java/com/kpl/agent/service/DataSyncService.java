@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -143,6 +144,8 @@ public class DataSyncService {
             count++;
         }
         log.info("同步比赛完成: leagueId={}, 写入 {} 条", leagueId, count);
+        // 官方 API 对部分赛事把 match_stage 全部扁平化为「常规赛」，写入后即时修正
+        correctLeagueMatchStages(leagueId);
         return count;
     }
 
@@ -1089,7 +1092,112 @@ public class DataSyncService {
         return fixed;
     }
 
+    // ==================== 比赛阶段（常规赛/季后赛/决赛）修正 ====================
+    //
+    // 背景：腾讯 KPL 官方 API 对 2019–2025 部分赛事把 match_stage / match_stage_desc
+    // 全部扁平化为 regular_season / 「常规赛」，覆盖了实际的季后赛、决赛。
+    // 这里按「按 leagueId 分组、按 start_time 排序」的确定性规则还原：
+    //   1. 决赛：该赛事时间最晚的一场
+    //   2. 季后赛：非决赛 且 BO>=7
+    //   3. 常规赛：其余（BO<=5 且非决赛）
+    // 安全前提：仅当 match_stage='regular_season' 且 match_stage_desc='常规赛' 时才修正，
+    // 其余（playoff / js / dbtts / sbtts / 已正确的赛事）原样跳过。
+
+    /** 全库一次性回填修正。返回修正的场次总数。 */
+    public int fixMatchStageDescription() {
+        log.info("开始修正比赛阶段描述（常规赛/季后赛/决赛）...");
+        // 只查需要修正的赛事（被扁平化的）
+        List<Match> flatMatches = matchMapper.selectList(
+                new LambdaQueryWrapper<Match>()
+                        .eq(Match::getMatchStage, "regular_season")
+                        .eq(Match::getMatchStageDesc, "常规赛"));
+        if (flatMatches.isEmpty()) {
+            log.info("没有需要修正的比赛阶段（无 regular_season/常规赛 扁平化数据）");
+            return 0;
+        }
+        // 按 leagueId 分组，逐组修正
+        Map<String, List<Match>> byLeague = flatMatches.stream()
+                .collect(Collectors.groupingBy(Match::getLeagueId));
+        log.info("待修正赛事数: {} 个，总场次 {} 场", byLeague.size(), flatMatches.size());
+
+        int totalFixed = 0;
+        for (Map.Entry<String, List<Match>> entry : byLeague.entrySet()) {
+            totalFixed += correctLeagueMatchStages(entry.getKey());
+        }
+
+        log.info("比赛阶段描述修正完成: 共修正 {} 场", totalFixed);
+        evictQueryCache();
+        return totalFixed;
+    }
+
+    /**
+     * 修正单个赛事的比赛阶段。仅作用于该赛事下 match_stage='regular_season' 且
+     * match_stage_desc='常规赛' 的场次。返回该赛事修正的场次数。
+     * 供 syncMatches 写入后即时调用，防止扁平化数据入库。
+     */
+    private int correctLeagueMatchStages(String leagueId) {
+        List<Match> matches = matchMapper.selectList(
+                new LambdaQueryWrapper<Match>()
+                        .eq(Match::getLeagueId, leagueId)
+                        .eq(Match::getMatchStage, "regular_season")
+                        .eq(Match::getMatchStageDesc, "常规赛")
+                        .orderByAsc(Match::getStartTime));
+        if (matches.size() <= 1) {
+            // 单场或空：无法区分阶段，跳过
+            return 0;
+        }
+
+        // 决赛 = 时间最晚的一场（列表已按 start_time 升序，最后一条即决赛）
+        String finalMatchId = matches.get(matches.size() - 1).getMatchId();
+
+        int fixed = 0;
+        for (Match m : matches) {
+            String[] corrected = correctMatchStage(m, finalMatchId);
+            if (corrected == null) continue;
+
+            Match update = new Match();
+            update.setMatchStage(corrected[0]);
+            update.setMatchStageDesc(corrected[1]);
+            int affected = matchMapper.update(update,
+                    new LambdaQueryWrapper<Match>().eq(Match::getMatchId, m.getMatchId()));
+            if (affected > 0) {
+                fixed++;
+                log.info("修正赛事 {} 比赛 {}: {} -> {}/{}",
+                        leagueId, m.getMatchId(),
+                        m.getMatchStageDesc(), corrected[0], corrected[1]);
+            }
+        }
+        if (fixed > 0) {
+            log.info("赛事 {} 阶段修正完成: {} 场 (决赛={}, 其余按 BO 划分季后赛/常规赛)",
+                    leagueId, fixed, finalMatchId);
+        }
+        return fixed;
+    }
+
+    /**
+     * 纯函数：根据单场比赛信息判定应修正为哪个阶段。
+     *
+     * @param m            当前比赛（已属 regular_season/常规赛 扁平化集合）
+     * @param finalMatchId 该赛事决赛的 matchId
+     * @return {@code {match_stage_code, match_stage_desc}}，若无需修正返回 null
+     */
+    private String[] correctMatchStage(Match m, String finalMatchId) {
+        boolean isFinal = m.getMatchId() != null && m.getMatchId().equals(finalMatchId);
+        if (isFinal) {
+            return new String[]{"js", "决赛"};
+        }
+        // BO>=7 视为季后赛（淘汰赛）；挑战者杯 BO9 决赛已被上面决赛分支命中
+        Integer bo = m.getBo();
+        if (bo != null && bo >= 7) {
+            return new String[]{"playoff", "季后赛"};
+        }
+        // 其余（BO<=5 且非决赛）保持常规赛，无需更新
+        return null;
+    }
+
     private void evictQueryCache() {
         queryCacheService.evictByPattern("kpl:query:*");
+        queryCacheService.evictByPattern("kpl:v2:*");
+        queryCacheService.evictByPattern("kpl:v3:*");
     }
 }

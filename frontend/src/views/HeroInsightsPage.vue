@@ -74,7 +74,7 @@
         </article>
 
         <aside class="metric-grid">
-          <div class="metric-card primary">
+          <div class="metric-card primary" role="button" tabindex="0" @click="openHeroRankDialog('pickRate')">
             <span>本赛季使用人数</span>
             <div class="metric-value-wrap">
               <Transition name="metric-value">
@@ -83,34 +83,34 @@
             </div>
             <em>按选手去重</em>
           </div>
-          <div class="metric-card accent">
+          <div class="metric-card accent" role="button" tabindex="0" @click="openHeroRankDialog('battleCount')">
             <span>出场次数</span>
             <div class="metric-value-wrap">
               <Transition name="metric-value">
                 <strong :key="metricKeys.battleCount">{{ metricBattleCount }}</strong>
               </Transition>
             </div>
-            <em>Pick {{ formatBpPercent(activeHero, 'pick') }}</em>
+            <em>Pick {{ formatBpPercent(activeHero, 'pick') }} · 排名 #{{ heroMetricRank('battleCount') || '-' }}</em>
           </div>
-          <div class="metric-card win">
+          <div class="metric-card win" role="button" tabindex="0" @click="openHeroRankDialog('winRate')">
             <span>胜率</span>
             <div class="metric-value-wrap">
               <Transition name="metric-value">
                 <strong :key="metricKeys.winRate">{{ formatPercent(activeHero?.winRate) }}</strong>
               </Transition>
             </div>
-            <em>{{ winRankHint }}</em>
+            <em>排名 #{{ heroMetricRank('winRate') || '-' }}</em>
           </div>
-          <div class="metric-card danger">
+          <div class="metric-card danger" role="button" tabindex="0" @click="openHeroRankDialog('banRate')">
             <span>Ban 率</span>
             <div class="metric-value-wrap">
               <Transition name="metric-value">
                 <strong :key="metricKeys.banRate">{{ formatBpPercent(activeHero, 'ban') }}</strong>
               </Transition>
             </div>
-            <em>Ban {{ formatBpCount(activeHero, 'ban') }}</em>
+            <em>Ban {{ formatBpCount(activeHero, 'ban') }} · 排名 #{{ heroMetricRank('banRate') || '-' }}</em>
           </div>
-          <div class="metric-card light">
+          <div class="metric-card light" role="button" tabindex="0" @click="openHeroRankDialog('avgKda')">
             <span>场均 KDA</span>
             <div class="metric-value-wrap">
               <Transition name="metric-value">
@@ -119,14 +119,14 @@
             </div>
             <em>{{ fixed(activeHero?.avgKill, 1) }}/{{ fixed(activeHero?.avgDeath, 1) }}/{{ fixed(activeHero?.avgAssist, 1) }}</em>
           </div>
-          <div class="metric-card accent">
+          <div class="metric-card accent" role="button" tabindex="0" @click="openHeroRankDialog('avgGold')">
             <span>场均经济</span>
             <div class="metric-value-wrap">
               <Transition name="metric-value">
                 <strong :key="metricKeys.avgGold">{{ formatCompact(activeHero?.avgGold) }}</strong>
               </Transition>
             </div>
-            <em>样本 {{ metricBattleCount }} 局</em>
+            <em>排名 #{{ heroMetricRank('avgGold') || '-' }}</em>
           </div>
         </aside>
       </section>
@@ -280,6 +280,43 @@
         </article>
       </section>
     </template>
+    <Teleport to="body">
+      <div v-if="rankDialogVisible" class="rank-overlay" :class="`theme-${theme}`" @click.self="rankDialogVisible = false">
+        <div class="rank-dialog">
+          <div class="rank-dialog-head">
+            <strong>{{ heroRankDialogTitle }}</strong>
+            <button class="rank-dialog-close" @click="rankDialogVisible = false">&times;</button>
+          </div>
+          <div class="rank-dialog-note">{{ heroRankDialogNote }}</div>
+          <div class="rank-table-wrap">
+            <table class="rank-table">
+              <thead>
+                <tr><th class="rank-col">#</th><th>英雄</th><th class="data-col">数据</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in heroRankDialogRows" :key="row.heroId" :class="{ active: isSelectedHeroRankRow(row) }">
+                  <td class="rank-col"><span class="rank-badge" :class="{ 'rank-top3': row.rank <= 3 }">{{ row.rank }}</span></td>
+                  <td>
+                    <div class="name-cell">
+                      <img :src="heroIcon(row)" class="cell-icon" @error="hideBroken">
+                      <div class="name-text">
+                        <strong>{{ row.heroName }}</strong>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="data-col">
+                    <div class="rate-cell">
+                      <span class="rate-num">{{ row.display }}</span>
+                      <div class="rate-track"><i class="rate-bar" :style="{ width: heroRankBarWidth(row) }" /></div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </main>
 </template>
 
@@ -307,6 +344,8 @@ const routeReady = ref(false)
 const heroTrail = ref([])
 const isSwitchingHero = ref(false)
 const videoCovers = ref({})
+const rankDialogVisible = ref(false)
+const activeRankMetric = ref('')
 const loadedBattleCovers = ref({})
 let detailRequestId = 0
 watch(theme, (value) => setTheme(value))
@@ -344,6 +383,61 @@ const winRankHint = computed(() => {
   if (value >= 50) return '胜率稳定'
   return '需要结合阵容'
 })
+
+const heroRankConfigs = {
+  pickRate: { title: 'Pick 率排名', note: '按当前赛事英雄 Pick 率排序。', value: row => percentNumber(row.pickRate), format: v => `${v.toFixed(1)}%` },
+  battleCount: { title: '出场次数排名', note: '按当前赛事英雄出场小局数排序。', value: row => Number(row.battleCount) || 0, format: v => Math.round(v).toString() },
+  winRate: { title: '胜率排名', note: '按当前赛事英雄胜率排序。', value: row => percentNumber(row.winRate), format: v => `${v.toFixed(1)}%` },
+  banRate: { title: 'Ban 率排名', note: '按当前赛事英雄 Ban 率排序。', value: row => percentNumber(row.banRate), format: v => `${v.toFixed(1)}%` },
+  avgKda: { title: '场均 KDA 排名', note: '按当前赛事英雄平均 KDA 排序。', value: row => Number(row.avgKda) || 0, format: v => fixed(v, 2) },
+  avgGold: { title: '场均经济排名', note: '按当前赛事英雄场均经济排序。', value: row => Number(row.avgGold) || 0, format: v => formatCompact(v) },
+}
+const activeHeroRankConfig = computed(() => heroRankConfigs[activeRankMetric.value] || heroRankConfigs.pickRate)
+const heroRankDialogTitle = computed(() => activeHeroRankConfig.value.title)
+const heroRankDialogNote = computed(() => activeHeroRankConfig.value.note)
+const heroRankDialogRows = computed(() => {
+  const config = activeHeroRankConfig.value
+  return heroes.value
+    .map(row => ({ row, value: config.value(row) }))
+    .filter(item => Number.isFinite(item.value))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 50)
+    .map((item, index) => ({
+      ...item.row,
+      rank: index + 1,
+      rawValue: item.value,
+      display: config.format(item.value),
+    }))
+})
+
+function openHeroRankDialog(metric) {
+  activeRankMetric.value = metric
+  rankDialogVisible.value = true
+}
+
+function heroMetricRank(metric) {
+  const config = heroRankConfigs[metric]
+  if (!config) return 0
+  const targetId = selectedHeroId.value
+  const sorted = heroes.value
+    .map(row => ({ id: row.heroId, value: config.value(row) }))
+    .filter(item => Number.isFinite(item.value))
+    .sort((a, b) => b.value - a.value)
+  const idx = sorted.findIndex(item => Number(item.id) === Number(targetId))
+  return idx >= 0 ? idx + 1 : 0
+}
+
+function heroRankBarWidth(row) {
+  const rows = heroRankDialogRows.value
+  if (!rows.length) return '0%'
+  const max = rows[0].rawValue || 1
+  return `${Math.min(100, (row.rawValue / max) * 100)}%`
+}
+
+function isSelectedHeroRankRow(row) {
+  return Number(row.heroId) === Number(selectedHeroId.value)
+}
+
 watch(featuredBattles, (items) => {
   preloadBattleCoverImages(items)
   loadVideoCovers(items)
@@ -1171,6 +1265,7 @@ onMounted(async () => {
   border-radius: 12px;
   background: var(--panel-bg);
   box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
+  cursor: pointer;
   transition: border-color .25s ease, background .25s ease, box-shadow .25s ease;
 }
 
@@ -2853,4 +2948,97 @@ onMounted(async () => {
 .hero-insights-select-popper .el-select-dropdown__item.is-hovering .hero-option em small {
   color: #000;
 }
+
+/* ── rank dialog (side panel) ── */
+.rank-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0, 0, 0, .12);
+}
+.rank-dialog {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 520px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, .48);
+  border-radius: 0;
+  background: #1a1b1e;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, .18);
+  overflow: hidden;
+  color: #e8e8e8;
+  animation: rank-slide-in .25s cubic-bezier(.2, .8, .2, 1) both;
+}
+@keyframes rank-slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.rank-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, .48);
+}
+.rank-dialog-head strong { font-size: 16px; font-weight: 800; color: #e8e8e8; }
+.rank-dialog-close {
+  width: 28px; height: 28px; display: grid; place-items: center;
+  border: none; background: none; color: rgba(232, 232, 232, .5); font-size: 20px; cursor: pointer;
+}
+.rank-dialog-close:hover { color: #e8e8e8; }
+.rank-dialog-note { padding: 8px 20px 0; font-size: 12px; color: rgba(232, 232, 232, .5); }
+.rank-table-wrap {
+  flex: 1; min-height: 0; max-height: 420px; margin: 10px 20px 16px;
+  border: 1px solid rgba(255, 255, 255, .48); background: rgba(255, 255, 255, .04); overflow-y: auto;
+}
+.rank-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rank-table thead { position: sticky; top: 0; z-index: 1; }
+.rank-table th {
+  padding: 7px 10px; background: rgba(255, 255, 255, .05);
+  border-bottom: 1px solid rgba(255, 255, 255, .48); color: rgba(232, 232, 232, .65);
+  font-size: 11px; font-weight: 700; text-align: left;
+}
+.rank-table td { padding: 6px 10px; border-bottom: 1px solid rgba(255, 255, 255, .48); vertical-align: middle; }
+.rank-table tr:last-child td { border-bottom: none; }
+.rank-table tr:hover { background: rgba(255, 255, 255, .04); }
+.rank-table tr.active { background: rgba(103, 82, 215, .10); }
+.rank-col { width: 48px; text-align: center !important; }
+.data-col { width: 120px; text-align: right !important; }
+.rank-badge { display: inline-block; min-width: 22px; font-size: 13px; font-weight: 900; color: rgba(232, 232, 232, .5); text-align: center; }
+.rank-badge.rank-top3 { color: #e8e8e8; }
+.rank-table tr.active .rank-badge { color: #6752d7; }
+.name-cell { display: flex; align-items: center; gap: 8px; }
+.name-cell .cell-icon { width: 28px; height: 28px; border-radius: 0; object-fit: cover; flex-shrink: 0; }
+.name-text strong { display: block; font-size: 13px; font-weight: 800; color: #e8e8e8; }
+.rate-cell { text-align: right; }
+.rate-num { font-size: 13px; font-weight: 900; color: #e8e8e8; }
+.rate-track { height: 3px; margin-top: 4px; background: rgba(255, 255, 255, .1); border-radius: 0; }
+.rate-bar { display: block; height: 100%; background: #e8e8e8; border-radius: 0; transition: width .3s ease; }
+
+.theme-light .rank-dialog {
+  border-color: #E3D6C4;
+  background: #FFFBF3;
+  box-shadow: -4px 0 24px rgba(88, 72, 50, .15);
+}
+.theme-light .rank-dialog-head { border-color: #E3D6C4; }
+.theme-light .rank-dialog-head strong { color: #1F2933; }
+.theme-light .rank-dialog-close { color: #9A8B78; }
+.theme-light .rank-dialog-close:hover { color: #1F2933; }
+.theme-light .rank-dialog-note { color: #5F6670; }
+.theme-light .rank-table-wrap { border-color: #E3D6C4; background: rgba(0, 0, 0, .02); }
+.theme-light .rank-table th { background: rgba(0, 0, 0, .04); border-color: #E3D6C4; color: #5F6670; }
+.theme-light .rank-table td { border-color: #E3D6C4; }
+.theme-light .rank-table tr:hover { background: rgba(0, 0, 0, .04); }
+.theme-light .rank-table tr.active { background: rgba(0, 0, 0, .06); }
+.theme-light .rank-badge { color: #9A8B78; }
+.theme-light .rank-badge.rank-top3 { color: #1F2933; }
+.theme-light .rank-table tr.active .rank-badge { color: #1F2933; }
+.theme-light .name-text strong { color: #1F2933; }
+.theme-light .rate-num { color: #1F2933; }
+.theme-light .rate-track { background: rgba(0, 0, 0, .08); }
+.theme-light .rate-bar { background: #1F2933; }
 </style>

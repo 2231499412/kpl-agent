@@ -385,7 +385,7 @@ public class PlayerStatsTool {
             return clamp(55 + matchBonus * 8 + marginBonus, 55, 72);
         }
         if (containsAny(stage, "季后赛", "淘汰赛", "败者组", "胜者组")) {
-            return clamp(44 + matchBonus * 10 + marginBonus, 44, 62);
+            return clamp(44 + matchBonus * 8 + timeProgress * 18 + marginBonus, 44, 68);
         }
         if (containsAny(stage, "常规赛", "循环赛")) {
             double progressBonus = timeProgress * 22 + matchRatio * 12;

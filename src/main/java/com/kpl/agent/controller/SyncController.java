@@ -124,6 +124,16 @@ public class SyncController {
     }
 
     /**
+     * 修复比赛阶段描述（官方 API 把部分赛事的季后赛/决赛扁平化成「常规赛」）
+     * POST /api/sync/fix-match-stage
+     */
+    @PostMapping("/fix-match-stage")
+    public ApiResponse<Map<String, Object>> fixMatchStage() {
+        int count = dataSyncService.fixMatchStageDescription();
+        return ApiResponse.ok(Map.of("fixed", count));
+    }
+
+    /**
      * 重置指定赛季的分路数据并重新同步（修正英雄映射导致的分路错误）
      * POST /api/sync/reset-positions?leagueId=20200005
      */
