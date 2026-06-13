@@ -1,8 +1,10 @@
 package com.kpl.agent.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.kpl.agent.entity.Battle;
 import com.kpl.agent.entity.HeroStats;
 import com.kpl.agent.entity.League;
+import com.kpl.agent.entity.Match;
 import com.kpl.agent.entity.TeamStats;
 import com.kpl.agent.mapper.*;
 import com.kpl.agent.service.LeagueQueryService;
@@ -37,7 +39,7 @@ public class LeagueController {
     @GetMapping
     public ApiResponse<List<League>> list(@RequestParam(defaultValue = "20") int limit) {
         return ApiResponse.ok(queryCacheService.getOrLoad(
-                "kpl:query:leagues:" + limit,
+                "kpl:query:leagues:v2:" + limit,
                 Duration.ofSeconds(queryCacheTtlSeconds),
                 () -> leagueQueryService.listLeagues(limit)));
     }
@@ -57,16 +59,18 @@ public class LeagueController {
     @GetMapping("/stats")
     public ApiResponse<Map<String, Object>> globalStats() {
         return ApiResponse.ok(queryCacheService.getOrLoad(
-                "kpl:global:stats",
+                "kpl:global:stats:v2:noWp",
                 Duration.ofSeconds(queryCacheTtlSeconds),
                 () -> {
                     Map<String, Object> stats = new LinkedHashMap<>();
                     stats.put("teamCount", teamStatsMapper.selectCount(
-                            new QueryWrapper<TeamStats>().select("DISTINCT team_id")));
-                    stats.put("matchCount", matchMapper.selectCount(null));
+                            new QueryWrapper<TeamStats>().select("DISTINCT team_id").notLikeRight("league_id", "WP")));
+                    stats.put("matchCount", matchMapper.selectCount(
+                            new QueryWrapper<Match>().notLikeRight("league_id", "WP")));
                     stats.put("heroCount", heroStatsMapper.selectCount(
-                            new QueryWrapper<HeroStats>().select("DISTINCT hero_id")));
-                    stats.put("battleCount", battleMapper.selectCount(null));
+                            new QueryWrapper<HeroStats>().select("DISTINCT hero_id").notLikeRight("league_id", "WP")));
+                    stats.put("battleCount", battleMapper.selectCount(
+                            new QueryWrapper<Battle>().notLikeRight("match_id", "WP")));
                     return stats;
                 }));
     }

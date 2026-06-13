@@ -46,9 +46,12 @@ public class HeroStatsTool {
         return queryCacheService.getOrLoad(key, CACHE_TTL, () -> {
             List<HeroStats> list = heroStatsMapper.selectList(
                     new LambdaQueryWrapper<HeroStats>()
-                            .eq(HeroStats::getLeagueId, leagueId)
-                            .orderByDesc(HeroStats::getPickRate)
-                            .last("LIMIT " + topN));
+                            .eq(HeroStats::getLeagueId, leagueId));
+            boolean hasPickData = hasPickData(list);
+            list = list.stream()
+                    .sorted((a, b) -> compareForPickRanking(a, b, hasPickData))
+                    .limit(topN)
+                    .toList();
             return buildResult("hero_top_pick", "pick率TOP" + topN, list);
         });
     }
@@ -129,13 +132,33 @@ public class HeroStatsTool {
         } else {
             return null;
         }
-        return heroStatsMapper.selectList(wrapper.orderByDesc(HeroStats::getPickRate).last("LIMIT 1"))
+        HeroStats hero = heroStatsMapper.selectList(wrapper.orderByDesc(HeroStats::getPickRate).last("LIMIT 1"))
                 .stream()
                 .findFirst()
                 .orElse(null);
+        return hero;
+    }
+
+    private boolean hasPickData(List<HeroStats> list) {
+        return list != null && list.stream()
+                .anyMatch(hero -> nullToZero(hero.getPickRate()) > 0 || nullToZero(hero.getPickNum()) > 0);
+    }
+
+    private int compareForPickRanking(HeroStats a, HeroStats b, boolean hasPickData) {
+        if (hasPickData) {
+            int rateDiff = Double.compare(nullToZero(b.getPickRate()), nullToZero(a.getPickRate()));
+            if (rateDiff != 0) {
+                return rateDiff;
+            }
+        }
+        return Integer.compare(nullToZero(b.getBattleCount()), nullToZero(a.getBattleCount()));
     }
 
     private int nullToZero(Integer value) {
+        return value == null ? 0 : value;
+    }
+
+    private double nullToZero(Double value) {
         return value == null ? 0 : value;
     }
 

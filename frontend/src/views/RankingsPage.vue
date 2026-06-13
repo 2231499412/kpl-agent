@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <main class="app-shell has-sidebar rankings-console" :class="`theme-${theme}`">
     <section class="command-strip">
       <div class="brand-block">
@@ -89,7 +89,9 @@
         <div class="panel query-panel">
           <div class="section-head">
             <span>数据查询</span>
-            <el-segmented v-model="queryMode" :options="queryModes" />
+            <div class="sort-group">
+              <button v-for="m in queryModes" :key="m.value" :class="['sort-btn', { active: queryMode === m.value }]" @click="queryMode = m.value; runQuery()">{{ m.label }}</button>
+            </div>
           </div>
 
           <div class="query-bar">
@@ -815,7 +817,7 @@ async function loadStatus() {
 
 async function loadLeagues() {
   try {
-    const data = await request('/api/leagues?limit=30')
+    const data = await request('/api/leagues?limit=100')
     if (data?.length) {
       leagues.value = data
       localStorage.setItem('kpl_leagues', JSON.stringify(data))
@@ -1509,6 +1511,22 @@ onBeforeUnmount(() => {
 .rankings-console .section-head {
   border-bottom: 1px solid var(--mono-line);
   padding-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sort-group { display: flex; gap: 0; }
+.sort-btn {
+  padding: 6px 14px; border: 1px solid var(--mono-line); background: var(--card-bg);
+  color: var(--mono-soft); font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: all 0.15s; margin-left: -1px;
+}
+.sort-btn:first-child { margin-left: 0; }
+.sort-btn:hover { color: var(--mono-ink); background: var(--stat-bg); }
+.sort-btn.active {
+  background: var(--mono-ink); color: var(--mono-bg); border-color: var(--mono-ink);
+  z-index: 1; position: relative;
 }
 
 .rankings-console :deep(.el-button) {

@@ -104,6 +104,44 @@ public interface BattlePlayerMapper extends BaseMapper<BattlePlayer> {
                                                  @Param("limit") int limit);
 
     @Select("""
+            SELECT b.match_id AS matchId,
+                   m.match_stage AS matchStage,
+                   m.match_stage_desc AS matchStageDesc,
+                   m.start_time AS startTime,
+                   m.camp1_team_name AS camp1TeamName,
+                   m.camp1_score AS camp1Score,
+                   m.camp2_team_name AS camp2TeamName,
+                   m.camp2_score AS camp2Score,
+                   bp.team_name AS teamName,
+                   bp.player_name AS playerName,
+                   COUNT(*) AS battleCount,
+                   SUM(CASE WHEN bp.camp = b.win_camp THEN 1 ELSE 0 END) AS wins,
+                   CASE
+                       WHEN (bp.team_name = m.camp1_team_name AND m.camp1_score > m.camp2_score)
+                         OR (bp.team_name = m.camp2_team_name AND m.camp2_score > m.camp1_score)
+                       THEN 1 ELSE 0 END AS won,
+                   ROUND(AVG(bp.kill_num), 2) AS killNum,
+                   ROUND(AVG(bp.death_num), 2) AS deathNum,
+                   ROUND(AVG(bp.assist_num), 2) AS assistNum,
+                   ROUND(AVG(bp.kda), 2) AS kda,
+                   ROUND(AVG(bp.gold), 2) AS gold,
+                   ROUND(AVG(bp.participation_rate), 2) AS participationRate,
+                   MAX(bp.hero_name) AS heroName
+            FROM battle_player bp
+            JOIN battle b ON bp.battle_id = b.battle_id
+            JOIN `match` m ON b.match_id = m.match_id
+            WHERE (bp.player_name LIKE CONCAT('%', #{playerName}, '%')
+                OR SUBSTRING_INDEX(bp.player_name, '.', -1) = #{playerName})
+              AND (#{leagueId} IS NULL OR m.league_id = #{leagueId})
+            GROUP BY b.match_id, bp.team_name, bp.player_name
+            ORDER BY m.start_time DESC
+            LIMIT #{limit}
+            """)
+    List<Map<String, Object>> playerRecentMatches(@Param("playerName") String playerName,
+                                                  @Param("leagueId") String leagueId,
+                                                  @Param("limit") int limit);
+
+    @Select("""
             SELECT m.match_stage AS stage,
                    MAX(m.match_stage_desc) AS stageDesc,
                    COUNT(*) AS games,
@@ -133,8 +171,15 @@ public interface BattlePlayerMapper extends BaseMapper<BattlePlayer> {
                    MAX(l.season) AS season,
                    MIN(COALESCE(l.start_time, m.start_time)) AS startTime,
                    COUNT(*) AS games,
-                   SUM(CASE WHEN bp.camp = b.win_camp THEN 1 ELSE 0 END) AS wins,
-                   ROUND(SUM(CASE WHEN bp.camp = b.win_camp THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS winRate,
+                   COUNT(DISTINCT m.match_id) AS matches,
+                   COUNT(DISTINCT CASE
+                       WHEN (bp.team_name = m.camp1_team_name AND m.camp1_score > m.camp2_score)
+                         OR (bp.team_name = m.camp2_team_name AND m.camp2_score > m.camp1_score)
+                       THEN m.match_id END) AS wins,
+                   ROUND(COUNT(DISTINCT CASE
+                       WHEN (bp.team_name = m.camp1_team_name AND m.camp1_score > m.camp2_score)
+                         OR (bp.team_name = m.camp2_team_name AND m.camp2_score > m.camp1_score)
+                       THEN m.match_id END) * 100.0 / COUNT(DISTINCT m.match_id), 1) AS winRate,
                    ROUND(AVG(bp.kda), 2) AS avgKda,
                    ROUND(AVG(bp.kill_num), 2) AS avgKill,
                    ROUND(AVG(bp.death_num), 2) AS avgDeath,
@@ -155,6 +200,76 @@ public interface BattlePlayerMapper extends BaseMapper<BattlePlayer> {
             """)
     List<Map<String, Object>> playerLeagueTimeline(@Param("playerName") String playerName,
                                                     @Param("limit") int limit);
+
+    @Select("""
+            WITH target_position_rows AS (
+                SELECT m.league_id AS league_id,
+                       bp.position AS position,
+                       bp.position_desc AS position_desc,
+                       COUNT(*) AS games,
+                       MIN(COALESCE(l.start_time, m.start_time)) AS start_time
+                FROM battle_player bp
+                JOIN battle b ON bp.battle_id = b.battle_id
+                JOIN `match` m ON b.match_id = m.match_id
+                LEFT JOIN league l ON l.league_id = m.league_id
+                WHERE (bp.player_name LIKE CONCAT('%', #{playerName}, '%')
+                    OR SUBSTRING_INDEX(bp.player_name, '.', -1) = #{playerName})
+                GROUP BY m.league_id, bp.position, bp.position_desc
+            ),
+            target_position_ranked AS (
+                SELECT league_id,
+                       position,
+                       position_desc,
+                       games,
+                       start_time,
+                       ROW_NUMBER() OVER (PARTITION BY league_id ORDER BY games DESC, position_desc) AS rn
+                FROM target_position_rows
+            ),
+            target_leagues AS (
+                SELECT league_id, position, position_desc, start_time
+                FROM target_position_ranked
+                WHERE rn = 1
+                ORDER BY start_time DESC
+                LIMIT #{limit}
+            )
+            SELECT m.league_id AS leagueId,
+                   MAX(l.league_name) AS leagueName,
+                   SUBSTRING_INDEX(bp.player_name, '.', -1) AS playerName,
+                   bp.position AS position,
+                   bp.position_desc AS positionDesc,
+                   COUNT(*) AS games,
+                   COUNT(DISTINCT m.match_id) AS matches,
+                   COUNT(DISTINCT CASE
+                       WHEN (bp.team_name = m.camp1_team_name AND m.camp1_score > m.camp2_score)
+                         OR (bp.team_name = m.camp2_team_name AND m.camp2_score > m.camp1_score)
+                       THEN m.match_id END) AS wins,
+                   ROUND(COUNT(DISTINCT CASE
+                       WHEN (bp.team_name = m.camp1_team_name AND m.camp1_score > m.camp2_score)
+                         OR (bp.team_name = m.camp2_team_name AND m.camp2_score > m.camp1_score)
+                       THEN m.match_id END) * 100.0 / COUNT(DISTINCT m.match_id), 1) AS winRate,
+                   ROUND(AVG(bp.kda), 2) AS avgKda,
+                   ROUND(AVG(CASE WHEN b.game_duration > 0 THEN bp.gold * 60.0 / b.game_duration ELSE NULL END), 2) AS avgGoldPerMinute,
+                   ROUND(AVG(bp.participation_rate), 4) AS avgParticipationRate,
+                   ROUND(AVG(CASE WHEN b.game_duration > 0 THEN bp.hurt_to_hero * 60.0 / b.game_duration ELSE NULL END), 2) AS avgHurtToHeroPerMinute,
+                   ROUND(AVG(CASE WHEN b.game_duration > 0 THEN bp.be_hurt_total * 60.0 / b.game_duration ELSE NULL END), 2) AS avgBeHurtPerMinute,
+                   COUNT(DISTINCT bp.hero_id) AS heroCount,
+                   MAX(CASE WHEN (bp.player_name LIKE CONCAT('%', #{playerName}, '%')
+                       OR SUBSTRING_INDEX(bp.player_name, '.', -1) = #{playerName}) THEN 1 ELSE 0 END) AS targetPlayer
+            FROM battle_player bp
+            JOIN battle b ON bp.battle_id = b.battle_id
+            JOIN `match` m ON b.match_id = m.match_id
+            LEFT JOIN league l ON l.league_id = m.league_id
+            JOIN target_leagues tl ON tl.league_id = m.league_id
+                AND (
+                    (tl.position IS NOT NULL AND bp.position = tl.position)
+                    OR (tl.position IS NULL AND tl.position_desc = bp.position_desc)
+                )
+            GROUP BY m.league_id, SUBSTRING_INDEX(bp.player_name, '.', -1), bp.position, bp.position_desc
+            HAVING games >= 1
+            ORDER BY MAX(tl.start_time) DESC, games DESC
+            """)
+    List<Map<String, Object>> playerLeaguePerformancePool(@Param("playerName") String playerName,
+                                                           @Param("limit") int limit);
 
     @Select("""
             SELECT m.league_id AS leagueId,

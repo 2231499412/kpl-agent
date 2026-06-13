@@ -237,7 +237,11 @@ public class DataSyncService {
             bp.setBattleId(battleId);
             bp.setTeamId(p.path("team_id").asText(""));
             bp.setTeamName(p.path("team_name").asText(""));
-            bp.setPlayerName(p.path("actual_player_name").asText(""));
+            String playerName = p.path("actual_player_name").asText("");
+            if (playerName == null || playerName.isBlank()) {
+                playerName = p.path("player_name").asText("");
+            }
+            bp.setPlayerName(playerName);
             bp.setHeroId(p.path("hero_id").asInt(0));
             bp.setHeroName(p.path("hero_name").asText(""));
             // 归一化 camp 值

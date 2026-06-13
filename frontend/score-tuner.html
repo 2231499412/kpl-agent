@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>状态分样式调节器</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "Microsoft YaHei UI", sans-serif; background: #101113; color: #e8e8e8; padding: 24px; }
+  h1 { font-size: 16px; margin-bottom: 20px; color: #d7b45a; }
+  .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .preview { background: rgba(24,25,27,.92); border: 1px solid rgba(255,255,255,.15); border-radius: 12px; padding: 24px; }
+  .preview-title { font-size: 11px; color: rgba(255,255,255,.4); letter-spacing: 2px; margin-bottom: 16px; }
+  .profile-card { display: grid; grid-template-columns: 56px 1fr auto; align-items: center; gap: 14px; }
+  .avatar { width: 56px; height: 56px; border-radius: 50%; background: rgba(255,255,255,.08); display: grid; place-items: center; font-size: 22px; color: #d7b45a; }
+  .profile-main h2 { font-size: 24px; font-weight: 950; margin: 0; }
+  .profile-main p { font-size: 12px; color: rgba(255,255,255,.4); margin-top: 2px; }
+  .status-score { text-align: left; }
+  .status-score .score-num { display: block; position: relative; color: #87df55; font-size: 36px; font-weight: 950; line-height: 1; }
+  .status-score .score-label { display: block; color: rgba(255,255,255,.4); font-size: 11px; }
+  .score-hint { position: absolute; display: flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: rgba(255,255,255,.1); color: rgba(255,255,255,.4); font-size: 9px; font-weight: 700; font-style: normal; cursor: pointer; }
+  .controls { background: rgba(24,25,27,.92); border: 1px solid rgba(255,255,255,.15); border-radius: 12px; padding: 24px; }
+  .controls h2 { font-size: 13px; color: #d7b45a; margin-bottom: 16px; }
+  .ctrl-group { margin-bottom: 16px; }
+  .ctrl-group label { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: rgba(255,255,255,.6); margin-bottom: 6px; }
+  .ctrl-group label span { color: #87df55; font-weight: 700; font-family: monospace; }
+  input[type="range"] { width: 100%; accent-color: #d7b45a; }
+  .divider { height: 1px; background: rgba(255,255,255,.1); margin: 16px 0; }
+  .copy-btn { width: 100%; padding: 10px; background: #d7b45a; color: #101113; border: 0; border-radius: 4px; font-size: 13px; font-weight: 700; cursor: pointer; margin-top: 12px; }
+  .copy-btn:hover { background: #e5c97a; }
+  .output { background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.1); padding: 12px; margin-top: 12px; font-size: 11px; font-family: monospace; color: #87df55; white-space: pre-wrap; line-height: 1.6; max-height: 200px; overflow-y: auto; display: none; }
+</style>
+</head>
+<body>
+<h1>状态分样式调节器</h1>
+<div class="layout">
+  <!-- 预览 -->
+  <div class="preview">
+    <div class="preview-title">PREVIEW</div>
+    <div class="profile-card">
+      <div class="avatar">一</div>
+      <div class="profile-main">
+        <h2>一诺</h2>
+        <p>成都AG超玩会 · 对抗路</p>
+      </div>
+      <div class="status-score">
+        <strong class="score-num">
+          87
+          <i class="score-hint" id="hintPreview">?</i>
+        </strong>
+        <span class="score-label">综合状态分</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 控制面板 -->
+  <div class="controls">
+    <h2>问号图标位置</h2>
+    <div class="ctrl-group">
+      <label>top <span id="vHintTop">-2px</span></label>
+      <input type="range" id="hintTop" min="-10" max="10" value="-2" step="1">
+    </div>
+    <div class="ctrl-group">
+      <label>right <span id="vHintRight">0px</span></label>
+      <input type="range" id="hintRight" min="-10" max="20" value="0" step="1">
+    </div>
+
+    <div class="divider"></div>
+    <h2>得分数字位置</h2>
+    <div class="ctrl-group">
+      <label>padding-right (给问号留空间) <span id="vScorePr">18px</span></label>
+      <input type="range" id="scorePr" min="0" max="40" value="18" step="1">
+    </div>
+    <div class="ctrl-group">
+      <label>margin-top (数字与文字间距) <span id="vScoreMt">0px</span></label>
+      <input type="range" id="scoreMt" min="-10" max="20" value="0" step="1">
+    </div>
+
+    <div class="divider"></div>
+    <h2>综合状态分文字</h2>
+    <div class="ctrl-group">
+      <label>margin-top <span id="vLabelMt">4px</span></label>
+      <input type="range" id="labelMt" min="0" max="16" value="4" step="1">
+    </div>
+
+    <div class="divider"></div>
+    <h2>整体偏移</h2>
+    <div class="ctrl-group">
+      <label>status-score margin-top <span id="vBoxMt">0px</span></label>
+      <input type="range" id="boxMt" min="-20" max="20" value="0" step="1">
+    </div>
+
+    <button class="copy-btn" onclick="copyCSS()">复制 CSS</button>
+    <div class="output" id="output"></div>
+  </div>
+</div>
+
+<script>
+const hintTop = document.getElementById('hintTop');
+const hintRight = document.getElementById('hintRight');
+const scorePr = document.getElementById('scorePr');
+const scoreMt = document.getElementById('scoreMt');
+const labelMt = document.getElementById('labelMt');
+const boxMt = document.getElementById('boxMt');
+
+const hintPreview = document.getElementById('hintPreview');
+const scoreNum = document.querySelector('.score-num');
+const scoreLabel = document.querySelector('.score-label');
+const statusScore = document.querySelector('.status-score');
+
+function update() {
+  const ht = hintTop.value + 'px';
+  const hr = hintRight.value + 'px';
+  const sp = scorePr.value + 'px';
+  const sm = scoreMt.value + 'px';
+  const lm = labelMt.value + 'px';
+  const bm = boxMt.value + 'px';
+
+  document.getElementById('vHintTop').textContent = ht;
+  document.getElementById('vHintRight').textContent = hr;
+  document.getElementById('vScorePr').textContent = sp;
+  document.getElementById('vScoreMt').textContent = sm;
+  document.getElementById('vLabelMt').textContent = lm;
+  document.getElementById('vBoxMt').textContent = bm;
+
+  hintPreview.style.top = ht;
+  hintPreview.style.right = hr;
+  scoreNum.style.paddingRight = sp;
+  scoreNum.style.marginTop = sm;
+  scoreLabel.style.marginTop = lm;
+  statusScore.style.marginTop = bm;
+}
+
+[hintTop, hintRight, scorePr, scoreMt, labelMt, boxMt].forEach(el => el.addEventListener('input', update));
+
+function copyCSS() {
+  const css = `.status-score {
+  text-align: left;
+  align-self: center;
+  margin-top: ${boxMt.value}px;
+}
+.status-score strong {
+  display: block;
+  position: relative;
+  color: var(--green);
+  font-size: 36px;
+  line-height: 1;
+  padding-right: ${scorePr.value}px;
+  margin-top: ${scoreMt.value}px;
+}
+.status-score span {
+  display: block;
+  color: var(--dim);
+  font-size: 11px;
+  margin-top: ${labelMt.value}px;
+}
+.score-hint {
+  position: absolute;
+  top: ${hintTop.value}px;
+  right: ${hintRight.value}px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.1);
+  color: var(--dim);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .2s;
+}
+.score-hint:hover {
+  background: rgba(255,255,255,.2);
+  color: var(--text);
+}`;
+  const out = document.getElementById('output');
+  out.style.display = 'block';
+  out.textContent = css;
+  navigator.clipboard.writeText(css).then(() => {
+    out.textContent = '✅ 已复制到剪贴板！\n\n' + css;
+  });
+}
+
+update();
+</script>
+</body>
+</html>

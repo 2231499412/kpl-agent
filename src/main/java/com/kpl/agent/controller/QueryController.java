@@ -1,17 +1,27 @@
 package com.kpl.agent.controller;
 
 import com.kpl.agent.api.TencentNewsClient;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kpl.agent.service.LeagueQueryService;
 import com.kpl.agent.service.LaneRadarService;
 import com.kpl.agent.service.QueryCacheService;
 import com.kpl.agent.tool.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 直接查询接口：不经过 Agent，直接调用 Tool 查询数据
@@ -30,6 +40,11 @@ public class QueryController {
     private final LaneRadarService laneRadarService;
     private final QueryCacheService queryCacheService;
     private final TencentNewsClient tencentNewsClient;
+    private final ObjectMapper objectMapper;
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(5))
+            .build();
+    private static final Map<String, CoverImage> VIDEO_COVER_IMAGE_CACHE = new ConcurrentHashMap<>();
 
     @Value("${query.cache.ttl-seconds:600}")
     private long queryCacheTtlSeconds;
@@ -49,7 +64,7 @@ public class QueryController {
             @RequestParam(required = false) String leagueId,
             @RequestParam(defaultValue = "8") int limit) {
         String lid = leagueQueryService.requireLeagueId(leagueId);
-        return ApiResponse.ok(cached("playerDetailV2",
+        return ApiResponse.ok(cached("playerDetailV4",
                 () -> playerStatsTool.queryPlayerDetail(name, lid, limit),
                 lid, name, limit));
     }
@@ -60,7 +75,7 @@ public class QueryController {
             @RequestParam String name,
             @RequestParam(required = false) String leagueId) {
         String lid = leagueQueryService.requireLeagueId(leagueId);
-        return ApiResponse.ok(cached("hero", () -> heroStatsTool.queryByName(name, lid), lid, name));
+        return ApiResponse.ok(cached("heroV2", () -> heroStatsTool.queryByName(name, lid), lid, name));
     }
 
     /** 英雄高胜率选手：GET /api/query/hero/players?name=公孙离 */
@@ -82,7 +97,7 @@ public class QueryController {
             @RequestParam(defaultValue = "8") int limit) {
         String lid = leagueQueryService.requireLeagueId(leagueId);
         String resolvedName = heroName != null && !heroName.isBlank() ? heroName : name;
-        return ApiResponse.ok(cached("heroDetail",
+        return ApiResponse.ok(cached("heroDetailV2",
                 () -> heroStatsTool.queryHeroDetail(heroId, resolvedName, lid, limit),
                 lid, heroId, resolvedName, limit));
     }
@@ -106,7 +121,7 @@ public class QueryController {
             @RequestParam(defaultValue = "pick") String sort,
             @RequestParam(required = false) String leagueId) {
         String resolvedLeagueId = leagueQueryService.requireLeagueId(leagueId);
-        Map<String, Object> data = cached("heroTop", () -> switch (sort) {
+        Map<String, Object> data = cached("heroTopV2", () -> switch (sort) {
             case "ban" -> heroStatsTool.queryTopBanRate(resolvedLeagueId, 9999);
             case "win" -> heroStatsTool.queryTopWinRate(resolvedLeagueId, 5, 9999);
             default -> heroStatsTool.queryTopPickRate(resolvedLeagueId, 9999);
@@ -166,6 +181,47 @@ public class QueryController {
         return ApiResponse.ok(cached("battlePlayers", () -> matchAnalysisTool.queryBattlePlayers(battleId), battleId));
     }
 
+    /** 视频封面：GET /api/query/video/cover?bvid=BVxxx */
+    @GetMapping("/video/cover")
+    public ApiResponse<Map<String, Object>> queryVideoCover(@RequestParam String bvid) {
+        String normalized = bvid == null ? "" : bvid.trim();
+        return ApiResponse.ok(cached("videoCoverV1", () -> fetchBilibiliCover(normalized), normalized));
+    }
+
+    /** 视频封面图片代理：GET /api/query/video/cover-image?bvid=BVxxx */
+    @GetMapping("/video/cover-image")
+    public ResponseEntity<byte[]> queryVideoCoverImage(@RequestParam String bvid) {
+        String normalized = bvid == null ? "" : bvid.trim();
+        CoverImage cachedImage = VIDEO_COVER_IMAGE_CACHE.get(normalized);
+        if (cachedImage != null) {
+            return coverImageResponse(cachedImage);
+        }
+        Map<String, Object> meta = cached("videoCoverV1", () -> fetchBilibiliCover(normalized), normalized);
+        String coverUrl = String.valueOf(meta.getOrDefault("coverUrl", ""));
+        if (coverUrl.isBlank()) {
+            return ResponseEntity.notFound().build();
+        }
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(coverUrl))
+                    .timeout(Duration.ofSeconds(3))
+                    .header("User-Agent", "Mozilla/5.0")
+                    .header("Referer", "https://www.bilibili.com")
+                    .GET()
+                    .build();
+            HttpResponse<byte[]> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            if (response.statusCode() < 200 || response.statusCode() >= 300 || response.body().length == 0) {
+                return ResponseEntity.notFound().build();
+            }
+            String contentType = response.headers().firstValue("content-type").orElse(MediaType.IMAGE_JPEG_VALUE);
+            CoverImage image = new CoverImage(response.body(), contentType);
+            VIDEO_COVER_IMAGE_CACHE.put(normalized, image);
+            return coverImageResponse(image);
+        } catch (Exception ignored) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     /** 对位雷达图：GET /api/query/radar/lane?leagueId=xxx&matchId=xxx&battleId=xxx&role=打野 */
     @GetMapping("/radar/lane")
     public ApiResponse<Map<String, Object>> queryLaneRadar(
@@ -174,7 +230,7 @@ public class QueryController {
             @RequestParam String battleId,
             @RequestParam(defaultValue = "对抗路") String role) {
         String lid = leagueQueryService.requireLeagueId(leagueId);
-        return ApiResponse.ok(cached("laneRadar",
+        return ApiResponse.ok(cached("laneRadarV2",
                 () -> laneRadarService.buildRadar(lid, matchId, battleId, role),
                 lid, matchId, battleId, role));
     }
@@ -265,4 +321,51 @@ public class QueryController {
                 .collect(java.util.stream.Collectors.joining(":"));
         return queryCacheService.getOrLoad(key, Duration.ofSeconds(queryCacheTtlSeconds), loader);
     }
+
+    private Map<String, Object> fetchBilibiliCover(String bvid) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("type", "video_cover");
+        result.put("bvid", bvid);
+        if (bvid == null || !bvid.startsWith("BV")) {
+            result.put("coverUrl", "");
+            result.put("title", "");
+            return result;
+        }
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.bilibili.com/x/web-interface/view?bvid=" + bvid))
+                    .timeout(Duration.ofSeconds(8))
+                    .header("User-Agent", "Mozilla/5.0")
+                    .header("Referer", "https://www.bilibili.com")
+                    .GET()
+                    .build();
+            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                result.put("coverUrl", "");
+                result.put("title", "");
+                return result;
+            }
+            JsonNode data = objectMapper.readTree(response.body()).path("data");
+            String coverUrl = data.path("pic").asText("");
+            if (coverUrl.startsWith("http://")) {
+                coverUrl = "https://" + coverUrl.substring("http://".length());
+            }
+            result.put("coverUrl", coverUrl);
+            result.put("title", data.path("title").asText(""));
+            return result;
+        } catch (Exception ignored) {
+            result.put("coverUrl", "");
+            result.put("title", "");
+            return result;
+        }
+    }
+
+    private ResponseEntity<byte[]> coverImageResponse(CoverImage image) {
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(image.contentType()))
+                .header("Cache-Control", "public, max-age=86400")
+                .body(image.bytes());
+    }
+
+    private record CoverImage(byte[] bytes, String contentType) {}
 }

@@ -365,7 +365,7 @@ onMounted(async () => {
     const [statsRes, matchRes, leagueRes] = await Promise.allSettled([
       fetch('/api/leagues/stats').then((r) => r.json()),
       fetch('/api/query/match/schedule').then((r) => r.json()),
-      fetch('/api/leagues?limit=50').then((r) => r.json()),
+      fetch('/api/leagues?limit=100').then((r) => r.json()),
     ])
 
     const statsData = statsRes.status === 'fulfilled' ? statsRes.value?.data : {}

@@ -236,15 +236,37 @@
         <article class="panel featured-panel">
           <PanelTitle tag="FEATURED GAMES" title="推荐代表场次" note="高光 / 逆风尽力 / 招牌英雄" />
           <div class="featured-list">
-            <div v-for="(battle, index) in featuredBattles" :key="battle.battleId" class="battle-row">
-              <b class="battle-rank">{{ index + 1 }}</b>
+            <div
+              v-for="(battle, index) in featuredBattles"
+              :key="battle.battleId"
+              class="battle-row"
+              :class="{ clickable: Boolean(videoUrl(battle)) }"
+              role="link"
+              tabindex="0"
+              @click="openBattleVideo(battle)"
+              @keydown.enter.prevent="openBattleVideo(battle)"
+            >
+              <div class="battle-thumb" :style="battleThumbStyle(battle)">
+                <img
+                  :src="battleCover(battle)"
+                  :alt="battle.heroName || '推荐代表场次'"
+                  :class="{ loaded: isBattleCoverLoaded(battle) }"
+                  :loading="index < 3 ? 'eager' : 'lazy'"
+                  :fetchpriority="index < 3 ? 'high' : 'auto'"
+                  decoding="async"
+                  @load="markBattleCoverLoaded(battle)"
+                  @error="fallbackBattleCover($event, battle)"
+                >
+                <span>{{ index + 1 }}</span>
+                <i v-if="isBilibili(battle)">B站</i>
+              </div>
               <div class="battle-main">
                 <span>{{ battle.matchStageDesc || '赛段' }} · 第{{ battle.battleSeq || '-' }}局</span>
                 <strong>{{ battle.camp1TeamName }} {{ battle.camp1Score ?? '-' }} : {{ battle.camp2Score ?? '-' }} {{ battle.camp2TeamName }}</strong>
                 <em>{{ battle.heroName }} · {{ battle.killNum }}/{{ battle.deathNum }}/{{ battle.assistNum }} · KDA {{ fixed(battle.kda, 2) }}</em>
               </div>
               <div class="battle-score">
-                <a v-if="videoUrl(battle)" :href="videoUrl(battle)" target="_blank" rel="noopener" :class="['video-link', isBilibili(battle) ? 'bilibili' : 'tencent']" :title="isBilibili(battle) ? '在B站观看' : '在腾讯视频观看'">
+                <a v-if="videoUrl(battle)" :href="videoUrl(battle)" target="_blank" rel="noopener" :class="['video-link', isBilibili(battle) ? 'bilibili' : 'tencent']" :title="isBilibili(battle) ? '在B站观看' : '在腾讯视频观看'" @click.stop>
                   <svg v-if="isBilibili(battle)" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.813 4.653h.854c1.51.054 2.769.578 3.773 1.574 1.004.995 1.524 2.249 1.56 3.76v7.36c-.036 1.51-.556 2.769-1.56 3.773s-2.262 1.524-3.773 1.56H5.333c-1.51-.036-2.769-.556-3.773-1.56S.036 18.858 0 17.347v-7.36c.036-1.511.556-2.765 1.56-3.76 1.004-.996 2.262-1.52 3.773-1.574h.774l-1.174-1.12a1.234 1.234 0 0 1-.373-.906c0-.356.124-.658.373-.907l.027-.027c.267-.249.573-.373.92-.373.347 0 .653.124.92.373L9.653 4.44c.071.071.134.142.187.213h4.267a.836.836 0 0 1 .16-.213l2.853-2.747c.267-.249.573-.373.92-.373.347 0 .662.124.929.373.267.249.391.551.391.907 0 .355-.124.657-.373.906zM5.333 7.24c-.746.018-1.373.276-1.88.773-.506.498-.769 1.13-.786 1.894v7.52c.017.764.28 1.395.786 1.893.507.498 1.134.756 1.88.773h13.334c.746-.017 1.373-.275 1.88-.773.506-.498.769-1.129.786-1.893v-7.52c-.017-.765-.28-1.396-.786-1.894-.507-.497-1.134-.755-1.88-.773zM8 11.107c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c0-.373.129-.689.386-.947.258-.257.574-.386.947-.386zm8 0c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c.017-.391.15-.711.4-.96.249-.249.56-.373.933-.373z"/></svg>
                   <svg v-else viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
                 </a>
@@ -285,6 +307,7 @@ const stageMode = ref('stage')
 const selectedLeagueTrendId = ref('')
 const leagueTabsRef = ref(null)
 const routeReady = ref(false)
+const loadedBattleCovers = ref({})
 let detailRequestId = 0
 watch(theme, (value) => setTheme(value))
 
@@ -299,6 +322,11 @@ const featuredBattles = computed(() => detail.value?.featuredBattles || [])
 const comparison = computed(() => detail.value?.positionComparison || {})
 const compareAvg = computed(() => comparison.value?.avg || {})
 const compareRank = computed(() => comparison.value?.rank || {})
+
+watch(featuredBattles, (items) => {
+  preloadBattleCoverImages(items)
+}, { flush: 'post' })
+
 const currentLeagueName = computed(() => leagues.value.find(item => item.leagueId === selectedLeagueId.value)?.leagueName || '当前赛事')
 const returnTarget = computed(() => {
   if (!route.query.returnHeroId) return null
@@ -466,7 +494,7 @@ async function request(path, options = {}) {
 
 async function loadLeagues() {
   try {
-    const data = await request('/api/leagues?limit=30')
+    const data = await request('/api/leagues?limit=100')
     if (Array.isArray(data) && data.length) {
       leagues.value = data
       localStorage.setItem('kpl_leagues', JSON.stringify(data))
@@ -743,6 +771,69 @@ function videoUrl(battle) {
 
 function isBilibili(battle) {
   return battle.bvid && battle.bvid.startsWith('BV')
+}
+
+function heroPoster(hero) {
+  const heroId = hero?.heroId
+  return heroId
+    ? `https://game.gtimg.cn/images/yxzj/img201606/skin/hero-info/${heroId}/${heroId}-bigskin-1.jpg`
+    : heroIcon(hero)
+}
+
+function battleCover(battle) {
+  if (isBilibili(battle)) {
+    return `/api/query/video/cover-image?bvid=${encodeURIComponent(battle.bvid)}`
+  }
+  return heroPoster(battle)
+}
+
+function battleThumbStyle(battle) {
+  const fallback = heroPoster(battle)
+  return fallback ? { '--fallback-cover': `url("${fallback}")` } : {}
+}
+
+function battleCoverKey(battle) {
+  return battle?.battleId || battle?.bvid || ''
+}
+
+function isBattleCoverLoaded(battle) {
+  return Boolean(loadedBattleCovers.value[battleCoverKey(battle)])
+}
+
+function markBattleCoverLoaded(battle) {
+  const key = battleCoverKey(battle)
+  if (!key) return
+  loadedBattleCovers.value = {
+    ...loadedBattleCovers.value,
+    [key]: true,
+  }
+}
+
+function fallbackBattleCover(event, battle) {
+  const fallback = heroPoster(battle)
+  if (fallback && event.target.src !== fallback) {
+    event.target.src = fallback
+    return
+  }
+  hideBroken(event)
+}
+
+function preloadBattleCoverImages(items = [], limit = 5) {
+  const urls = [...new Set(items
+    .filter(item => isBilibili(item))
+    .map(item => battleCover(item)))]
+    .slice(0, limit)
+  urls.forEach((url) => {
+    const image = new Image()
+    image.decoding = 'async'
+    image.src = url
+  })
+}
+
+function openBattleVideo(battle) {
+  const url = videoUrl(battle)
+  if (!url) return
+  window.open(url, '_blank', 'noopener')
 }
 
 function formatCompact(value) {
@@ -1454,8 +1545,13 @@ onMounted(async () => {
 .stage-row,
 .battle-row {
   border-bottom: 1px solid var(--line);
-  cursor: pointer;
   transition: background .2s ease, padding-left .2s ease;
+}
+
+.hero-row,
+.stage-row,
+.battle-row.clickable {
+  cursor: pointer;
 }
 
 .hero-row:hover,
@@ -1681,15 +1777,105 @@ onMounted(async () => {
 
 .battle-row {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) 58px;
+  grid-template-columns: 92px minmax(0, 1fr) 58px;
   align-items: center;
-  gap: 8px;
-  min-height: 58px;
-  padding: 7px 4px;
+  gap: 10px;
+  min-height: 74px;
+  padding: 8px 4px;
+  transition: background .2s ease, border-color .2s ease;
 }
-.battle-rank {
-  color: var(--gold);
-  font-size: 16px;
+
+.battle-row.clickable:hover .battle-thumb img.loaded {
+  transform: scale(1.08);
+}
+
+.battle-row:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.battle-thumb {
+  position: relative;
+  min-width: 0;
+  height: 58px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, .02), rgba(255, 255, 255, .18), rgba(255, 255, 255, .02)),
+    var(--fallback-cover),
+    rgba(255, 255, 255, .06);
+  background-size: 220% 100%, cover, auto;
+  background-position: -120% 0, center, center;
+  animation: cover-skeleton 1.15s ease-in-out infinite;
+}
+
+.battle-thumb img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  opacity: 0;
+  filter: saturate(.92) contrast(.96);
+  transform: scale(1.04);
+  transition: opacity .42s ease, filter .42s ease, transform .56s cubic-bezier(.2, .72, .18, 1);
+}
+
+.battle-thumb img.loaded {
+  opacity: 1;
+  filter: saturate(1.04) contrast(1.02);
+  transform: scale(1.02);
+}
+
+.battle-thumb:has(img.loaded) {
+  animation: none;
+}
+
+.battle-thumb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 28%, rgba(0, 0, 0, .58));
+}
+
+.battle-thumb span,
+.battle-thumb i {
+  position: absolute;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.battle-thumb span {
+  left: 6px;
+  top: 6px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, .58);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.battle-thumb i {
+  right: 6px;
+  bottom: 6px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: rgba(0, 174, 236, .88);
+  color: #fff;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+@keyframes cover-skeleton {
+  0% { background-position: -120% 0, center, center; }
+  100% { background-position: 120% 0, center, center; }
 }
 .battle-main {
   min-width: 0;
@@ -2059,8 +2245,12 @@ onMounted(async () => {
   color: #16A34A;
 }
 
-.player-insights.theme-light .battle-row .battle-rank {
-  color: #B88A2E;
+.player-insights.theme-light .battle-thumb {
+  border-color: #E3D6C4;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, .18), rgba(255, 255, 255, .56), rgba(255, 255, 255, .18)),
+    var(--fallback-cover),
+    #F5EFE4;
 }
 
 .player-insights.theme-light .battle-main span,
@@ -2369,8 +2559,7 @@ onMounted(async () => {
 .player-insights.theme-light .metric-card.light strong,
 .player-insights.theme-light .battle-score strong,
 .player-insights.theme-light .hero-row em,
-.player-insights.theme-light .league-summary em,
-.player-insights.theme-light .battle-row .battle-rank { color: #B88A2E; }
+.player-insights.theme-light .league-summary em { color: #B88A2E; }
 
 .player-insights.theme-light .mini-stat-row div,
 .player-insights.theme-light .league-tabs button,

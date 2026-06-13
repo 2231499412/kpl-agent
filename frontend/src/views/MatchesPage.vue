@@ -190,7 +190,7 @@ const groupedMatches = computed(() => {
 async function init() {
   try {
     const [leagueRes, teamRes] = await Promise.allSettled([
-      fetch('/api/leagues?limit=50').then(r => r.json()),
+      fetch('/api/leagues?limit=100').then(r => r.json()),
       fetch('/api/query/team/ranking').then(r => r.json()),
     ])
     leagues.value = leagueRes.status === 'fulfilled' ? leagueRes.value?.data || [] : []

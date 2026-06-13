@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -121,14 +122,127 @@ public class PlayerStatsTool {
         result.put("type", "player_detail");
         result.put("keyword", resolvedName);
         result.put("player", player);
-        result.put("recentGames", battlePlayerMapper.playerRecentGames(resolvedName, leagueId, 10));
+        result.put("recentGames", battlePlayerMapper.playerRecentMatches(resolvedName, leagueId, 10));
+        result.put("recentGamesByBattle", battlePlayerMapper.playerRecentGames(resolvedName, leagueId, 10));
         result.put("heroPool", battlePlayerMapper.playerHeroStats(resolvedName, leagueId, rowLimit));
         result.put("stageStats", battlePlayerMapper.playerStageStats(resolvedName, leagueId));
-        result.put("leagueTimeline", battlePlayerMapper.playerLeagueTimeline(resolvedName, 12));
+        List<Map<String, Object>> leagueTimeline = battlePlayerMapper.playerLeagueTimeline(resolvedName, 12);
+        enrichLeaguePerformanceIndex(leagueTimeline, battlePlayerMapper.playerLeaguePerformancePool(resolvedName, 12));
+        result.put("leagueTimeline", leagueTimeline);
         result.put("leagueHeroMatrix", battlePlayerMapper.playerLeagueHeroMatrix(resolvedName, 1, 120));
         result.put("featuredBattles", battlePlayerMapper.playerFeaturedBattles(resolvedName, leagueId, rowLimit));
         result.put("positionComparison", buildPositionComparison(player, leagueId));
         return result;
+    }
+
+    private void enrichLeaguePerformanceIndex(List<Map<String, Object>> timeline, List<Map<String, Object>> performancePool) {
+        if (timeline == null || timeline.isEmpty() || performancePool == null || performancePool.isEmpty()) {
+            return;
+        }
+
+        Map<String, List<Map<String, Object>>> rowsByLeague = new LinkedHashMap<>();
+        for (Map<String, Object> row : performancePool) {
+            String leagueId = text(row.get("leagueId"));
+            if (leagueId.isBlank()) continue;
+            rowsByLeague.computeIfAbsent(leagueId, key -> new ArrayList<>()).add(row);
+        }
+
+        for (Map<String, Object> league : timeline) {
+            String leagueId = text(league.get("leagueId"));
+            List<Map<String, Object>> peers = rowsByLeague.get(leagueId);
+            if (peers == null || peers.isEmpty()) continue;
+
+            Map<String, Object> target = peers.stream()
+                    .filter(row -> number(row.get("targetPlayer")) > 0)
+                    .findFirst()
+                    .orElse(null);
+            if (target == null) continue;
+
+            Map<String, Double> weights = positionWeights(text(target.get("positionDesc")));
+            Map<String, Object> breakdown = new LinkedHashMap<>();
+            double score = 0;
+            for (Map.Entry<String, Double> entry : weights.entrySet()) {
+                double percentile = percentile(peers, target, entry.getKey());
+                breakdown.put(entry.getKey(), round(percentile, 1));
+                score += percentile * entry.getValue();
+            }
+
+            league.put("performanceIndex", round(score, 1));
+            league.put("performancePositionDesc", target.get("positionDesc"));
+            league.put("performancePeerCount", peers.size());
+            league.put("performanceBreakdown", breakdown);
+            league.put("performanceWeights", weights);
+        }
+    }
+
+    private Map<String, Double> positionWeights(String positionDesc) {
+        Map<String, Double> weights = new LinkedHashMap<>();
+        String position = positionDesc == null ? "" : positionDesc;
+        if (position.contains("对抗")) {
+            weights.put("winRate", 0.12);
+            weights.put("avgKda", 0.13);
+            weights.put("avgGoldPerMinute", 0.12);
+            weights.put("avgParticipationRate", 0.13);
+            weights.put("avgHurtToHeroPerMinute", 0.20);
+            weights.put("avgBeHurtPerMinute", 0.25);
+            weights.put("games", 0.05);
+        } else if (position.contains("打野")) {
+            weights.put("winRate", 0.12);
+            weights.put("avgKda", 0.16);
+            weights.put("avgGoldPerMinute", 0.18);
+            weights.put("avgParticipationRate", 0.22);
+            weights.put("avgHurtToHeroPerMinute", 0.20);
+            weights.put("avgBeHurtPerMinute", 0.07);
+            weights.put("games", 0.05);
+        } else if (position.contains("中路")) {
+            weights.put("winRate", 0.12);
+            weights.put("avgKda", 0.16);
+            weights.put("avgGoldPerMinute", 0.14);
+            weights.put("avgParticipationRate", 0.16);
+            weights.put("avgHurtToHeroPerMinute", 0.32);
+            weights.put("avgBeHurtPerMinute", 0.05);
+            weights.put("games", 0.05);
+        } else if (position.contains("发育")) {
+            weights.put("winRate", 0.12);
+            weights.put("avgKda", 0.18);
+            weights.put("avgGoldPerMinute", 0.22);
+            weights.put("avgParticipationRate", 0.12);
+            weights.put("avgHurtToHeroPerMinute", 0.30);
+            weights.put("avgBeHurtPerMinute", 0.01);
+            weights.put("games", 0.05);
+        } else if (position.contains("游走")) {
+            weights.put("winRate", 0.14);
+            weights.put("avgKda", 0.12);
+            weights.put("avgGoldPerMinute", 0.05);
+            weights.put("avgParticipationRate", 0.27);
+            weights.put("avgHurtToHeroPerMinute", 0.29);
+            weights.put("avgBeHurtPerMinute", 0.08);
+            weights.put("games", 0.05);
+        } else {
+            weights.put("winRate", 0.15);
+            weights.put("avgKda", 0.18);
+            weights.put("avgGoldPerMinute", 0.15);
+            weights.put("avgParticipationRate", 0.18);
+            weights.put("avgHurtToHeroPerMinute", 0.18);
+            weights.put("avgBeHurtPerMinute", 0.11);
+            weights.put("games", 0.05);
+        }
+        return weights;
+    }
+
+    private double percentile(List<Map<String, Object>> peers, Map<String, Object> target, String metric) {
+        double targetValue = number(target.get(metric));
+        if (!Double.isFinite(targetValue)) return 50;
+
+        List<Double> values = peers.stream()
+                .map(row -> number(row.get(metric)))
+                .filter(Double::isFinite)
+                .toList();
+        if (values.size() <= 1) return 50;
+
+        long lower = values.stream().filter(value -> value < targetValue).count();
+        long equal = values.stream().filter(value -> Double.compare(value, targetValue) == 0).count();
+        return Math.max(0, Math.min(100, (lower + Math.max(0, equal - 1) * 0.5) * 100.0 / (values.size() - 1)));
     }
 
     private PlayerStats findPlayer(String playerName, String leagueId) {
@@ -191,6 +305,26 @@ public class PlayerStatsTool {
             }
         }
         return 0;
+    }
+
+    private double number(Object value) {
+        if (value instanceof Number number) return number.doubleValue();
+        if (value == null) return Double.NaN;
+        try {
+            return Double.parseDouble(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return Double.NaN;
+        }
+    }
+
+    private String text(Object value) {
+        return value == null ? "" : String.valueOf(value);
+    }
+
+    private double round(double value, int digits) {
+        if (!Double.isFinite(value)) return 0;
+        double factor = Math.pow(10, digits);
+        return Math.round(value * factor) / factor;
     }
 
     private Map<String, Object> buildResult(String type, String keyword, List<?> list) {

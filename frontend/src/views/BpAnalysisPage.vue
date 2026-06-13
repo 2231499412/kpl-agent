@@ -217,7 +217,7 @@ async function request(path) {
 
 async function loadLeagues() {
   try {
-    leagues.value = await request('/api/leagues?limit=30')
+    leagues.value = await request('/api/leagues?limit=100')
     if (leagues.value.length && !selectedLeagueId.value) {
       selectedLeagueId.value = leagues.value[0].leagueId
     }

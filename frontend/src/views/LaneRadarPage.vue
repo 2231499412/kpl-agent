@@ -209,6 +209,7 @@
 
 <script setup>
 import { computed, defineComponent, h, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { getTheme, setTheme } from '../utils/theme'
 
 const roleOptions = [
@@ -218,6 +219,8 @@ const roleOptions = [
   { label: '发育', value: '发育路' },
   { label: '游走', value: '游走' },
 ]
+const route = useRoute()
+const router = useRouter()
 const leagues = ref([])
 const matches = ref([])
 const battles = ref([])
@@ -237,6 +240,7 @@ const roleNavRef = ref(null)
 const roleBtnRefs = {}
 const pillStyle = ref({})
 const wheelHintVisible = ref(true)
+const routeReady = ref(false)
 let wheelHintShown = false
 
 let wheelTimer = null
@@ -248,6 +252,7 @@ function onWheel(e) {
   const next = e.deltaY > 0 ? Math.min(idx + 1, roleOptions.length - 1) : Math.max(idx - 1, 0)
   if (next === idx) return
   selectedRole.value = roleOptions[next].value
+  syncSelectionQuery()
   loadRadar()
   nextTick(() => updatePill())
   wheelTimer = setTimeout(() => { wheelTimer = null }, 600)
@@ -269,6 +274,7 @@ function onTouchEnd(e) {
   const next = dx < 0 ? Math.min(idx + 1, roleOptions.length - 1) : Math.max(idx - 1, 0)
   if (next === idx) return
   selectedRole.value = roleOptions[next].value
+  syncSelectionQuery()
   loadRadar()
   nextTick(() => updatePill())
   wheelTimer = setTimeout(() => { wheelTimer = null }, 600)
@@ -276,6 +282,7 @@ function onTouchEnd(e) {
 
 function selectRole(value) {
   selectedRole.value = value
+  syncSelectionQuery()
   loadRadar()
   nextTick(() => updatePill())
 }
@@ -290,6 +297,43 @@ function updatePill() {
     left: (btnRect.left - navRect.left) + 'px',
     width: btnRect.width + 'px',
   }
+}
+
+function queryValue(value) {
+  return Array.isArray(value) ? value[0] : value
+}
+
+function matchSortTimestamp(match) {
+  const value = match?.startTime || match?.start_time || match?.startTimeText || ''
+  const timestamp = value ? new Date(value).getTime() : 0
+  return Number.isFinite(timestamp) ? timestamp : 0
+}
+
+function matchSortId(match) {
+  const id = Number(match?.matchId || match?.match_id || 0)
+  return Number.isFinite(id) ? id : 0
+}
+
+function sortMatchesByScheduleDesc(items) {
+  return [...(items || [])].sort((a, b) => {
+    const timeDiff = matchSortTimestamp(b) - matchSortTimestamp(a)
+    if (timeDiff) return timeDiff
+    return matchSortId(b) - matchSortId(a)
+  })
+}
+
+function syncSelectionQuery() {
+  if (!routeReady.value) return
+  const query = { ...route.query }
+  if (selectedLeagueId.value) query.leagueId = selectedLeagueId.value
+  else delete query.leagueId
+  if (selectedMatchId.value) query.matchId = selectedMatchId.value
+  else delete query.matchId
+  if (selectedBattleId.value) query.battleId = selectedBattleId.value
+  else delete query.battleId
+  if (selectedRole.value) query.role = selectedRole.value
+  else delete query.role
+  router.replace({ query }).catch(() => {})
 }
 
 const center = 230
@@ -443,9 +487,15 @@ async function request(url) {
 }
 
 async function init() {
-  leagues.value = await request('/api/leagues?limit=50').catch(() => [])
+  leagues.value = await request('/api/leagues?limit=100').catch(() => [])
+  const queryLeagueId = String(queryValue(route.query.leagueId) || '')
+  const queryRole = String(queryValue(route.query.role) || '')
+  if (queryRole && roleOptions.some(item => item.value === queryRole)) {
+    selectedRole.value = queryRole
+  }
   if (leagues.value.length) {
-    selectedLeagueId.value = leagues.value[0].leagueId
+    const matchedLeague = leagues.value.find(item => item.leagueId === queryLeagueId) || leagues.value[0]
+    selectedLeagueId.value = matchedLeague.leagueId
     await loadMatches()
   }
 }
@@ -455,6 +505,7 @@ async function onLeagueChange() {
   selectedBattleId.value = ''
   radarData.value = null
   wheelHintShown = false
+  syncSelectionQuery()
   await loadMatches()
 }
 
@@ -463,9 +514,14 @@ async function loadMatches() {
   matches.value = []
   battles.value = []
   const data = await request(`/api/query/match/schedule?leagueId=${selectedLeagueId.value}`).catch(() => ({ data: [] }))
-  matches.value = data?.data || []
+  matches.value = sortMatchesByScheduleDesc(data?.data || [])
   if (matches.value.length) {
-    selectedMatchId.value = matches.value[0].matchId
+    const queryMatchId = String(queryValue(route.query.matchId) || '')
+    const matchedMatch = matches.value.find(item => item.matchId === queryMatchId)
+      || matches.value.find(item => item.matchId === selectedMatchId.value)
+      || matches.value[0]
+    selectedMatchId.value = matchedMatch.matchId
+    syncSelectionQuery()
     await loadBattles()
   }
 }
@@ -474,11 +530,13 @@ async function onMatchChange() {
   selectedBattleId.value = ''
   radarData.value = null
   wheelHintShown = false
+  syncSelectionQuery()
   await loadBattles()
 }
 
 function onBattleChange() {
   wheelHintShown = false
+  syncSelectionQuery()
   loadRadar()
 }
 
@@ -503,13 +561,19 @@ async function loadBattles() {
     },
   ]
   if (battles.value.length) {
-    selectedBattleId.value = battles.value[0].battle?.battleId
+    const queryBattleId = String(queryValue(route.query.battleId) || '')
+    const matchedBattle = battles.value.find(item => item.battle?.battleId === queryBattleId)
+      || battles.value.find(item => item.battle?.battleId === selectedBattleId.value)
+      || battles.value[0]
+    selectedBattleId.value = matchedBattle?.battle?.battleId || ''
+    syncSelectionQuery()
     await loadRadar()
   }
 }
 
 async function loadRadar() {
   if (!selectedLeagueId.value || !selectedMatchId.value || !selectedBattleId.value) return
+  syncSelectionQuery()
   loading.value = true
   errorText.value = ''
   try {
@@ -696,6 +760,8 @@ function onResize() {
 }
 onMounted(async () => {
   await init()
+  routeReady.value = true
+  syncSelectionQuery()
   nextTick(updatePill)
   window.addEventListener('resize', onResize)
 })
