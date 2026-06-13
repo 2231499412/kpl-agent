@@ -1326,11 +1326,15 @@ onUnmounted(() => {
 
   .detail-shell {
     grid-template-columns: 1fr;
+    width: 100%;
+    min-width: 0;
   }
 
   .skin-panel {
     border-left: 0;
     border-top: 1px solid var(--mono-line);
+    min-width: 0;
+    overflow: hidden;
   }
 
   .skin-grid {
@@ -1351,6 +1355,11 @@ onUnmounted(() => {
   .gallery-grid,
   .loading-panel {
     width: 100%;
+  }
+
+  .gallery-dialog :deep(.el-dialog__body) {
+    width: 100%;
+    overflow: hidden;
   }
 
   .gallery-header {
@@ -1420,13 +1429,83 @@ onUnmounted(() => {
   }
 
   .skin-panel {
-    max-height: 44vh;
+    max-height: none;
     padding: 12px;
-    overflow-y: auto;
+    overflow-y: visible;
   }
 
   .skin-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+}
+</style>
+
+<!-- unscoped: dialog rendered at body level, scoped styles don't reach it -->
+<style>
+.gallery-dialog .skin-grid {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  overflow: visible !important;
+}
+.gallery-dialog .skin-grid button {
+  position: relative !important;
+  width: calc((100% - 16px) / 3) !important;
+  height: auto !important;
+  aspect-ratio: 9 / 16 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(0, 0, 0, .12) !important;
+  background: rgba(0, 0, 0, .03) !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+}
+.gallery-dialog .skin-grid button.thumb-missing {
+  display: none !important;
+}
+.gallery-dialog .skin-grid img {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+.gallery-dialog .skin-grid span {
+  position: absolute !important;
+  right: 5px !important;
+  bottom: 5px !important;
+  padding: 2px 5px !important;
+  color: #fff !important;
+  background: rgba(26, 26, 26, .45) !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+}
+.gallery-dialog .skin-panel {
+  overflow-y: auto !important;
+}
+.gallery-dialog .detail-shell {
+  display: flex !important;
+  flex-direction: column !important;
+}
+@media (max-width: 1023px) {
+  .gallery-dialog .skin-grid button {
+    width: calc((100% - 40px) / 6) !important;
+  }
+}
+@media (max-width: 767px) {
+  .gallery-dialog .detail-shell {
+    flex-direction: column !important;
+  }
+  .gallery-dialog .skin-panel {
+    border-left: 0 !important;
+    border-top: 1px solid rgba(0, 0, 0, .12) !important;
+    max-height: 50vh !important;
+  }
+  .gallery-dialog .skin-grid button {
+    width: calc((100% - 12px) / 3) !important;
   }
 }
 </style>
