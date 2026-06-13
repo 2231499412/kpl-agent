@@ -3572,10 +3572,12 @@ onMounted(async () => {
   }
   .controls :deep(.el-select) {
     width: 100%;
-    min-width: 0;
   }
-  .controls :deep(.el-select__selected-item) {
-    max-width: 100%;
+  .controls :deep(.el-select__wrapper) {
+    overflow: hidden;
+  }
+  .controls :deep(.el-select__selected-item),
+  .controls :deep(.el-select__placeholder) {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
