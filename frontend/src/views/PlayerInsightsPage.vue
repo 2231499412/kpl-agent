@@ -1,9 +1,15 @@
 <template>
   <main class="player-insights" :class="`theme-${theme}`">
     <section class="topbar">
-      <div class="title-block">
-        <span>KPL PLAYER INTELLIGENCE</span>
-        <h1>选手数据详情</h1>
+      <div class="topbar-row">
+        <div class="title-block">
+          <span>KPL PLAYER INTELLIGENCE</span>
+          <h1>选手数据详情</h1>
+        </div>
+        <button class="theme-toggle" :title="theme === 'light' ? '切换暗色' : '切换亮色'" @click="theme = theme === 'light' ? 'dark' : 'light'">
+          <span class="toggle-track" :class="{ on: theme === 'dark' }"><span class="toggle-thumb" /></span>
+          <small>{{ theme === 'light' ? 'LIGHT' : 'DARK' }}</small>
+        </button>
       </div>
       <div class="controls">
         <el-select v-model="selectedLeagueId" filterable placeholder="选择赛事" :suffix-icon="ArrowDown" @change="onLeagueChange">
@@ -37,10 +43,6 @@
         </el-select>
         <el-button v-if="returnTarget" :icon="Back" class="refresh-btn back-btn" @click="returnToHero">返回英雄</el-button>
         <el-button :icon="Refresh" class="refresh-btn" :loading="loading" @click="refreshPage">刷新</el-button>
-        <button class="theme-toggle" :title="theme === 'light' ? '切换暗色' : '切换亮色'" @click="theme = theme === 'light' ? 'dark' : 'light'">
-          <span class="toggle-track" :class="{ on: theme === 'dark' }"><span class="toggle-thumb" /></span>
-          <small>{{ theme === 'light' ? 'LIGHT' : 'DARK' }}</small>
-        </button>
       </div>
     </section>
 
@@ -1272,6 +1274,12 @@ onMounted(async () => {
   border-radius: 12px;
   background: var(--panel-strong);
   box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
+}
+.topbar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .title-block span,
@@ -3563,24 +3571,42 @@ onMounted(async () => {
     width: 100%;
   }
   .topbar {
-    display: grid;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .topbar-row {
+    width: 100%;
+    justify-content: space-between;
   }
   .controls {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr auto auto;
+    display: flex;
+    flex-wrap: wrap;
     gap: 6px;
   }
   .controls :deep(.el-select) {
-    width: 100%;
+    flex: 1 1 100px;
+    min-width: 0;
   }
   .controls :deep(.el-select__wrapper) {
-    overflow: hidden;
+    display: flex !important;
+    flex-wrap: nowrap !important;
   }
   .controls :deep(.el-select__selected-item),
   .controls :deep(.el-select__placeholder) {
+    flex: 1 1 auto !important;
+    min-width: 40px !important;
+    max-width: none !important;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .controls :deep(.el-select__suffix),
+  .controls :deep(.el-select__caret) {
+    flex: 0 0 auto !important;
+  }
+  .title-block {
+    width: 100%;
   }
   .theme-toggle small,
   .refresh-btn :deep(span) {
