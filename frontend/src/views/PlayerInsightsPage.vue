@@ -1,15 +1,9 @@
 <template>
   <main class="player-insights" :class="`theme-${theme}`">
     <section class="topbar">
-      <div class="topbar-row">
-        <div class="title-block">
-          <span>KPL PLAYER INTELLIGENCE</span>
-          <h1>选手数据详情</h1>
-        </div>
-        <button class="theme-toggle" :title="theme === 'light' ? '切换暗色' : '切换亮色'" @click="theme = theme === 'light' ? 'dark' : 'light'">
-          <span class="toggle-track" :class="{ on: theme === 'dark' }"><span class="toggle-thumb" /></span>
-          <small>{{ theme === 'light' ? 'LIGHT' : 'DARK' }}</small>
-        </button>
+      <div class="title-block">
+        <span>KPL PLAYER INTELLIGENCE</span>
+        <h1>选手数据详情</h1>
       </div>
       <div class="controls">
         <el-select v-model="selectedLeagueId" filterable placeholder="选择赛事" :suffix-icon="ArrowDown" @change="onLeagueChange">
@@ -43,6 +37,10 @@
         </el-select>
         <el-button v-if="returnTarget" :icon="Back" class="refresh-btn back-btn" @click="returnToHero">返回英雄</el-button>
         <el-button :icon="Refresh" class="refresh-btn" :loading="loading" @click="refreshPage">刷新</el-button>
+        <button class="theme-toggle" :title="theme === 'light' ? '切换暗色' : '切换亮色'" @click="theme = theme === 'light' ? 'dark' : 'light'">
+          <span class="toggle-track" :class="{ on: theme === 'dark' }"><span class="toggle-thumb" /></span>
+          <small>{{ theme === 'light' ? 'LIGHT' : 'DARK' }}</small>
+        </button>
       </div>
     </section>
 
@@ -1274,12 +1272,6 @@ onMounted(async () => {
   border-radius: 12px;
   background: var(--panel-strong);
   box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
-}
-.topbar-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
 }
 
 .title-block span,
@@ -3572,12 +3564,17 @@ onMounted(async () => {
   }
   .topbar {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
     gap: 8px;
   }
-  .topbar-row {
-    width: 100%;
-    justify-content: space-between;
+  .title-block {
+    flex: 1;
+    min-width: 0;
+  }
+  .theme-toggle {
+    order: -1;
+    flex-shrink: 0;
+    align-self: center;
   }
   .controls {
     display: flex;
