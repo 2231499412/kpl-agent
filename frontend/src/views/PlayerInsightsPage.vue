@@ -1309,6 +1309,15 @@ onMounted(async () => {
   border-radius: 0 !important;
   background: rgba(255, 255, 255, .06) !important;
   box-shadow: 0 0 0 1px var(--line) inset !important;
+  color: var(--text) !important;
+}
+.controls :deep(.el-select__placeholder),
+.controls :deep(.el-select__selected-item),
+.controls :deep(.el-select__input) {
+  color: var(--text) !important;
+}
+.controls :deep(.el-select__placeholder.is-transparent) {
+  color: var(--soft) !important;
 }
 
 .controls :deep(.el-select__suffix) {
@@ -3558,11 +3567,18 @@ onMounted(async () => {
   }
   .controls {
     display: grid;
-    grid-template-columns: 1fr 1fr auto auto auto;
+    grid-template-columns: 1fr 1fr 1fr auto auto;
     gap: 6px;
   }
   .controls :deep(.el-select) {
     width: 100%;
+    min-width: 0;
+  }
+  .controls :deep(.el-select__selected-item) {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .theme-toggle small,
   .refresh-btn :deep(span) {
