@@ -3564,17 +3564,11 @@ onMounted(async () => {
   }
   .topbar {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 8px;
   }
   .title-block {
-    flex: 1;
-    min-width: 0;
-  }
-  .theme-toggle {
-    order: -1;
-    flex-shrink: 0;
-    align-self: center;
+    width: 100%;
   }
   .controls {
     display: flex;
@@ -3606,7 +3600,7 @@ onMounted(async () => {
     width: 100%;
   }
   .theme-toggle small,
-  .refresh-btn :deep(span) {
+  .refresh-btn {
     display: none;
   }
   .profile-card {
