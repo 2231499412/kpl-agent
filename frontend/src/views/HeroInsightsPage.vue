@@ -1,9 +1,12 @@
 <template>
   <main class="hero-insights" :class="`theme-${theme}`">
     <section class="topbar">
-      <div class="title-block">
-        <span>KPL HERO INTELLIGENCE</span>
-        <h1>英雄数据详情</h1>
+      <div class="brand-block">
+        <div class="brand-mark">K</div>
+        <div class="title-block">
+          <span>KPL HERO INTELLIGENCE</span>
+          <h1>英雄数据详情</h1>
+        </div>
       </div>
 
       <div class="controls">
@@ -810,6 +813,26 @@ onMounted(async () => {
   border-radius: 12px;
   background: var(--panel-strong);
   box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
+}
+
+.brand-block {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.hero-insights .brand-mark {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, .04);
+  color: var(--text);
+  font-size: 30px;
+  font-weight: 950;
+  line-height: 1;
 }
 
 .title-block span,
@@ -2087,6 +2110,458 @@ onMounted(async () => {
 .hero-insights.theme-light .hero-chip img {
   border-color: #E3D6C4;
   box-shadow: none;
+}
+
+/* Rankings-style monochrome console */
+.hero-insights {
+  --page-bg: #0a0a0a;
+  --panel-bg: rgba(18, 18, 18, .92);
+  --panel-strong: rgba(18, 18, 18, .96);
+  --line: rgba(255, 255, 255, .20);
+  --line-strong: rgba(255, 255, 255, .35);
+  --text: #e8e8e8;
+  --soft: rgba(232, 232, 232, .65);
+  --dim: rgba(232, 232, 232, .38);
+  --blue: #e8e8e8;
+  --green: #e8e8e8;
+  --red: #e8e8e8;
+  --gold: #e8e8e8;
+  --violet: #e8e8e8;
+  background: linear-gradient(180deg, #0a0a0a, #141414);
+}
+
+.hero-insights.theme-light {
+  --page-bg: #f8f5ec;
+  --panel-bg: rgba(255, 255, 255, .92);
+  --panel-strong: rgba(255, 255, 255, .92);
+  --line: rgba(0, 0, 0, .38);
+  --line-strong: rgba(0, 0, 0, .45);
+  --text: #1a1a1a;
+  --soft: rgba(26, 26, 26, .65);
+  --dim: rgba(26, 26, 26, .40);
+  --blue: #1a1a1a;
+  --green: #1a1a1a;
+  --red: #1a1a1a;
+  --gold: #1a1a1a;
+  --violet: #1a1a1a;
+  background:
+    linear-gradient(180deg, rgba(250, 248, 240, .98), rgba(245, 242, 232, .99)),
+    #f8f5ec;
+}
+
+.topbar,
+.panel,
+.metric-card,
+.hero-visual,
+.state-panel {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--panel-bg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
+}
+
+.topbar::before,
+.panel::before,
+.metric-card::before,
+.hero-visual::before,
+.state-panel::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: -1px;
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  border-left: 2px solid rgba(0, 0, 0, .12);
+  border-top: 2px solid rgba(0, 0, 0, .12);
+  pointer-events: none;
+}
+
+.hero-insights.theme-dark .topbar::before,
+.hero-insights.theme-dark .panel::before,
+.hero-insights.theme-dark .metric-card::before,
+.hero-insights.theme-dark .hero-visual::before,
+.hero-insights.theme-dark .state-panel::before {
+  border-color: rgba(255, 255, 255, .18);
+}
+
+.topbar {
+  min-height: 88px;
+  padding: 14px 24px;
+}
+
+.hero-insights .brand-mark {
+  border-radius: 0;
+  background: rgba(0, 0, 0, .03);
+  color: var(--text);
+}
+
+.title-block span,
+.section-title span,
+.hero-copy span {
+  color: var(--soft);
+  letter-spacing: 1.8px;
+}
+
+.title-block h1,
+.section-title h3,
+.hero-copy h2,
+.metric-card strong,
+.player-main strong,
+.battle-body > strong,
+.hero-chip-main strong {
+  color: var(--text);
+}
+
+.controls :deep(.el-select__wrapper),
+.controls :deep(.el-button) {
+  min-height: 40px;
+  border-radius: 0 !important;
+  background: rgba(255, 255, 255, .60) !important;
+  box-shadow: 0 0 0 1px var(--line) inset !important;
+}
+
+.hero-insights.theme-dark .controls :deep(.el-select__wrapper),
+.hero-insights.theme-dark .controls :deep(.el-button) {
+  background: rgba(255, 255, 255, .06) !important;
+}
+
+.refresh-btn,
+.back-btn {
+  --el-button-text-color: var(--text);
+  --el-button-hover-text-color: var(--panel-bg);
+  --el-button-hover-bg-color: var(--text);
+  --el-button-hover-border-color: var(--text);
+}
+
+.toggle-track {
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .35);
+}
+
+.toggle-track.on {
+  background: var(--text);
+}
+
+.hero-insights.theme-light .toggle-thumb {
+  background: #fff;
+}
+
+.hero-stage,
+.content-grid,
+.relationship-grid {
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.hero-visual {
+  min-height: 282px;
+  background: #111;
+}
+
+.hero-bg {
+  filter: saturate(.72) contrast(1.06) brightness(.94);
+}
+
+.hero-visual:hover .hero-bg {
+  transform: scale(1.035);
+}
+
+.visual-shade {
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, .70), rgba(0, 0, 0, .38) 42%, rgba(0, 0, 0, .08)),
+    linear-gradient(180deg, transparent 42%, rgba(0, 0, 0, .76));
+}
+
+.hero-copy h2 {
+  font-size: clamp(38px, 4vw, 62px);
+  text-shadow: 0 10px 22px rgba(0, 0, 0, .50);
+}
+
+.hero-copy p {
+  color: rgba(255, 255, 255, .78);
+}
+
+.metric-grid {
+  gap: 8px;
+}
+
+.metric-card {
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  padding: 16px 18px;
+  background: var(--panel-bg);
+  transition: background .18s ease, border-color .18s ease, transform .18s ease;
+}
+
+.metric-card:hover {
+  border-color: var(--line-strong);
+  border-left-color: var(--line-strong);
+  background: rgba(0, 0, 0, .035);
+  box-shadow: none;
+  transform: translateY(-2px);
+}
+
+.hero-insights.theme-dark .metric-card:hover {
+  background: rgba(255, 255, 255, .05);
+}
+
+.metric-card.primary,
+.metric-card.win,
+.metric-card.danger,
+.metric-card.accent,
+.metric-card.light {
+  border-left-color: var(--line);
+}
+
+.metric-card.primary strong,
+.metric-card.win strong,
+.metric-card.danger strong,
+.metric-card.accent strong,
+.metric-card.light strong {
+  color: var(--text);
+}
+
+.panel {
+  border-radius: 0;
+  background: var(--panel-bg);
+}
+
+.section-title {
+  min-height: 52px;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.player-list,
+.featured-list,
+.hero-chip-list {
+  padding: 10px 24px;
+}
+
+.player-row,
+.hero-chip {
+  min-height: 48px;
+  border-bottom-color: var(--line);
+  transition: background .18s ease, padding-left .18s ease;
+}
+
+.player-row:hover,
+.hero-chip:hover {
+  background: rgba(0, 0, 0, .04);
+}
+
+.hero-insights.theme-dark .player-row:hover,
+.hero-insights.theme-dark .hero-chip:hover {
+  background: rgba(255, 255, 255, .05);
+}
+
+.player-row.leader {
+  background: rgba(0, 0, 0, .035);
+}
+
+.rank,
+.player-metrics strong,
+.hero-chip b,
+.hero-chip.warn b,
+.battle-head b,
+.battle-head b.won {
+  color: var(--text);
+}
+
+.player-row img,
+.hero-chip img {
+  border-radius: 0;
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+
+.battle-card {
+  border-radius: 0;
+  border-color: var(--line);
+  background: rgba(0, 0, 0, .025);
+  box-shadow: none;
+}
+
+.hero-insights.theme-dark .battle-card {
+  background: rgba(255, 255, 255, .035);
+}
+
+.battle-card:hover {
+  border-color: var(--line-strong);
+  background: rgba(0, 0, 0, .045);
+}
+
+.hero-insights.theme-dark .battle-card:hover {
+  background: rgba(255, 255, 255, .06);
+}
+
+.battle-thumb {
+  border-radius: 0;
+  border-color: var(--line);
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, .02), rgba(0, 0, 0, .10), rgba(0, 0, 0, .02)),
+    var(--fallback-cover),
+    rgba(0, 0, 0, .04);
+}
+
+.battle-thumb span,
+.battle-thumb i {
+  border-radius: 0;
+  background: rgba(0, 0, 0, .72);
+}
+
+.battle-thumb i {
+  background: rgba(26, 26, 26, .84);
+}
+
+.battle-meta span {
+  border-color: var(--line);
+  background: rgba(0, 0, 0, .03);
+  color: var(--soft);
+}
+
+.hero-insights.theme-dark .battle-meta span {
+  background: rgba(255, 255, 255, .04);
+}
+
+.hero-chip {
+  background: transparent;
+}
+
+.state-panel {
+  border-radius: 0;
+}
+
+.spinner,
+.switch-spinner {
+  border-top-color: var(--text);
+}
+
+.hero-insights.theme-light .topbar,
+.hero-insights.theme-light .panel,
+.hero-insights.theme-light .metric-card,
+.hero-insights.theme-light .state-panel {
+  background: var(--panel-bg);
+  border-color: var(--line);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
+}
+
+.hero-insights.theme-light .hero-visual,
+.hero-insights.theme-light .battle-card,
+.hero-insights.theme-light .hero-chip,
+.hero-insights.theme-light .battle-thumb,
+.hero-insights.theme-light .battle-meta span {
+  border-color: var(--line);
+  border-radius: 0;
+}
+
+.hero-insights.theme-light .metric-card.primary,
+.hero-insights.theme-light .metric-card.win,
+.hero-insights.theme-light .metric-card.danger,
+.hero-insights.theme-light .metric-card.accent,
+.hero-insights.theme-light .metric-card.light,
+.hero-insights.theme-light .battle-card,
+.hero-insights.theme-light .hero-chip {
+  background: var(--panel-bg);
+  box-shadow: none;
+}
+
+.hero-insights.theme-light .metric-card.primary strong,
+.hero-insights.theme-light .metric-card.win strong,
+.hero-insights.theme-light .metric-card.danger strong,
+.hero-insights.theme-light .metric-card.accent strong,
+.hero-insights.theme-light .metric-card.light strong,
+.hero-insights.theme-light .player-metrics strong,
+.hero-insights.theme-light .battle-head b,
+.hero-insights.theme-light .battle-head b.won,
+.hero-insights.theme-light .hero-chip b,
+.hero-insights.theme-light .hero-chip.warn b,
+.hero-insights.theme-light .rank {
+  color: var(--text);
+}
+
+.hero-insights.theme-light .metric-card:hover,
+.hero-insights.theme-light .battle-card:hover,
+.hero-insights.theme-light .player-row:hover,
+.hero-insights.theme-light .hero-chip:hover {
+  background: rgba(0, 0, 0, .04);
+  border-color: var(--line-strong);
+  box-shadow: none;
+}
+
+.hero-insights.theme-light .controls :deep(.el-select__wrapper),
+.hero-insights.theme-light .controls :deep(.el-button) {
+  background: rgba(255, 255, 255, .70) !important;
+  box-shadow: 0 0 0 1px var(--line) inset !important;
+}
+
+.hero-insights.theme-light .topbar,
+.hero-insights.theme-light .panel,
+.hero-insights.theme-light .metric-card,
+.hero-insights.theme-light .hero-visual,
+.hero-insights.theme-light .state-panel,
+.hero-insights.theme-light .battle-card,
+.hero-insights.theme-light .battle-thumb,
+.hero-insights.theme-light .hero-chip,
+.hero-insights.theme-light .player-row img,
+.hero-insights.theme-light .hero-chip img,
+.hero-insights.theme-dark .topbar,
+.hero-insights.theme-dark .panel,
+.hero-insights.theme-dark .metric-card,
+.hero-insights.theme-dark .hero-visual,
+.hero-insights.theme-dark .state-panel,
+.hero-insights.theme-dark .battle-card,
+.hero-insights.theme-dark .battle-thumb,
+.hero-insights.theme-dark .hero-chip,
+.hero-insights.theme-dark .player-row img,
+.hero-insights.theme-dark .hero-chip img {
+  border-radius: 0;
+}
+
+.hero-insights.theme-light .brand-mark,
+.hero-insights.theme-dark .brand-mark {
+  border-radius: 0;
+  color: var(--text);
+}
+
+.hero-insights.theme-light .title-block span,
+.hero-insights.theme-light .section-title span,
+.hero-insights.theme-dark .title-block span,
+.hero-insights.theme-dark .section-title span {
+  color: var(--soft);
+}
+
+.hero-insights .hero-copy span,
+.hero-insights .hero-copy h2 {
+  color: #fff;
+}
+
+.hero-insights .hero-copy p {
+  color: rgba(255, 255, 255, .82);
+}
+
+.hero-insights .video-link.bilibili,
+.hero-insights .video-link.tencent {
+  background: rgba(0, 0, 0, .08);
+  color: var(--text);
+}
+
+.hero-insights.theme-dark .video-link.bilibili,
+.hero-insights.theme-dark .video-link.tencent {
+  background: rgba(255, 255, 255, .08);
+  color: var(--text);
+}
+
+.hero-insights .video-link.bilibili:hover,
+.hero-insights .video-link.tencent:hover {
+  background: rgba(0, 0, 0, .14);
+}
+
+.hero-insights.theme-dark .video-link.bilibili:hover,
+.hero-insights.theme-dark .video-link.tencent:hover {
+  background: rgba(255, 255, 255, .16);
 }
 
 @media (max-width: 1180px) {
